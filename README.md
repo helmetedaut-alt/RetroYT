@@ -13,12 +13,16 @@ Exemple: YTSrv 8080
 Une connexion Internet est nécessaire pour récupérer les vidéos. FFMPEG sera utilisé pour les convertir dans l'un des formats suivants, lisibles sous certaines configurations, selon le contexte:
  * AVI (Codec vidéo MPEG-4 et audio MP3), un format assez transversal parmi les Windows anciens et nouveaux.
  * AVI (Codec vidéo MSVideo1 et audio PCM) pour les systèmes comme Windows 3.11 / NT 4.0 / 95. Dans l'absolu, il est compatible avec tous les Windows.
+ * AVI (Codec vidéo Cinepak et audio PCM) qui est un codec extrêmement lent à encoder, mais plutôt léger à lire et en taille de fichiers
  * AVI (YUV, PCM)
  * MP4 original, avec un paramètre pour forcer le codec vidéo H.264 et audio M4A, pour les navigateurs déjà compatibles HTML5 mais incompatibles avec le YouTube moderne.
  * MPEG-1 avec le codec audio MP2
  * WMV (Codec vidéo WMV2, codec audio WMAv2, très compatible avec Windows 98SE et plus, et plus léger que le format AVI MSVideo1)
+ * WMV (Codec vidéo WMV1, codec audio WMAv1, compatible à partir de Windows 95)
  * Apple QuickTime (Extension MOV, codec vidéo Cinepak, audio PCM)
  * Apple QuickTime (Extension MOV, codec vidéo Sorenson SVQ1, audio MP3)
+ * Apple QuickTime (Extension MOV, codec vidéo MPEG-4, audio MP2)
+ * Apple QuickTime (Extension MOV, codec vidéo RPZA, audio PCM)
  * RealMedia (Codec vidéo RV10, audio AC3)
  * 3GP (Codec vidéo H.263, audio AMR Narrow Band)
  * FLV (Vidéo flash, avec un codec vidéo Sorenson Spark, audio MP3)
@@ -28,8 +32,9 @@ On peut utiliser les technologies suivantes pour intégrer les vidéos:
 * Lecteur Windows Media 6.4 (via ActiveX)
 * Lecteur Windows Media 7.0 et plus (via ActiveX)
 * Lecteur Apple QuickTime (via ActiveX)
-* Lecteur Apple QuickTime (via embarcation multimédia) (Compatible MacOS X)
+* Lecteur Apple QuickTime (via embarcation multimédia) (Compatible MacOS)
 * Lecteur VLC (via ActiveX)
+* Lecteur VLC (via ActiveX avec CLSID alternatif)
 * Lecteur VLC (via embarcation multimédia) (Très compatible Linux)
 * Lecteur Real Player (via ActiveX)
 * Lecteur Real Player (via embarcation multimédia)
@@ -39,7 +44,7 @@ On peut utiliser les technologies suivantes pour intégrer les vidéos:
 * Objet multimédia générique
 * Intégration via la balise video de HTML5
 
-Même si toutes les résolutions ne sont pas disponibles selon les formats, la liste des résolutions disponibles est la suivante:
+Même si toutes ces résolutions ne sont pas disponibles dans tous les formats, la liste des résolutions disponibles est la suivante:
 96p, 120p, 144p, 240p, 360p, 480p, 720p, 1080p
 
 Je déconseille d'utiliser le proxy à travers Internet, entre le client et lui, car aucun chiffrement n'est implémenté, afin de garantir une pleine compatibilité avec les anciens navigateurs.
@@ -67,12 +72,14 @@ En pratique, la configuration minimale conseillée pour la lecture dans le navig
 * Microsoft Windows 95
 * Microsoft Internet Explorer 4.0
 * Windows Media Player 6.4
+* Flash Player 8
 * 64Mo de RAM
 * 4Mo de VRAM
 * Quelques centaines de Mo d'espace disque, j'imagine?
 * Processeur Intel Pentium I ou équivalents
 
-Il est possible de naviguer sur le site avec Internet Explorer 1.0, 2.0, et 3.0 mais l'intégration OLE est pratiquement impossible.
+Il est possible de naviguer sur le site avec Internet Explorer 1.0, 2.0, et 3.0 mais l'intégration OLE est difficile voire impossible.
+J'ai déjà eu des feedbacks sur le fait que Flash Player 7 fonctionne, et qu'on peut lire aussi sous Windows 3.11, mais il s'agit de cas exceptionnels peu documentés.
 Naviguer sur le site avec Arachne serait possible sur MS-DOS, mais dans ces cas-là, il faudrait télécharger la vidéo PUIS l'ouvrir sur un lecteur externe.
 L'expérience YouTube sera donc en deux temps, comme dans les années 90 où chaque logiciel avait son but bien paramétré en amont, et aucune intégration/interaction directe.
 
