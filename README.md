@@ -1,7 +1,7 @@
 RetroYT est un projet de proxy YouTube pour les anciens navigateurs et systèmes.
 En effet, l'an passé, j'ai constaté que YouTube ne fonctionnait plus sur Firefox 52.0 sous mon Windows 2000.
-J'ai connu le projet Browservice au début des années 2020, et il m'a beaucoup inspiré pour ce projet.
-Je me disais donc qu'il était temps que je lance mon propre projet, qui combine l'apparence des services en ligne actuels, tout en adaptant le contenu aux anciennes configurations, avec l'ergonomie des services YouTube, afin de rendre l'expérience accessible à d'anciens navigateurs.
+J'ai connu Browservice au début des années 2020, et il m'a beaucoup inspiré pour ce projet.
+Je me disais donc qu'il était temps que je lance mon propre projet, qui combine l'apparence des services en ligne actuels, tout en adaptant le contenu aux anciennes configurations, avec l'ergonomie des services YouTube, afin de rendre l'expérience accessible à d'anciens navigateurs qui ne sont plus pris en charge.
 RetroYT fait usage du framework Microsoft .NET 6.0, FFMPEG, SWFObject et YT-DLP.
 Il utilise l'encodage ISO-8859-1, pour garantir une compatibilité maximale avec tous les anciens navigateurs. Entre YouTube et le proxy, en revanche, UTF-8 est utilisé.
 Program.vb contient l'ensemble du code source utilisé dans ce projet.
@@ -23,7 +23,7 @@ Une connexion Internet est nécessaire pour récupérer les vidéos. FFMPEG sera
  * Apple QuickTime (Extension MOV, codec vidéo Sorenson SVQ1, audio MP3)
  * Apple QuickTime (Extension MOV, codec vidéo MPEG-4, audio MP2)
  * Apple QuickTime (Extension MOV, codec vidéo RPZA, audio PCM)
- * RealMedia (Codec vidéo RV10, audio AC3)
+ * RealMedia (Codec vidéo RV10, audio AC3, utile pour Windows 3.11 par exemple)
  * 3GP (Codec vidéo H.263, audio AMR Narrow Band)
  * FLV (Vidéo flash, avec un codec vidéo Sorenson Spark, audio MP3)
 
@@ -34,7 +34,7 @@ On peut utiliser les technologies suivantes pour intégrer les vidéos:
 * Lecteur Apple QuickTime (via ActiveX)
 * Lecteur Apple QuickTime (via embarcation multimédia) (Compatible MacOS)
 * Lecteur VLC (via ActiveX)
-* Lecteur VLC (via ActiveX avec CLSID alternatif)
+* Lecteur VLC (via ActiveX avec un CLSID alternatif)
 * Lecteur VLC (via embarcation multimédia) (Très compatible Linux)
 * Lecteur Real Player (via ActiveX)
 * Lecteur Real Player (via embarcation multimédia)
@@ -61,10 +61,10 @@ Lorsque vous naviguez sur le proxy, la page d'index s'affiche, et vous invite à
 Les recherches et la conversion des vidéos sont un peu lentes, le chargement prend environ 20 secondes par recherche.
 La conversion puis l'envoi de la vidéo vers le client peuvent prendre du temps, surtout si vous tentez de visualiser une vidéo longue.
 Néanmoins, j'ai pu regarder des vidéos YouTube depuis un système Windows NT 4.0, avec Windows Media Player 6.4 d'installé, sur Internet Explorer 6.0.
-Windows Media Player 6.0 et moins ne prennent pas en charge les liens vers les URL, et Internet Explorer 3.0 et moins ne prennent pas en charge l'intégration d'objets multimédia au sein des pages Web.
+Windows Media Player 6.0 et moins ne prennent pas en charge les liens vers les URL, et Internet Explorer 2.0 et moins ne prennent pas en charge l'intégration d'objets multimédia au sein des pages Web.
 
-On peut aussi changer l'apparence du site avec un système de thèmes (Classic, Cosmic Tube, Modern, ou Dark Mode).
-La taille automatique du lecteur est disponible, elle fait usage du Javascript, mais force le format 4:3 et peut ne pas fonctionner sous de très anciennes versions d'IE.
+On peut aussi changer l'apparence du site avec un système de thèmes (Classic, Cosmic Tube, Modern, Dark Mode, Rose et Aqua).
+La taille automatique du lecteur est disponible, elle fait usage du Javascript, mais peut ne pas fonctionner sous de très anciennes versions d'IE.
 Je conseille donc de laisser la taille du lecteur en 640x480 pour la plupart des cas.
 
 En pratique, la configuration minimale conseillée pour la lecture dans le navigateur est la suivante:
