@@ -72,7 +72,7 @@ En pratique, la configuration minimale conseillée pour la lecture dans le navig
 * Microsoft Windows 95
 * Microsoft Internet Explorer 4.0
 * Windows Media Player 6.4
-* Flash Player 8
+* Flash Player 7
 * 64Mo de RAM
 * 4Mo de VRAM
 * Quelques centaines de Mo d'espace disque, j'imagine?
@@ -82,6 +82,8 @@ Il est possible de naviguer sur le site avec Internet Explorer 1.0, 2.0, et 3.0 
 J'ai déjà eu des feedbacks sur le fait que Flash Player 7 fonctionne, et qu'on peut lire aussi sous Windows 3.11, mais il s'agit de cas exceptionnels peu documentés.
 Naviguer sur le site avec Arachne serait possible sur MS-DOS, mais dans ces cas-là, il faudrait télécharger la vidéo PUIS l'ouvrir sur un lecteur externe.
 L'expérience YouTube sera donc en deux temps, comme dans les années 90 où chaque logiciel avait son but bien paramétré en amont, et aucune intégration/interaction directe.
+
+La dernière version ajoute à nouveau des fonctions de streaming direct via VLC, par exemple (http://serveur/stream?v=identifiant) voire de recherche immédiate, puis de lancement de la première vidéo trouvée (http://serveur/lucky?q=motclef). Cela permet de lire une vidéo YouTube depuis un lecteur VLC sans connaître l'identifiant, mais en choisissant une vidéo avec un mot-clef précis.
 
 Ce logiciel est livré sans garantie.
 
