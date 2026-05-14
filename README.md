@@ -13,8 +13,9 @@ Exemple: YTSrv 8080
 Une connexion Internet est nécessaire pour récupérer les vidéos. FFMPEG sera utilisé pour les convertir dans l'un des formats suivants, lisibles sous certaines configurations, selon le contexte:
  * AVI (Codec vidéo MPEG-4 et audio MP3), un format assez transversal parmi les Windows anciens et nouveaux.
  * AVI (Codec vidéo MSVideo1 et audio PCM) pour les systèmes comme Windows 3.11 / NT 4.0 / 95. Dans l'absolu, il est compatible avec tous les Windows.
- * AVI (Codec vidéo Cinepak et audio PCM) qui est un codec extrêmement lent à encoder, mais plutôt léger à lire et en taille de fichiers
- * AVI (YUV, PCM)
+ * AVI (Codec vidéo Cinepak et audio PCM) qui est un codec extrêmement lent à encoder, mais plutôt léger à lire et en taille de fichiers.
+ * AVI (YUV, PCM) est très très lourd, et peut ne pas être lu sous tous les lecteurs. Uniquement implémenté à titre expérimental.
+ * AVI (Codec vidéo MJPEG, PCM) est universel et très facile à encoder/décoder, mais peut donner lieu à des vidéos assez lourdes.
  * MP4 original, avec un paramètre pour forcer le codec vidéo H.264 et audio M4A, pour les navigateurs déjà compatibles HTML5 mais incompatibles avec le YouTube moderne.
  * MPEG-1 avec le codec audio MP2
  * WMV (Codec vidéo WMV2, codec audio WMAv2, très compatible avec Windows 98SE et plus, et plus léger que le format AVI MSVideo1)
@@ -23,6 +24,7 @@ Une connexion Internet est nécessaire pour récupérer les vidéos. FFMPEG sera
  * Apple QuickTime (Extension MOV, codec vidéo Sorenson SVQ1, audio MP3)
  * Apple QuickTime (Extension MOV, codec vidéo MPEG-4, audio MP2)
  * Apple QuickTime (Extension MOV, codec vidéo RPZA, audio PCM)
+ * Apple QuickTime (Extension MOV, codec vidéo MJPEG, audio PCM)
  * RealMedia (Codec vidéo RV10, audio AC3, utile pour Windows 3.11 par exemple)
  * 3GP (Codec vidéo H.263, audio AMR Narrow Band)
  * FLV (Vidéo flash, avec un codec vidéo Sorenson Spark, audio MP3)
@@ -84,6 +86,8 @@ Naviguer sur le site avec Arachne serait possible sur MS-DOS, mais dans ces cas-
 L'expérience YouTube sera donc en deux temps, comme dans les années 90 où chaque logiciel avait son but bien paramétré en amont, et aucune intégration/interaction directe.
 
 La dernière version ajoute à nouveau des fonctions de streaming direct via VLC, par exemple (http://serveur/stream?v=identifiant) voire de recherche immédiate, puis de lancement de la première vidéo trouvée (http://serveur/lucky?q=motclef). Cela permet de lire une vidéo YouTube depuis un lecteur VLC sans connaître l'identifiant, mais en choisissant une vidéo avec un mot-clef précis.
+
+Une page de débug est disponible en naviguant sur http://serveur/debug.cgi
 
 Ce logiciel est livré sans garantie.
 
