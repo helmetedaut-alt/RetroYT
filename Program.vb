@@ -1,4 +1,5 @@
 Imports System.Data
+Imports System.Drawing
 Imports System.IO
 Imports System.Net
 Imports System.Net.Sockets
@@ -22,17 +23,29 @@ Module Program
 
     Public list_used_player() As String = {"no_integration", "legacy_wmp", "wmp", "embed", "video", "realplayer", "activex_realplayer", "embed_vlc", "vlc", "alt_vlc", "quicktime", "embed_quicktime", "flash", "embed_flash", "activex_flash", "object"}
     Public list_skin() As String = {"oldyt", "cosmic", "dark", "modern", "rose", "aqua"}
-    Public list_playersize() As String = {"auto", "micro", "middle", "ultrasmall", "small", "large", "cinema", "autoheight"}
-    Public list_usedcodec() As String = {"mpeg1", "avi_mpeg4", "avi_msvideo1", "mp4", "rm", "wmv2", "mov_cinepak", "mov_svq1", "3gp", "avi_yuv", "flv", "wmv1", "mov_mpeg4", "avi_cinepak", "mov_rpza"}
+    Public list_playersize() As String = {"auto", "micro", "middle", "ultrasmall", "small", "large", "cinema", "autoheight", "fullscreen", "fulljs", "gold1", "gold2"}
+    Public list_usedcodec() As String = {"mpeg1", "avi_mpeg4", "avi_msvideo1", "avi_mjpeg", "mp4", "rm", "wmv2", "mov_cinepak", "mov_svq1", "3gp", "avi_yuv", "flv", "wmv1", "mov_mpeg4", "avi_cinepak", "mov_rpza", "mov_mjpeg"}
     Public list_framerate() As String = {"auto", "10", "12", "15", "20", "24", "25", "30", "60"}
     Public list_resolution() As String = {"auto", "96p", "120p", "144p", "240p", "360p", "480p", "720p", "1080p"}
-    Public list_results() As String = {"5", "10", "20"}
+    Public list_results() As String = {"1", "5", "10", "20"}
+
+    Public list_used_player_string() As String = {"Aucune intégration", "Windows Media Player 6.4 (ActiveX)", "Windows Media Player 7.0 ou plus (ActiveX)", "Intégration générique (Embarquée)", "Intégration vidéo HTML5", "Real Player (Embarqué)", "Real Player (ActiveX)", "Lecteur VLC (Embarqué)", "Lecteur VLC (ActiveX)", "Lecteur VLC (ActiveX avec un CLSID alternatif)", "Apple QuickTime (ActiveX)", "Apple QuickTime (Embarqué)", "Flash Player (Javascript)", "Flash Player (Embarqué)", "Flash Player (ActiveX)", "Intégration générique (Object)"}
+    Public list_skin_string() As String = {"Apparence classique", "Cosmic Tube", "Mode sombre", "Apparence moderne", "Thème rose", "Thème aquatique"}
+    Public list_playersize_string() As String = {"Automatique (Javascript)", "Taille micro (160x120)", "Taille standard (640x480)", "Taille ultra compacte (256x144)", "Taille compacte (320x240)", "Taille large (854x480)", "Taille cinéma (1280x720)", "Automatique (En fonction du ratio de la vidéo)", "Plein écran (Proportionnellement à la taille du rendu)", "Plein écran (Javascript)", "16:10 Standard (1280x800)", "16:10 Grand (1440x900)"}
 
     Public http_status_labels(1024) As String
 
     'Pied de page générique à certaines pages.
-    Public footer As String = "<HR WIDTH=880 ALIGN=CENTER />" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"" STYLE=""color: " & link_color & """>Plus d'informations sur RetroYT</A>.</P>" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
+    Public footer As String = "<HR WIDTH=880 ALIGN=CENTER />" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"" STYLE=""color: " & link_color & """>Plus d'informations sur RetroYT</A>.</P><IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
     Public Const cookie_header As String = "retroyt="
+    Public vt As RequestVideoType = RequestVideoType.WatchVideo
+
+    Public Enum RequestVideoType
+        WatchVideo 'Regarder une vidéo directement, intégrée dans une page HTML
+        StreamVideo 'Regarder une vidéo directement, envoyée sous forme de flux
+        LuckyVideo 'Chercher un tag, et retourner la première vidéo trouvée
+        SearchVideo 'Chercher une vidéo et retourner une liste formatée en une page Web interprétable par un navigateur.
+    End Enum
 
     Function IsNetworkAvailable() As Boolean
         Try
@@ -60,7 +73,7 @@ Module Program
         Return "http://" & last_host & "/"
     End Function
 
-    Sub InitValues(Optional ByVal t As String = Nothing, Optional ByVal k As String = Nothing, Optional ByVal wanted_skin As String = "cosmic")
+    Sub InitValues(Optional ByVal t As String = Nothing, Optional ByVal k As String = Nothing, Optional ByVal wanted_skin As String = "cosmic", Optional ByVal lucky As Boolean = False)
         System.Threading.Thread.Sleep(100)
         'Cette fonction génère une entête et un corps de page HTML de base à retourner au client.
         patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
@@ -110,18 +123,30 @@ Module Program
         End Select
 
         'La tête de page pour rechercher des vidéos. Ce formulaire est présent sur chaque page naviguée.
-        patternpage &= " <FORM METHOD=""GET"" ACTION=""/search"">" & vbCrLf
+
+        If lucky Then
+            patternpage &= " <FORM METHOD=""GET"" ACTION=""/lucky"">" & vbCrLf
+        Else
+            patternpage &= " <FORM METHOD=""GET"" ACTION=""/search"">" & vbCrLf
+        End If
+
         patternpage &= " <CENTER><TABLE BORDER=0 WIDTH=780 ALIGN=CENTER>" & vbCrLf
         patternpage &= "  <TR>" & vbCrLf
         patternpage &= "   <TD WIDTH=90>&nbsp;</TD>" & vbCrLf
         patternpage &= "   <TD WIDTH=120><A HREF=""/""><IMG SRC=""" & used_logo & """ BORDER=0 ALT=""Logo RetroYT"" HEIGHT=44 /></A></TD>" & vbCrLf
-        patternpage &= "   <TD WIDTH=330>&nbsp;&nbsp;<INPUT NAME=""q"" VALUE=""" & k & """ STYLE=""width: 310px;"" WIDTH=320 MAXLENGTH=256 /></TD>" & vbCrLf
-        patternpage &= "   <TD WIDTH=*><INPUT TYPE=""SUBMIT"" VALUE="" Rechercher "" WIDTH=400 CLASS=""red_button"" /> &nbsp; <A HREF=""/config.cgi"" STYLE=""color: " & link_color & ";"">Paramètres</A></TD>" & vbCrLf
+        patternpage &= "   <TD WIDTH=330>&nbsp;<INPUT NAME=""q"" VALUE=""" & k & """ STYLE=""width: 310px;"" WIDTH=320 MAXLENGTH=256 /></TD>" & vbCrLf
+
+        If lucky Then
+            patternpage &= "   <TD WIDTH=*><INPUT TYPE=""SUBMIT"" VALUE="" Lucky Mode "" WIDTH=400 CLASS=""red_button"" /> &nbsp; <A HREF=""/config.cgi"" STYLE=""color: " & link_color & ";"">Paramètres</A></TD>" & vbCrLf
+        Else
+            patternpage &= "   <TD WIDTH=*><INPUT TYPE=""SUBMIT"" VALUE="" Rechercher "" WIDTH=400 CLASS=""red_button"" /> &nbsp; <A HREF=""/config.cgi"" STYLE=""color: " & link_color & ";"">Paramètres</A></TD>" & vbCrLf
+        End If
+
         patternpage &= "  </TR>" & vbCrLf
         patternpage &= " </TABLE></CENTER>" & vbCrLf
         patternpage &= " </FORM><BR><BR><HR WIDTH=880 ALIGN=CENTER />" & vbCrLf & vbCrLf
 
-        footer = "<HR WIDTH=880 ALIGN=CENTER />" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"" STYLE=""color: " & link_color & ";"">Plus d'informations sur RetroYT</A>.</P>" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
+        footer = "<HR WIDTH=880 ALIGN=CENTER />" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"" STYLE=""color: " & link_color & ";"">Plus d'informations sur RetroYT</A>.</P><IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
     End Sub
 
     Sub UpdateCache()
@@ -224,7 +249,11 @@ Module Program
 
     Function GetClientIP(client As TcpClient) As String
         'Obtenir l'adresse IP du client
-        Return CType(client.Client.RemoteEndPoint, IPEndPoint).Address.ToString()
+        Try
+            Return CType(client.Client.RemoteEndPoint, IPEndPoint).Address.ToString()
+        Catch ex As Exception
+            Return "0.0.0.0"
+        End Try
     End Function
 
     Function GetShortName(input As String) As String
@@ -373,7 +402,7 @@ Module Program
     Sub Main(args As String())
 
         For i As Integer = 0 To 1024
-            http_status_labels(i) = "No Message Provided"
+            http_status_labels(i) = "No Status Message Provided"
         Next
 
         http_status_labels(200) = "OK"
@@ -398,7 +427,7 @@ Module Program
 
         Console.ForegroundColor = ConsoleColor.Green
         Console.WriteLine("******************************")
-        Console.WriteLine("*      RetroYT Bêta 3.3      *")
+        Console.WriteLine("*      RetroYT Bêta 3.6      *")
         Console.WriteLine("******************************")
         Console.WriteLine()
         Console.ForegroundColor = ConsoleColor.Gray
@@ -424,22 +453,26 @@ Module Program
             WriteLog("Application démarrée avec pour argument: " & Environment.GetCommandLineArgs(1))
             Dim portstring As String = Environment.GetCommandLineArgs(1)
 
-            If IsNumeric(portstring) Then
-                Try
-                    Dim tmp_port As Integer = CInt(portstring)
-
-                    If tmp_port < 1 Or tmp_port > 65535 Then
-                        WriteLog("Le numéro de port spécifié en paramètre est invalide. Il doit être compris entre 1 et 65535.")
-                    Else
-                        port = tmp_port
-                    End If
-                Catch ex As Exception
-                    WriteLog("Numéro de port illégal. Il doit être compris entre 1 et 65535.")
-                    Console.ReadKey()
-                    End
-                End Try
+            If portstring = Nothing Then
+                'RAF
             Else
-                WriteLog("Impossible de changer le numéro de port, car le paramètre '" & portstring & "' n'est pas un entier valide.")
+                If IsNumeric(portstring) Then
+                    Try
+                        Dim tmp_port As Integer = CInt(portstring)
+
+                        If tmp_port < 1 Or tmp_port > 65535 Then
+                            WriteLog("Le numéro de port spécifié en paramètre est invalide. Il doit être compris entre 1 et 65535.")
+                        Else
+                            port = tmp_port
+                        End If
+                    Catch ex As Exception
+                        WriteLog("Numéro de port illégal. Il doit être compris entre 1 et 65535.")
+                        Console.ReadKey()
+                        End
+                    End Try
+                Else
+                    WriteLog("Impossible de changer le numéro de port, car le paramètre '" & portstring & "' n'est pas un entier valide.")
+                End If
             End If
         Else
             WriteLog("Aucun numéro de port spécifié en ligne de commande. Démarrage sur le port par défaut (80).")
@@ -474,7 +507,6 @@ Module Program
         CleanupLock()
         UpdateCache()
 
-        Console.WriteLine()
         WriteLog("Serveur lancé sur le port " & port.ToString & " avec succès! En attente de connexions entrantes...")
 
         If port = 80 Then
@@ -484,7 +516,6 @@ Module Program
         End If
 
         WriteLog("Veuillez appuyer sur CTRL + C pour arrêter le serveur.")
-        Console.WriteLine()
 
         While True
             Dim client = listener.AcceptTcpClient()
@@ -504,7 +535,7 @@ Module Program
                 bytes.Add(Convert.ToByte(hex, 16))
                 i += 3
             ElseIf input(i) = "+"c Then
-                bytes.Add(32) ' espace
+                bytes.Add(32) 'Ajout d'un espace
                 i += 1
             Else
                 bytes.Add(CByte(AscW(input(i))))
@@ -521,11 +552,14 @@ Module Program
         Dim used_codec As String = "avi_mpeg4"
         Dim used_player As String = "wmp"
         Dim used_resolution As String = "240p"
-        Dim ultra_legacy As Boolean = False
         Dim frame_rate As String = "25"
         Dim wanted_skin As String = "cosmic"
         Dim number_of_results As Integer = 10
         Dim http_ver As String = "1.0"
+        Dim using_vlc As Boolean = False
+        Dim old_ie As Boolean = False
+        Dim current_cookie As String = String.Empty
+        Dim ua_string As String = String.Empty
 
         'Prise en charge des requêtes par le client
         System.Threading.Thread.Sleep(50)
@@ -540,10 +574,10 @@ Module Program
         number_of_results = 10
 
         If String.IsNullOrEmpty(request) Then
-            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>HTTP request was empty.</p>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>HTTP request was empty.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
 
             Try
-                stream.Write(baddata, 0, baddata.Length)
+                If Not using_vlc Then stream.Write(baddata, 0, baddata.Length)
             Catch ex As Exception
                 WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
             End Try
@@ -577,6 +611,7 @@ Module Program
             End If
         Else
             '0.9
+            http_ver = "1.0"
         End If
 
         For Each l As String In header_list
@@ -591,6 +626,7 @@ Module Program
 
                 Select Case LCase(tete)
                     Case "cookie"
+                        current_cookie = corps
                         If corps.Contains("=") And corps.Contains("&") And corps.StartsWith(cookie_header) Then
                             'WriteLog("Cookie envoyé par le client: " & corps, ConsoleColor.Yellow, client)
 
@@ -604,19 +640,19 @@ Module Program
                                 p2 = LCase(c_param.Split("=")(1))
 
                                 Select Case p1
-                                    Case "usedplayer"
+                                    Case "player"
                                         If list_used_player.Contains(p2) Then
                                             used_player = p2
                                         Else
                                             bad_cookie = True
                                         End If
-                                    Case "playersize"
+                                    Case "size"
                                         If list_playersize.Contains(p2) Then
                                             player_size = p2
                                         Else
                                             bad_cookie = True
                                         End If
-                                    Case "usedcodec"
+                                    Case "codec"
                                         If list_usedcodec.Contains(p2) Then
                                             used_codec = p2
                                         Else
@@ -625,14 +661,14 @@ Module Program
                                     Case "framerate"
                                         If list_framerate.Contains(p2) Then
                                             If p2 = "auto" Then
-                                                frame_rate = -1
+                                                frame_rate = "auto"
                                             Else
                                                 frame_rate = CInt(p2)
                                             End If
                                         Else
                                             bad_cookie = True
                                         End If
-                                    Case "usedresolution"
+                                    Case "resolution"
                                         If list_resolution.Contains(p2) Then
                                             used_resolution = p2
                                         Else
@@ -646,7 +682,16 @@ Module Program
                                         End If
                                     Case "results"
                                         If list_results.Contains(p2) AndAlso IsNumeric(p2) Then
-                                            number_of_results = CInt(p2)
+                                            Try
+                                                number_of_results = CInt(p2)
+                                                If number_of_results > 20 Then number_of_results = 20 : bad_cookie = True
+                                                If number_of_results < 1 Then number_of_results = 1 : bad_cookie = True
+                                            Catch ex As Exception
+                                                number_of_results = 10 'Au cas où une information erronée aurait été renseignée
+                                                bad_cookie = True
+                                            End Try
+                                        Else
+                                            bad_cookie = True
                                         End If
                                     Case Else
                                         'Les autres paramètres sont considérés comme faux.
@@ -654,15 +699,32 @@ Module Program
                                 End Select
                             Next
                         End If
+                    Case "user-agent"
+                        'L'agent utilisateur du navigateur client
+                        'WriteLog("Agent utilisateur: " & corps, ConsoleColor.Blue, client)
+                        ua_string = corps
+                        If LCase(corps).StartsWith("vlc/3.0") Or LCase(corps).StartsWith("vlc/2.0") Then
+                            using_vlc = True
+                        Else
+                            using_vlc = False
+                        End If
+
+                        If LCase(corps).Contains("msie 2.") Or LCase(corps).Contains("msie 3.") Or LCase(corps).Contains("msie 4.") Or LCase(corps).Contains("msie 5.") Or LCase(corps).Contains("msie 6.") Or LCase(corps).Contains("msie 7.") Then
+                            old_ie = True
+                        Else
+                            old_ie = False
+                        End If
                     Case "host"
+                        'Dernier nom de domaine exploré par le client
                         last_host = corps
                     Case "range"
+                        'Reprise d'une lecture en plein milieu en précisant à partir de quel octet reprendre (n'est curieusement jamais appelé par les navigateurs)
                         If LCase(corps.StartsWith("bytes=")) Then
                             corps = corps.Remove(0, 5)
                             If corps.Contains(",") Then corps = corps.Substring(0, corps.IndexOf(","))
 
                             If corps = "-" Then
-                                Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p>" & vbCrLf)
+                                Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                 Try
                                     stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -678,7 +740,7 @@ Module Program
                                 Dim echec As Boolean = False
 
                                 If String.IsNullOrEmpty(corps) Then
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -705,7 +767,7 @@ Module Program
 
                                         If echec Then
                                             'Lever une erreur
-                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p>" & vbCrLf)
+                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                             Try
                                                 stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -743,7 +805,7 @@ Module Program
 
                                 If echec Then
                                     'Lever une erreur
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -763,7 +825,7 @@ Module Program
 
                                     If Not IsNumeric(param1) Or Not IsNumeric(param2) Then
                                         'Lever une erreur
-                                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p>" & vbCrLf)
+                                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                         Try
                                             stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -795,7 +857,7 @@ Module Program
                                         End Try
 
                                         If echec Then
-                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p>" & vbCrLf)
+                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                             Try
                                                 stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -809,7 +871,7 @@ Module Program
                                     End If
                                 Else
                                     'Lever une erreur
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -827,14 +889,14 @@ Module Program
         Next
 
         If bad_cookie Then
-            Dim result_page As String = "<h1>Error 400 - Bad Request</h1><p>Your client cookie was invalid, so it has been reset.<br><br>Please go back to the <a href=""/"">index</a> of the website.</p>" & vbCrLf
+            Dim result_page As String = "<h1>Error 400 - Bad Request</h1><p>Your client cookie was invalid, so it has been reset to the default settings.<br><br>Please go back to the <a href=""/"">index</a> of the website.</p>" & vbCrLf
             WriteLog("Error #400: Client cookie was invalid and has been reset.", ConsoleColor.Yellow, client)
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 400 Bad Request" & vbCrLf &
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
-                "Set-Cookie: " & cookie_header & "results=10&playersize=middle&usedcodec=avi_mpeg4&usedplayer=embed&skin=cosmic&usedresolution=auto&framerate=auto;path=/" & vbCrLf &
+                "Set-Cookie: " & cookie_header & "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto;path=/" & vbCrLf &
                 "Connection: close" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page
 
@@ -859,7 +921,7 @@ Module Program
                 Dim uri_arg As String = Split(request)(1)
                 If uri_arg.Length > 512 Then
                     WriteLog("Erreur HTTP 414: URL trop longue.", , client)
-                    Dim toolongdata As Byte() = GetHTTPBytes(414, "<h1>Error 414 - URI Too Long</h1>" & vbCrLf & "<p>Veuillez envoyer une URL plus courte.</p>" & vbCrLf)
+                    Dim toolongdata As Byte() = GetHTTPBytes(414, "<h1>Error 414 - URI Too Long</h1>" & vbCrLf & "<p>Veuillez envoyer une URL plus courte.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                     Try
                         stream.Write(toolongdata, 0, toolongdata.Length)
@@ -875,7 +937,7 @@ Module Program
 
         If request.Length > 8192 Then
             WriteLog("Erreur HTTP 413: Contenu trop grand envoyé.", , client)
-            Dim toomuchdata As Byte() = GetHTTPBytes(414, "<h1>Error 413 - Content Too Large</h1>" & vbCrLf & "<p>Trop de données communiquées au serveur.</p>" & vbCrLf)
+            Dim toomuchdata As Byte() = GetHTTPBytes(414, "<h1>Error 413 - Content Too Large</h1>" & vbCrLf & "<p>Trop de données communiquées au serveur.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
             Try
                 stream.Write(toomuchdata, 0, toomuchdata.Length)
@@ -889,7 +951,7 @@ Module Program
             'Requête vide
             WriteLog("Erreur HTTP 400: Requête vide envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>HTTP request was empty.</p>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>HTTP request was empty.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
@@ -898,12 +960,24 @@ Module Program
             End Try
 
             client.Close()
-        ElseIf request.StartsWith("GET /watch?v=") Then
+        ElseIf request.StartsWith("GET /watch?v=") Or request.StartsWith("GET /stream?v=") Then
             'Demande de lecture d'une vidéo par le client
             Dim watcharg As String = Split(request)(1)
-            watcharg = watcharg.Remove(0, 9)
+
+            If request.StartsWith("GET /watch?v=") Then
+                watcharg = watcharg.Remove(0, 9)
+                vt = RequestVideoType.WatchVideo
+            Else
+                watcharg = watcharg.Remove(0, 10)
+                vt = RequestVideoType.StreamVideo
+            End If
 
             UpdateCache()
+
+            If using_vlc Then
+                used_codec = "mp4"
+                used_resolution = "480p"
+            End If
 
             If watcharg.Contains("&") Then
                 Dim fp As String = watcharg.Remove(0, watcharg.IndexOf("?") + 1)
@@ -931,25 +1005,25 @@ Module Program
 
                                 If single_params(0).Length < 100 AndAlso single_params(1).Length < 100 Then
                                     Select Case single_params(0)
-                                        Case "usedcodec"
+                                        Case "codec"
                                             If list_usedcodec.Contains(single_params(1)) Then used_codec = single_params(1)
-                                        Case "usedresolution"
+                                        Case "resolution"
                                             If list_resolution.Contains(single_params(1)) Then used_resolution = single_params(1)
                                         Case "framerate"
                                             If list_framerate.Contains(single_params(1)) Then frame_rate = single_params(1)
-                                        Case "usedplayer"
+                                        Case "player"
                                             If list_used_player.Contains(single_params(1)) Then used_player = single_params(1)
-                                        Case "playersize"
+                                        Case "size"
                                             If list_playersize.Contains(single_params(1)) Then player_size = single_params(1)
                                         Case "legacy"
-                                            If single_params(1) = "true" Then
-                                                player_size = "small"
-                                                used_codec = "avi_msvideo1"
-                                                used_player = "legacy_wmp"
-                                                used_resolution = "240p"
-                                                frame_rate = "15"
-                                                ultra_legacy = True
-                                            End If
+                                            'If single_params(1) = "true" Then
+                                            '    player_size = "small"
+                                            '    used_codec = "avi_msvideo1"
+                                            '    used_player = "legacy_wmp"
+                                            '    used_resolution = "240p"
+                                            '    frame_rate = "15"
+                                            '    ultra_legacy = True
+                                            'End If
                                     End Select
                                 End If
                             End If
@@ -964,7 +1038,7 @@ Module Program
             'Obtenir le cookie du client
             If frame_rate = "auto" Then
                 Select Case used_codec
-                    Case "mpeg1", "avi_msvideo1", "rm", "avi_yuv", "mov_rpza" : num_frame_rate = 15
+                    Case "mpeg1", "avi_msvideo1", "rm", "avi_yuv", "mov_rpza", "avi_mjpeg", "mov_mjpeg" : num_frame_rate = 15
                     Case "3gp", "avi_cinepak", "mov_cinepak" : num_frame_rate = 10
                     Case "wmv2", "mp4", "mov_svq1", "avi_mpeg4", "wmv1", "mov_mpeg4" : num_frame_rate = 25
                     Case "flv" : num_frame_rate = 24
@@ -977,7 +1051,7 @@ Module Program
             If used_resolution = "auto" Then
                 Select Case used_codec
                     Case "avi_mpeg4", "wmv2", "mov_svq1", "flv", "wmv1", "mov_mpeg4" : num_used_resolution = 480
-                    Case "avi_msvideo1", "mpeg1", "avi_yuv", "mov_rpza" : num_used_resolution = 240
+                    Case "avi_msvideo1", "mpeg1", "avi_yuv", "mov_rpza", "avi_mjpeg", "mov_mjpeg" : num_used_resolution = 240
                     Case "rm", "3gp", "mov_cinepak", "avi_cinepak" : num_used_resolution = 144
                     Case "mp4" : num_used_resolution = 720
                     Case Else : num_used_resolution = 360
@@ -1007,11 +1081,11 @@ Module Program
                 If num_frame_rate = 60 Then num_frame_rate = 30
             End If
 
-            If used_codec = "avi_yuv" Then
+            If used_codec = "avi_yuv" Or used_codec = "avi_mjpeg" Or used_codec = "mov_mjpeg" Then
                 If num_used_resolution > 240 Then
-                    num_used_resolution = 240 'Ne pas activer la HD ou SD sur AVI YUV, pour éviter de produire des fichiers énormes, qui exigeraient beaucoup de ressources.
+                    num_used_resolution = 240 'Ne pas activer la HD ou SD sur AVI YUV/MJPEG et le MOV MJPEG, pour éviter de produire des fichiers énormes, qui exigeraient beaucoup de ressources.
                 End If
-                If num_frame_rate = 60 Then num_frame_rate = 30
+                If num_frame_rate >= 30 Then num_frame_rate = 25
             End If
 
             If used_codec = "avi_cinepak" Then
@@ -1049,6 +1123,7 @@ Module Program
                 Case "avi_mpeg4" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_mpeg4.avi"
                 Case "avi_yuv" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_yuv.avi"
                 Case "avi_cinepak" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_cinepak.avi"
+                Case "avi_mjpeg" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_mjpeg.avi"
                 Case "3gp" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p.3gp"
                 Case "avi_msvideo1" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_msvideo1.avi"
                 Case "rm" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p.rm"
@@ -1062,6 +1137,7 @@ Module Program
                 Case "mov_svq1" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_svq1.mov"
                 Case "mov_mpeg4" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_mpeg4.mov"
                 Case "mov_rpza" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_rpza.mov"
+                Case "mov_mjpeg" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_mjpeg.mov"
                 Case "flv" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p.flv"
                 Case Else
                     'Fallback vers MPEG-4
@@ -1096,7 +1172,7 @@ Module Program
                         Next
 
                         If freeSpace >= 0 And freeSpace <= 134217728 Then
-                            Dim baddata As Byte() = GetHTTPBytes(507, "<h1>Error 507 - Insufficient Disk Space</h1>" & vbCrLf & "<p>Il n'y a plus assez d'espace disque sur le serveur pour mettre en cache la vidéo demandée.</p>" & vbCrLf)
+                            Dim baddata As Byte() = GetHTTPBytes(507, "<h1>Error 507 - Insufficient Disk Space</h1>" & vbCrLf & "<p>Il n'y a plus assez d'espace sur le périphérique de stockage du serveur pour mettre en cache la vidéo demandée.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                             Try
                                 stream.Write(baddata, 0, baddata.Length)
@@ -1110,8 +1186,8 @@ Module Program
                             Dim psi As New ProcessStartInfo()
                             psi.FileName = "yt-dlp.exe"
                             Dim intermed As Integer = num_used_resolution
-                            'If intermed = 120 Then intermed = 144 'Le 120p n'existe pas sur YouTube
-                            'If intermed = 96 Then intermed = 144 'Ni le 96p.
+                            If intermed = 120 Then intermed = 144 'Le 120p n'existe pas sur YouTube
+                            If intermed = 96 Then intermed = 144 'Ni le 96p.
                             'If intermed <= 360 Then intermed = 480
                             Dim destfile As String = CurDir() & "\vidcache\" & UCase(GetShortName("output_" & watcharg & "_" & num_used_resolution.ToString & "p.mp4")) & ".MP4"
 
@@ -1153,7 +1229,7 @@ Module Program
                             Next
 
                             If Not IO.File.Exists(destfile) Then
-                                Dim ise_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>The requested video could not be downloaded (Known ID: <i>" & last_view & "</i>). Please try another input format/resolution.</p>" & vbCrLf)
+                                Dim ise_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>The requested video could not be downloaded (Known ID: <i>" & last_view & "</i>). Please try another input format/resolution.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                 Try
                                     stream.Write(ise_data, 0, ise_data.Length)
@@ -1191,9 +1267,9 @@ Module Program
                                     WriteLog("Conversion du fichier MP4 trouvé vers le format WMV ancien (Codec vidéo WMV1, codec audio WMAv1)...")
                                     psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv1 -b:v 500k -c:a wmav1 -b:a 64k -ar 44100 -ac 1 """ & output_path & """"
                                 Case "rm"
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format RealMedia (Codec vidéo RV10, codec audio MP2)...")
+                                    WriteLog("Conversion du fichier MP4 trouvé vers le format RealMedia (Codec vidéo RV10, codec audio AC3)...")
                                     'Format Real Media (code par Le Jarb aidé de Léo AI). A permis de faire fonctionner la lecture intégrée sous IE 3.0 et Windows 3.11.
-                                    'Codec vidéo RV10 et audio MP2
+                                    'Codec vidéo RV10 et audio AC3
                                     If num_used_resolution <= 120 Then
                                         psi2.Arguments = "-i """ & destfile & """ -vf scale=160:128 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
                                     ElseIf num_used_resolution = 144 Then
@@ -1228,9 +1304,13 @@ Module Program
                                     psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v svq1 -q:v 3 -c:a libmp3lame -b:a 64k """ & output_path & """"
                                 Case "mov_mpeg4"
                                     'Format QuickTime (codec vidéo MPEG-4, audio MP3)
-                                    If num_used_resolution >= 720 Then num_used_resolution = 480 'HQ indisponible
+                                    If num_used_resolution >= 720 Then num_used_resolution = 480 'Bridé à 480p
                                     WriteLog("Conversion du fichier MP4 trouvé vers le format Apple QuickTime (Codec vidéo MPEG-4, codec audio MP3)...")
                                     psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mpeg4 -b:v 500k -c:a libmp3lame -b:a 96k -ar 44100 -ac 2 """ & output_path & """"
+                                Case "mov_mjpeg"
+                                    If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
+                                    WriteLog("Conversion du fichier MP4 trouvé vers le format Apple QuickTime, Motion JPEG (Codec vidéo MJPEG, codec audio PCM)...")
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
                                 Case "mov_rpza"
                                     WriteLog("Conversion du fichier MP4 trouvé vers le format Apple QuickTime (Codec vidéo RPZA, codec audio PCM)...")
                                     'Format QuickTime (codec vidéo RPZA, format très Apple des années 1990, et PCM pour l'audio)
@@ -1241,6 +1321,10 @@ Module Program
                                     Else
                                         psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
                                     End If
+                                Case "avi_mjpeg"
+                                    If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
+                                    WriteLog("Conversion du fichier MP4 trouvé vers le format AVI Motion JPEG (Codec vidéo MJPEG, codec audio PCM)...")
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
                                 Case "avi_msvideo1"
                                     WriteLog("Conversion du fichier MP4 trouvé vers le format AVI (Codec vidéo MSVideo1, codec audio PCM)...")
                                     'Format AVI encodé avec Microsoft Video 1 (fonctionne en pratique sous toutes les versions de Windows, y compris Windows 3.11, surtout accompagné du codec audio PCM).
@@ -1327,291 +1411,371 @@ Module Program
                         p3.WaitForExit()
                     End If
 
-                    InitValues(tmp_title, , wanted_skin)
-                    patternpage &= "<CENTER><DIV WIDTH=780 ALIGN=CENTER><BR>" & vbCrLf
-                    patternpage &= "<P ALIGN=CENTER><B><FONT SIZE=4>" & EscapeHtml(tmp_title) & "</FONT></B></P><BR>" & vbCrLf
+                    'Formatage de la page en HTML, avec lecteur intégré
 
-                    Dim media_type As String = "video/mp4"
+                    If vt = RequestVideoType.WatchVideo Then
+                        InitValues(tmp_title, , wanted_skin)
+                        patternpage &= "<CENTER><DIV WIDTH=780 ALIGN=CENTER><BR>" & vbCrLf
+                        patternpage &= "<P ALIGN=CENTER><B><FONT SIZE=4>" & EscapeHtml(tmp_title) & "</FONT></B></P><BR>" & vbCrLf
 
-                    Select Case used_codec
-                        Case "mp4" : media_type = "video/mp4"
-                        Case "rm" : media_type = "application/vnd.rn-realmedia"
-                        Case "avi_msvideo1", "avi_mpeg4", "avi_yuv", "avi_cinepak" : media_type = "video/x-msvideo"
-                        Case "wmv1", "wmv2" : media_type = "video/x-ms-wmv"
-                        Case "mov_cinepak", "mov_svq1", "mov_mpeg4", "mov_rpza" : media_type = "video/quicktime"
-                        Case "3gp" : media_type = "video/3gpp"
-                        Case "mpeg1" : media_type = "video/mpeg"
-                        Case "flv" : media_type = "video/x-flv"
-                        Case Else : media_type = "application/octet-stream"
-                    End Select
+                        Dim media_type As String = "video/mp4"
 
-                    Dim player_width, player_height As Integer
-                    player_width = 640 'Failsafe
-                    player_height = 480
+                        Select Case used_codec
+                            Case "mp4" : media_type = "video/mp4"
+                            Case "rm" : media_type = "application/vnd.rn-realmedia"
+                            Case "avi_msvideo1", "avi_mpeg4", "avi_yuv", "avi_cinepak", "avi_mjpeg" : media_type = "video/x-msvideo"
+                            Case "wmv1", "wmv2" : media_type = "video/x-ms-wmv"
+                            Case "mov_cinepak", "mov_svq1", "mov_mpeg4", "mov_rpza", "mov_mjpeg" : media_type = "video/quicktime"
+                            Case "3gp" : media_type = "video/3gpp"
+                            Case "mpeg1" : media_type = "video/mpeg"
+                            Case "flv" : media_type = "video/x-flv"
+                            Case Else : media_type = "application/octet-stream"
+                        End Select
 
-                    'Détermination de la taille du lecteur via le cookie
-                    Select Case player_size
-                        Case "micro"
-                            'Lecteur microscopique, pour les scénarios d'écrans en très faible résolution (téléphones mobiles)
-                            player_width = 160
-                            player_height = 120
-                        Case "ultrasmall"
-                            'Pour les écrans en faible résolution (320x240 par exemple)
-                            player_width = 256
-                            player_height = 192
-                        Case "small"
-                            'Petit lecteur, utile pour les écrans standards des années 1980/1990
-                            player_width = 320
-                            player_height = 240
-                        Case "middle"
-                            'Moyen lecteur (correspondant au standard VGA, par défaut)
-                            player_width = 640
-                            player_height = 480
-                        Case "large"
-                            'Lecteur large, format pouvant afficher du 16:9
-                            player_width = 854
-                            player_height = 480
-                        Case "cinema"
-                            'Format cinéma, également au 16:9
-                            player_width = 1280
-                            player_height = 720
-                        Case "aheight"
-                            'Taille renseignée par la résolution elle-même de la vidéo
-                            player_height = num_used_resolution
-                            player_width = num_used_resolution * 4 / 3
-                        Case "auto"
-                            'Taille contrôlée avec Javascript
-                            player_width = 640
-                            player_height = 480 'Failsafe
+                        Dim player_width, player_height As Integer
+                        Dim player_prop As String = String.Empty
+                        player_width = 640 'Failsafe
+                        player_height = 480
 
-                            Dim tmp_w, tmp_h As Integer
-                            tmp_w = 640
-                            tmp_h = 480
+                        'Détermination de la taille du lecteur via le cookie
+                        Select Case player_size
+                            Case "micro"
+                                'Lecteur microscopique, pour les scénarios d'écrans en très faible résolution (téléphones mobiles)
+                                player_width = 160
+                                player_height = 120
+                            Case "ultrasmall"
+                                'Pour les écrans en faible résolution (320x240 par exemple)
+                                player_width = 256
+                                player_height = 192
+                            Case "small"
+                                'Petit lecteur, utile pour les écrans standards des années 1980/1990
+                                player_width = 320
+                                player_height = 240
+                            Case "middle"
+                                'Moyen lecteur (correspondant au standard VGA, par défaut)
+                                player_width = 640
+                                player_height = 480
+                            Case "large"
+                                'Lecteur large, format pouvant afficher du 16:9
+                                player_width = 854
+                                player_height = 480
+                            Case "cinema"
+                                'Format cinéma, également au 16:9
+                                player_width = 1280
+                                player_height = 720
+                            Case "gold1"
+                                'Format 16:10 standard
+                                player_width = 1280
+                                player_height = 800
+                            Case "gold2"
+                                'Format 16:10 grand format
+                                player_width = 1440
+                                player_height = 900
+                            Case "aheight"
+                                'Taille renseignée par la résolution elle-même de la vidéo
+                                player_height = num_used_resolution
+                                player_width = num_used_resolution * 4 / 3
+                            Case "auto"
+                                'Taille contrôlée avec Javascript
+                                player_width = 640
+                                player_height = 480 'Failsafe
 
-                            If video_dimensions.ContainsKey(watcharg) Then
-                                Dim tmp_dimensions() As String = Split(video_dimensions(watcharg), ":")
-                                tmp_w = CInt(tmp_dimensions(0))
-                                tmp_h = CInt(tmp_dimensions(1))
-                            End If
+                                Dim tmp_w, tmp_h As Integer
+                                tmp_w = 640
+                                tmp_h = 480
 
-                            'Utilisation du Javascript pour redimensionner de façon dynamique le lecteur intégré.
-                            patternpage &= "<script>" & vbCrLf
-                            patternpage &= " function resizePlayer() {" & vbCrLf
-                            patternpage &= "  var player = document.getElementById(""mainplayer"");" & vbCrLf & vbCrLf
+                                If video_dimensions.ContainsKey(watcharg) Then
+                                    Dim tmp_dimensions() As String = Split(video_dimensions(watcharg), ":")
+                                    tmp_w = CInt(tmp_dimensions(0))
+                                    tmp_h = CInt(tmp_dimensions(1))
+                                End If
 
-                            patternpage &= "  var winW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;" & vbCrLf
-                            patternpage &= "  var winH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;" & vbCrLf & vbCrLf
+                                'Utilisation du Javascript pour redimensionner de façon dynamique le lecteur intégré.
+                                patternpage &= "<script language=""javascript"">" & vbCrLf
+                                patternpage &= " function resizePlayer() {" & vbCrLf
+                                patternpage &= "  var player = document.getElementById(""mainplayer"");" & vbCrLf & vbCrLf
 
-                            patternpage &= "  // Marges" & vbCrLf
-                            patternpage &= "  var maxW = winW - 40;" & vbCrLf
-                            patternpage &= "  var maxH = winH - 120;" & vbCrLf & vbCrLf
+                                patternpage &= "  var winW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;" & vbCrLf
+                                patternpage &= "  var winH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;" & vbCrLf & vbCrLf
 
-                            patternpage &= "  // Ratio 4:3" & vbCrLf
-                            patternpage &= "  var ratioW = " & tmp_w.ToString & ";" & vbCrLf
-                            patternpage &= "  var ratioH = " & tmp_h.ToString & ";" & vbCrLf & vbCrLf
+                                patternpage &= "  // Marges" & vbCrLf
+                                patternpage &= "  var maxW = winW - 40;" & vbCrLf
+                                patternpage &= "  var maxH = winH - 120;" & vbCrLf & vbCrLf
 
-                            patternpage &= "  // Calcul basé sur largeur" & vbCrLf
-                            patternpage &= "  var width = maxW;" & vbCrLf
-                            patternpage &= "  var height = Math.floor(width * ratioH / ratioW);" & vbCrLf & vbCrLf
+                                patternpage &= "  // Ratio 4:3" & vbCrLf
+                                patternpage &= "  var ratioW = " & tmp_w.ToString & ";" & vbCrLf
+                                patternpage &= "  var ratioH = " & tmp_h.ToString & ";" & vbCrLf & vbCrLf
 
-                            patternpage &= "  // Si ça dépasse en hauteur, alors recalcul de la taille du lecteur" & vbCrLf
-                            patternpage &= "  if (height > maxH) {" & vbCrLf
-                            patternpage &= "   height = maxH;" & vbCrLf
-                            patternpage &= "   width = Math.floor(height * ratioW / ratioH);" & vbCrLf
-                            patternpage &= "  }" & vbCrLf & vbCrLf
+                                patternpage &= "  // Calcul basé sur largeur" & vbCrLf
+                                patternpage &= "  var width = maxW;" & vbCrLf
+                                patternpage &= "  var height = Math.floor(width * ratioH / ratioW);" & vbCrLf & vbCrLf
 
-                            patternpage &= "  // Minimum de 240 pixels de large" & vbCrLf
-                            patternpage &= "  if (width < 240) {" & vbCrLf
-                            patternpage &= "   width = 240;" & vbCrLf
-                            patternpage &= "   height = Math.floor(width * ratioH / ratioW);" & vbCrLf
-                            patternpage &= "  }" & vbCrLf & vbCrLf
+                                patternpage &= "  // Si ça dépasse en hauteur, alors recalcul de la taille du lecteur" & vbCrLf
+                                patternpage &= "  if (height > maxH) {" & vbCrLf
+                                patternpage &= "   height = maxH;" & vbCrLf
+                                patternpage &= "   width = Math.floor(height * ratioW / ratioH);" & vbCrLf
+                                patternpage &= "  }" & vbCrLf & vbCrLf
 
-                            patternpage &= "  player.width = width;" & vbCrLf
-                            patternpage &= "  player.height = height;" & vbCrLf
-                            patternpage &= " }" & vbCrLf & vbCrLf
+                                patternpage &= "  // Minimum de 240 pixels de large" & vbCrLf
+                                patternpage &= "  if (width < 240) {" & vbCrLf
+                                patternpage &= "   width = 240;" & vbCrLf
+                                patternpage &= "   height = Math.floor(width * ratioH / ratioW);" & vbCrLf
+                                patternpage &= "  }" & vbCrLf & vbCrLf
 
-                            patternpage &= " window.onload = resizePlayer;" & vbCrLf
-                            patternpage &= " window.onresize = resizePlayer;" & vbCrLf
-                            patternpage &= "</script>" & vbCrLf & vbCrLf
-                            'ChatGPT m'a généré ce code.
-                    End Select
+                                patternpage &= "  player.width = width;" & vbCrLf
+                                patternpage &= "  player.height = height;" & vbCrLf
+                                patternpage &= " }" & vbCrLf & vbCrLf
 
-                    'Marge pour les contrôles
-                    If used_player <> "video" Then player_height += 30
+                                patternpage &= " window.onload = resizePlayer;" & vbCrLf
+                                patternpage &= " window.onresize = resizePlayer;" & vbCrLf
+                                patternpage &= "</script>" & vbCrLf & vbCrLf
+                                'ChatGPT m'a généré ce code.
+                            Case "fulljs"
+                                'Plein écran avec Javascript
+                                patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
+                                patternpage &= "<HTML>" & vbCrLf
+                                patternpage &= "<HEAD>" & vbCrLf
+                                patternpage &= " <META HTTP-EQUIV=""Content-Type"" CONTENT=""text/html; charset=iso-8859-1"">" & vbCrLf
+                                patternpage &= " <META CHARSET=""iso-8859-1"" />" & vbCrLf
+                                patternpage &= " <LINK REL=""shortcut icon"" HREF=""favicon.ico"" />" & vbCrLf
+                                patternpage &= "</HEAD>" & vbCrLf & vbCrLf
 
-                    patternpage &= vbCrLf
+                                patternpage &= "<BODY COLOR=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"">" & vbCrLf
+                                patternpage &= "<script language=""javascript"">" & vbCrLf
+                                patternpage &= " function resizePlayer() {" & vbCrLf
+                                patternpage &= "  var player = document.getElementById(""mainplayer"");" & vbCrLf & vbCrLf
 
-                    'Le lecteur intégré
-                    Select Case used_player
-                        Case "legacy_wmp"
-                            'Ancien lecteur Windows Media (6.4) intégré avec la balise <object> (ActiveX).
-                            patternpage &= "<!-- Intégration d'un objet ActiveX pour Windows Media Player 6.4 -->" & vbCrLf & vbCrLf
-                            patternpage &= "<object id=""mainplayer"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ classid=""CLSID:22D6F312-B0F6-11D0-94AB-0080C74C7E95"">" & vbCrLf
-                            patternpage &= " <param name=""FileName"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""AutoStart"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""EnableFullScreenControls"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""VideoBorder3D"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""StretchToFit"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""ShowControls"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""DisplaySize"" value=4>" & vbCrLf
-                            patternpage &= " <param name=""DefaultFrame"" value=""" & GetHost() & "thumbnail?t=" & last_view & """>" & vbCrLf
-                            patternpage &= "</object>" & vbCrLf
-                        Case "wmp"
-                            'Nouveau lecteur Windows Media (7.0 et +) intégré avec la balise <object> (ActiveX).
-                            patternpage &= "<!-- Intégration d'un objet ActiveX pour Windows Media Player 7.0 et plus -->" & vbCrLf & vbCrLf
-                            patternpage &= "<object id=""mainplayer"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ classid=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">" & vbCrLf
-                            patternpage &= " <param name=""URL"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""AutoStart"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""EnableFullScreenControls"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""VideoBorder3D"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""StretchToFit"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""ShowControls"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""DefaultFrame"" value=""" & GetHost() & "thumbnail?t=" & last_view & """>" & vbCrLf
-                            patternpage &= "</object>" & vbCrLf
-                        Case "vlc"
-                            'Lecteur VLC Media Player (via ActiveX)
-                            patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur VLC -->" & vbCrLf & vbCrLf
-                            patternpage &= "<object id=""mainplayer"" classid=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """>" & vbCrLf
-                            patternpage &= " <param name=""target"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""MRL"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""autoplay"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""controller"" value=""true"">" & vbCrLf 'Affichage des contrôles du lecteur
-                            patternpage &= " <param name=""loop"" value=""false"">" & vbCrLf
-                            patternpage &= "</object>" & vbCrLf
-                        Case "alt_vlc"
-                            'Lecteur VLC Media Player (via ActiveX aussi)
-                            patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur VLC avec un identificateur de classe alternatif -->" & vbCrLf & vbCrLf
-                            patternpage &= "<object id=""mainplayer"" classid=""CLSID:E23FE9C6-778E-49D4-B537-38FCDE4887D8"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """>" & vbCrLf
-                            patternpage &= " <param name=""target"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""MRL"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""autoplay"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""controller"" value=""true"">" & vbCrLf 'Affichage des contrôles du lecteur
-                            patternpage &= " <param name=""loop"" value=""false"">" & vbCrLf
-                            patternpage &= "</object>" & vbCrLf
-                        Case "embed_vlc"
-                            'Lecteur VLC via embed.
-                            patternpage &= "<!-- Embarcation du plugin VLC -->" & vbCrLf & vbCrLf
-                            patternpage &= "<embed id=""mainplayer"" type=""application/x-vlc-plugin"" src=""" & GetHost() & "v/" & output_filename & """ target=""" & GetHost() & "v/" & output_filename & """ mrl=""" & GetHost() & "v/" & output_filename & """ width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ autoplay=""true"" loop=""false"" />" & vbCrLf
-                        Case "quicktime"
-                            'Lecteur QuickTime via ActiveX (Exclusivement sous Windows)
-                            patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur Apple QuickTime -->" & vbCrLf & vbCrLf
-                            patternpage &= "<object id=""mainplayer"" classid=""CLSID:02BF25D5-8C17-4B23-BC80-D3488ABDDC6B"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ codebase=""http://www.apple.com/qtactivex/qtplugin.cab"">" & vbCrLf
-                            patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= " <param name=""autoplay"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""controller"" value=""true"">" & vbCrLf
-                            patternpage &= "</object>" & vbCrLf & vbCrLf
-                        Case "embed_quicktime"
-                            'Lecteur QuickTime via la balise embed (surtout pour les systèmes Apple)
-                            patternpage &= "<!-- Embarcation d'un lecteur Apple QuickTime -->" & vbCrLf & vbCrLf
-                            patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ controller=""true"" autoplay=""true"" />" & vbCrLf
-                        Case "embed"
-                            'Balise <embed> générique, une syntaxe et un fonctionnement lancés par NetScape en 1995.
-                            patternpage &= "<!-- Embarcation du contenu multimédia avec la balise embed. -->" & vbCrLf & vbCrLf
-                            If used_codec = "rm" Then
-                                patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ type=""audio/x-pn-realaudio-plugin"" autostart=""true"" controls=""ImageWindow"" console=""rmplayer"" /><br>" & vbCrLf
-                                patternpage &= "<embed width=""" & player_width.ToString & """ height=""20"" type=""audio/x-pn-realaudio-plugin"" controls=""PositionSlider"" console=""rmplayer"" />" & vbCrLf
-                            Else
-                                patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ mrl=""" & GetHost() & "v/" & output_filename & """ target=""" & GetHost() & "v/" & output_filename & """ href=""" & GetHost() & "v/" & output_filename & """ filename=""" & GetHost() & "v/" & output_filename & """ url=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ autostart=""true"" />" & vbCrLf
-                            End If
-                        Case "video"
-                            'Balise <video> de HTML 5.0 (Standard W3C natif aux navigateurs récents)
-                            patternpage &= "<!-- Utilisation de la balise video de HTML5 -->" & vbCrLf & vbCrLf
-                            patternpage &= "<video id=""mainplayer"" controls width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ autoplay=""true"">" & vbCrLf 'style=""object-fit: fill;""
-                            patternpage &= " <source src=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ />" & vbCrLf
-                            patternpage &= " <source poster=""" & GetHost() & "thumbnail?t=" & last_view & """ />" & vbCrLf
-                            patternpage &= " <p align=center>Votre navigateur ne semble pas prendre en charge la balise video de HTML5.<br><br>Vous pouvez cliquer sur <a href=""/config.cgi"">ce lien</a> pour adapter les paramètres de RetroYT à votre configuration.</p>"
-                            patternpage &= "</video>" & vbCrLf
-                        Case "realplayer"
-                            'Intégration du lecteur Real Player (Le code ci-dessous a été créé par Le Jarb, qui s'est appuyé sur Léo AI. Merci pour son implémentation réussie du plugin Real Player, rendant la lecture intégrée sur navigateur possible sous Windows 3.11/NT 3.51)
-                            patternpage &= "<!-- Embarcation du lecteur Real Player 5.0 -->" & vbCrLf & vbCrLf
-                            patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ type=""audio/x-pn-realaudio-plugin"" autostart=""true"" controls=""ImageWindow"" console=""rmplayer"" /><br>" & vbCrLf
-                            patternpage &= "<embed width=""" & player_width.ToString & """ height=""20"" type=""audio/x-pn-realaudio-plugin"" controls=""PositionSlider"" console=""rmplayer"" />" & vbCrLf
+                                patternpage &= "  var winW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;" & vbCrLf
+                                patternpage &= "  var winH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;" & vbCrLf & vbCrLf
+
+                                patternpage &= "  player.width = winW;" & vbCrLf
+                                patternpage &= "  player.height = winH;" & vbCrLf
+                                patternpage &= " }" & vbCrLf & vbCrLf
+
+                                patternpage &= " window.onload = resizePlayer;" & vbCrLf
+                                patternpage &= " window.onresize = resizePlayer;" & vbCrLf
+                                patternpage &= "</script>" & vbCrLf & vbCrLf
+                                player_prop = "%"
+                                'Code de ChatGPT modifié.
+                            Case "fullscreen"
+                                'Plein écran avec HTML (peut dépasser le cadre)
+                                link_color = "#c2272f"
+                                patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
+                                patternpage &= "<HTML>" & vbCrLf
+                                patternpage &= "<HEAD>" & vbCrLf
+                                patternpage &= " <META HTTP-EQUIV=""Content-Type"" CONTENT=""text/html; charset=iso-8859-1"">" & vbCrLf
+                                patternpage &= " <META CHARSET=""iso-8859-1"" />" & vbCrLf
+                                patternpage &= " <LINK REL=""shortcut icon"" HREF=""favicon.ico"" />" & vbCrLf
+                                patternpage &= "</HEAD>" & vbCrLf & vbCrLf
+
+                                patternpage &= "<BODY COLOR=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"">" & vbCrLf
+
+                                player_width = 100
+                                player_height = 100
+                                player_prop = "%"
+                        End Select
+
+                        'Marge pour les contrôles
+                        If used_player <> "video" Then player_height += 30
+
+                        patternpage &= vbCrLf
+
+                        'Le lecteur intégré
+                        Select Case used_player
+                            Case "legacy_wmp"
+                                'Ancien lecteur Windows Media (6.4) intégré avec la balise <object> (ActiveX).
+                                patternpage &= "<!-- Intégration d'un objet ActiveX pour Windows Media Player 6.4 -->" & vbCrLf & vbCrLf
+                                patternpage &= "<object id=""mainplayer"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ classid=""CLSID:22D6F312-B0F6-11D0-94AB-0080C74C7E95"">" & vbCrLf
+                                patternpage &= " <param name=""FileName"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""AutoStart"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""EnableFullScreenControls"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""VideoBorder3D"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""StretchToFit"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""ShowControls"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""DisplaySize"" value=4>" & vbCrLf
+                                patternpage &= " <param name=""DefaultFrame"" value=""" & GetHost() & "thumbnail?t=" & last_view & """>" & vbCrLf
+                                patternpage &= "</object>" & vbCrLf
+                            Case "wmp"
+                                'Nouveau lecteur Windows Media (7.0 et +) intégré avec la balise <object> (ActiveX).
+                                patternpage &= "<!-- Intégration d'un objet ActiveX pour Windows Media Player 7.0 et plus -->" & vbCrLf & vbCrLf
+                                patternpage &= "<object id=""mainplayer"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ classid=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">" & vbCrLf
+                                patternpage &= " <param name=""URL"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""AutoStart"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""EnableFullScreenControls"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""VideoBorder3D"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""StretchToFit"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""ShowControls"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""DefaultFrame"" value=""" & GetHost() & "thumbnail?t=" & last_view & """>" & vbCrLf
+                                patternpage &= "</object>" & vbCrLf
+                            Case "vlc"
+                                'Lecteur VLC Media Player (via ActiveX)
+                                patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur VLC -->" & vbCrLf & vbCrLf
+                                patternpage &= "<object id=""mainplayer"" classid=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """>" & vbCrLf
+                                patternpage &= " <param name=""target"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""MRL"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""autoplay"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""controller"" value=""true"">" & vbCrLf 'Affichage des contrôles du lecteur
+                                patternpage &= " <param name=""loop"" value=""false"">" & vbCrLf
+                                patternpage &= "</object>" & vbCrLf
+                            Case "alt_vlc"
+                                'Lecteur VLC Media Player (via ActiveX aussi)
+                                patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur VLC avec un identificateur de classe alternatif -->" & vbCrLf & vbCrLf
+                                patternpage &= "<object id=""mainplayer"" classid=""CLSID:E23FE9C6-778E-49D4-B537-38FCDE4887D8"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """>" & vbCrLf
+                                patternpage &= " <param name=""target"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""MRL"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""autoplay"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""controller"" value=""true"">" & vbCrLf 'Affichage des contrôles du lecteur
+                                patternpage &= " <param name=""loop"" value=""false"">" & vbCrLf
+                                patternpage &= "</object>" & vbCrLf
+                            Case "embed_vlc"
+                                'Lecteur VLC via la balise HTML embed.
+                                patternpage &= "<!-- Embarcation du plugin VLC -->" & vbCrLf & vbCrLf
+                                patternpage &= "<embed id=""mainplayer"" type=""application/x-vlc-plugin"" src=""" & GetHost() & "v/" & output_filename & """ target=""" & GetHost() & "v/" & output_filename & """ mrl=""" & GetHost() & "v/" & output_filename & """ width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autoplay=""true"" loop=""false"" />" & vbCrLf
+                            Case "quicktime"
+                                'Lecteur QuickTime via ActiveX (Exclusivement sous Windows)
+                                patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur Apple QuickTime -->" & vbCrLf & vbCrLf
+                                patternpage &= "<object id=""mainplayer"" classid=""CLSID:02BF25D5-8C17-4B23-BC80-D3488ABDDC6B"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ codebase=""http://www.apple.com/qtactivex/qtplugin.cab"">" & vbCrLf
+                                patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= " <param name=""autoplay"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""controller"" value=""true"">" & vbCrLf
+                                patternpage &= "</object>" & vbCrLf & vbCrLf
+                            Case "embed_quicktime"
+                                'Lecteur QuickTime via la balise HTML embed (surtout pour les systèmes Apple)
+                                patternpage &= "<!-- Embarcation d'un lecteur Apple QuickTime -->" & vbCrLf & vbCrLf
+                                patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ controller=""true"" autoplay=""true"" />" & vbCrLf
+                            Case "embed"
+                                'Balise <embed> générique, une syntaxe et un fonctionnement lancés par NetScape en 1995.
+                                patternpage &= "<!-- Embarcation du contenu multimédia avec la balise HTML embed. -->" & vbCrLf & vbCrLf
+                                If used_codec = "rm" Then
+                                    If player_prop = "%" Then player_height = 90
+                                    patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ type=""audio/x-pn-realaudio-plugin"" autostart=""true"" controls=""ImageWindow"" console=""rmplayer"" /><br>" & vbCrLf
+                                    patternpage &= "<embed width=""" & player_width.ToString & player_prop & """ height=""20"" type=""audio/x-pn-realaudio-plugin"" controls=""PositionSlider"" console=""rmplayer"" />" & vbCrLf
+                                Else
+                                    patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ mrl=""" & GetHost() & "v/" & output_filename & """ target=""" & GetHost() & "v/" & output_filename & """ href=""" & GetHost() & "v/" & output_filename & """ filename=""" & GetHost() & "v/" & output_filename & """ url=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autostart=""true"" />" & vbCrLf
+                                End If
+                            Case "video"
+                                'Balise <video> de HTML 5.0 (Standard W3C natif aux navigateurs récents)
+                                patternpage &= "<!-- Utilisation de la balise video de HTML5 -->" & vbCrLf & vbCrLf
+                                patternpage &= "<video id=""mainplayer"" controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autoplay=""true"">" & vbCrLf 'style=""object-fit: fill;""
+                                patternpage &= " <source src=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ />" & vbCrLf
+                                patternpage &= " <source poster=""" & GetHost() & "thumbnail?t=" & last_view & """ />" & vbCrLf
+                                patternpage &= " <p align=center>Votre navigateur ne semble pas prendre en charge la balise video de HTML5.<br><br>Vous pouvez cliquer sur <a href=""/config.cgi"">ce lien</a> pour adapter les paramètres de RetroYT à votre configuration.</p>"
+                                patternpage &= "</video>" & vbCrLf
+                            Case "realplayer"
+                                'Intégration du lecteur Real Player (Le code ci-dessous a été créé par Le Jarb, qui s'est appuyé sur Léo AI. Merci pour son implémentation réussie du plugin Real Player, rendant la lecture intégrée sur navigateur possible sous Windows 3.11/NT 3.51)
+                                patternpage &= "<!-- Embarcation du lecteur Real Player 5.0 -->" & vbCrLf & vbCrLf
+                                If player_prop = "%" Then player_height = 90
+                                patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ type=""audio/x-pn-realaudio-plugin"" autostart=""true"" controls=""ImageWindow"" console=""rmplayer"" /><br>" & vbCrLf
+                                patternpage &= "<embed width=""" & player_width.ToString & player_prop & """ height=""20"" type=""audio/x-pn-realaudio-plugin"" controls=""PositionSlider"" console=""rmplayer"" />" & vbCrLf
                             'media_type n'est pas précisé en paramètre, car Real Player ne lit que du RealMedia.
-                        Case "activex_realplayer"
-                            'Real Player (ActiveX)
-                            patternpage &= "<!-- Intégration d'un objet ActiveX pour Real Player 5.0 -->" & vbCrLf & vbCrLf
-                            patternpage &= "<object id=""mainplayer"" classid=""CLSID:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """>" & vbCrLf
-                            patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
-                            patternpage &= "</object>" & vbCrLf & vbCrLf
-                        Case "no_integration"
-                            'Aucune intégration, donc aucun lecteur affiché. Code HTML bidon qui suit.
-                            patternpage &= "<!-- Aucune intégration activée --><br><br><br><br><br><br><br>" & vbCrLf
-                        Case "flash"
-                            'Lecteur Flash 8 via Javascript
-                            patternpage &= "<!-- Intégration d'un lecteur Flash via Javascript -->" & vbCrLf & vbCrLf
-                            patternpage &= "<noscript><p align=center>Javascript et Flash Player 8.0 sont nécessaires pour démarrer la lecture.</p></noscript>" & vbCrLf & vbCrLf
-                            patternpage &= "<script language=""javascript"" src=""/swfobject.js""></script>" & vbCrLf
-                            patternpage &= "<br>" & vbCrLf
-                            patternpage &= "<div id=""mainplayer"" align=""center"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ style=""background-color: black; border-radius: 8px; width: " & player_width.ToString & "px; height: " & player_height.ToString & "px; min-width: 160px; min-height: 120px;""></div>" & vbCrLf & vbCrLf
+                            Case "activex_realplayer"
+                                'Real Player (ActiveX)
+                                patternpage &= "<!-- Intégration d'un objet ActiveX pour Real Player 5.0 -->" & vbCrLf & vbCrLf
+                                patternpage &= "<object id=""mainplayer"" classid=""CLSID:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """>" & vbCrLf
+                                patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
+                                patternpage &= "</object>" & vbCrLf & vbCrLf
+                            Case "no_integration"
+                                'Aucune intégration, donc aucun lecteur affiché. Code HTML bidon qui suit.
+                                patternpage &= "<!-- Aucune intégration activée --><br><br><br><br><br><br><br>" & vbCrLf
+                            Case "flash"
+                                'Lecteur Flash 8 via Javascript
+                                patternpage &= "<!-- Intégration d'un lecteur Flash via Javascript -->" & vbCrLf & vbCrLf
+                                patternpage &= "<noscript><p align=center>Javascript et Flash Player 8.0 sont nécessaires pour démarrer la lecture.</p></noscript>" & vbCrLf & vbCrLf
+                                patternpage &= "<script language=""javascript"" src=""/swfobject.js""></script>" & vbCrLf
+                                patternpage &= "<br>" & vbCrLf
+                                patternpage &= "<div id=""mainplayer"" align=""center"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ style=""background-color: black; border-radius: 8px; width: " & player_width.ToString & "px; height: " & player_height.ToString & "px; min-width: 160px; min-height: 120px;""></div>" & vbCrLf & vbCrLf
 
-                            patternpage &= "<script language=""javascript"">" & vbCrLf
-                            patternpage &= " var so4 = new SWFObject('/player.swf','mpl','" & player_width.ToString & "','" & player_height.ToString & "','8');" & vbCrLf
-                            patternpage &= " so4.addParam('allowscriptaccess','always');" & vbCrLf
-                            patternpage &= " so4.addParam('allowfullscreen','true');" & vbCrLf
-                            patternpage &= " so4.addVariable('width','" & player_width.ToString & "');" & vbCrLf
-                            patternpage &= " so4.addVariable('height','" & player_height.ToString & "');" & vbCrLf
-                            patternpage &= " so4.addVariable('file','" & GetHost() & "v/" & output_filename & "');" & vbCrLf
-                            patternpage &= " so4.addVariable('searchbar','false');" & vbCrLf
-                            patternpage &= " so4.addVariable('linkfromdisplay','true');" & vbCrLf & vbCrLf
+                                patternpage &= "<script language=""javascript"">" & vbCrLf
+                                patternpage &= " var so4 = new SWFObject('/player.swf','mpl','" & player_width.ToString & "','" & player_height.ToString & "','8');" & vbCrLf
+                                patternpage &= " so4.addParam('allowscriptaccess','always');" & vbCrLf
+                                patternpage &= " so4.addParam('allowfullscreen','true');" & vbCrLf
+                                patternpage &= " so4.addVariable('width','" & player_width.ToString & player_prop & "');" & vbCrLf
+                                patternpage &= " so4.addVariable('height','" & player_height.ToString & player_prop & "');" & vbCrLf
+                                patternpage &= " so4.addVariable('file','" & GetHost() & "v/" & output_filename & "');" & vbCrLf
+                                patternpage &= " so4.addVariable('searchbar','false');" & vbCrLf
+                                patternpage &= " so4.addVariable('linkfromdisplay','true');" & vbCrLf & vbCrLf
 
-                            patternpage &= " so4.write('mainplayer');" & vbCrLf
-                            patternpage &= "</script>" & vbCrLf
-                            patternpage &= "<br>" & vbCrLf & vbCrLf
-                        Case "embed_flash"
-                            'Flash via <embed>
-                            patternpage &= "<!-- Embarcation directe du lecteur Flash -->" & vbCrLf & vbCrLf
-                            patternpage &= "<embed src=""/player.swf"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ id=""mainplayer"" allowfullscreen=""true"" allowscriptaccess=""always"" flashvars=""file=" & GetHost() & "v/" & output_filename & "&searchbar=false&linkfromdisplay=true"" type=""application/x-shockwave-flash"" />" & vbCrLf
-                        Case "activex_flash"
-                            'Flash via ActiveX
-                            patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur Flash Player -->" & vbCrLf & vbCrLf
-                            patternpage &= "<object id=""mainplayer"" classid=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """>" & vbCrLf
-                            patternpage &= " <param name=""movie"" value=""/player.swf"">" & vbCrLf
-                            patternpage &= " <param name=""allowfullscreen"" value=""true"">" & vbCrLf
-                            patternpage &= " <param name=""allowscriptaccess"" value=""always"">" & vbCrLf
-                            patternpage &= " <param name=""flashvars"" value=""file=" & GetHost() & "v/" & output_filename & "&searchbar=false&linkfromdisplay=true"">" & vbCrLf
-                            patternpage &= " <param name=""wmode"" value=""opaque"">" & vbCrLf
-                            patternpage &= "</object>" & vbCrLf & vbCrLf
-                        Case "object"
-                            'Objet générique sans ActiveX
-                            patternpage &= "<!-- Intégration d'un média de façon générique via Object -->" & vbCrLf & vbCrLf
-                            patternpage &= "<object id=""mainplayer"" data=""" & GetHost() & "v/" & output_filename & """ src=""" & GetHost() & "v/" & output_filename & """ mrl=""" & GetHost() & "v/" & output_filename & """ target=""" & GetHost() & "v/" & output_filename & """ href=""" & GetHost() & "v/" & output_filename & """ filename=""" & GetHost() & "v/" & output_filename & """ url=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ width=""" & player_width.ToString & """ height=""" & player_height.ToString & """></object>" & vbCrLf & vbCrLf
-                        Case Else
-                            'Si par mésaventure, le paramètre manque, affichage d'un lecteur générique.
-                            patternpage &= "<!-- Fallback vers une intégration générique via embed -->" & vbCrLf & vbCrLf
-                            patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ mrl=""" & GetHost() & "v/" & output_filename & """ target=""" & GetHost() & "v/" & output_filename & """ href=""" & GetHost() & "v/" & output_filename & """ filename=""" & GetHost() & "v/" & output_filename & """ url=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ autostart=""true"" />" & vbCrLf
-                            patternpage &= "<p align=center>Mode fallback activé, faute de paramètres interprétables communiqués au serveur.</p><br>"
-                    End Select
+                                patternpage &= " so4.write('mainplayer');" & vbCrLf
+                                patternpage &= "</script>" & vbCrLf
+                                patternpage &= "<br>" & vbCrLf & vbCrLf
+                            Case "embed_flash"
+                                'Flash via <embed>
+                                patternpage &= "<!-- Embarcation directe du lecteur Flash -->" & vbCrLf & vbCrLf
+                                patternpage &= "<embed src=""/player.swf"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ id=""mainplayer"" allowfullscreen=""true"" allowscriptaccess=""always"" flashvars=""file=" & GetHost() & "v/" & output_filename & """ type=""application/x-shockwave-flash"" />" & vbCrLf '%26searchbar=false%26linkfromdisplay=true
+                            Case "activex_flash"
+                                'Flash via ActiveX
+                                patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur Flash Player -->" & vbCrLf & vbCrLf
+                                patternpage &= "<object id=""mainplayer"" classid=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """>" & vbCrLf
+                                patternpage &= " <param name=""movie"" value=""/player.swf"">" & vbCrLf
+                                patternpage &= " <param name=""allowfullscreen"" value=""true"">" & vbCrLf
+                                patternpage &= " <param name=""allowscriptaccess"" value=""always"">" & vbCrLf
+                                patternpage &= " <param name=""flashvars"" value=""file=" & GetHost() & "v/" & output_filename & "%26searchbar=false%26linkfromdisplay=true"">" & vbCrLf
+                                patternpage &= " <param name=""wmode"" value=""opaque"">" & vbCrLf
+                                patternpage &= "</object>" & vbCrLf & vbCrLf
+                            Case "object"
+                                'Objet générique sans ActiveX
+                                patternpage &= "<!-- Intégration d'un média de façon générique via Object -->" & vbCrLf & vbCrLf
+                                patternpage &= "<object id=""mainplayer"" data=""" & GetHost() & "v/" & output_filename & """ src=""" & GetHost() & "v/" & output_filename & """ mrl=""" & GetHost() & "v/" & output_filename & """ target=""" & GetHost() & "v/" & output_filename & """ href=""" & GetHost() & "v/" & output_filename & """ filename=""" & GetHost() & "v/" & output_filename & """ url=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """></object>" & vbCrLf & vbCrLf
+                            Case Else
+                                'Si par mésaventure, le paramètre manque, affichage d'un lecteur générique.
+                                patternpage &= "<!-- Fallback vers une intégration générique via la balise HTML embed -->" & vbCrLf & vbCrLf
+                                patternpage &= "<embed id=""mainplayer"" src=""" & GetHost() & "v/" & output_filename & """ mrl=""" & GetHost() & "v/" & output_filename & """ target=""" & GetHost() & "v/" & output_filename & """ href=""" & GetHost() & "v/" & output_filename & """ filename=""" & GetHost() & "v/" & output_filename & """ url=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autostart=""true"" />" & vbCrLf
+                                patternpage &= "<p align=center>Mode fallback activé, faute de paramètres interprétables communiqués au serveur.</p><br>"
+                        End Select
 
-                    patternpage &= vbCrLf & "<BR>" & vbCrLf
+                        If player_size = "fullscreen" Or player_size = "fulljs" Then
+                            patternpage &= "</BODY></HTML>" & vbCrLf
+                        Else
+                            patternpage &= vbCrLf & "<BR>" & vbCrLf
 
-                    'Dans certains cas, le lecteur ne peut pas être disponible, alors on propose tout de même un lien en flux direct, ou pour "forcer" le mode rétrocompatible. Compatibilité garantie sur les très anciens navigateurs.
+                            'Dans certains cas, le lecteur peut ne pas être disponible, alors on propose tout de même un lien en flux direct, c'est-à-dire lire sur un lecteur externe, par exemple.
 
-                    If ultra_legacy Then
-                        patternpage &= "<P ALIGN=CENTER>Cliquez <A HREF=""/v/" & output_filename & """ STYLE=""color: " & link_color & ";"">ici</A> pour accéder au flux direct, si la vidéo ne démarre toujours pas.</P>" & vbCrLf
+                            patternpage &= "<P ALIGN=CENTER>Si la vidéo ne démarre pas, cliquez <A HREF=""/v/" & output_filename & """ STYLE=""color: " & link_color & ";"">ici</A> pour accéder au flux direct.</P>" & vbCrLf
+
+                            patternpage &= "</DIV></CENTER><BR><DIV CLASS=""bodysep""></DIV><BR>" & footer & vbCrLf & vbCrLf
+                        End If
+
+                        Dim watch_resp As String =
+                            "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                            "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                            "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
+                            "Connection: close" & vbCrLf &
+                            "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
+
+                        Dim watch_bytes As Byte() = iso.GetBytes(watch_resp)
+
+                        Try
+                            stream.Write(watch_bytes, 0, watch_bytes.Length)
+                        Catch ex As Exception
+                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                        End Try
                     Else
-                        patternpage &= "<P ALIGN=CENTER>Cliquez <A HREF=""/v/" & output_filename & """ STYLE=""color: " & link_color & ";"">ici</A> pour accéder au flux direct, ou <A HREF=""/watch?v=" & last_view & "&legacy=true"" STYLE=""color: " & link_color & ";"">ici</a> pour forcer le mode rétrocompatibilité.</P>" & vbCrLf
-                    End If
+                        'Envoi du flux direct, sans formatage HTML, ni intégration.
+                        WriteLog("Streaming demandé pour la vidéo. Envoi du flux direct.", ConsoleColor.Green, client)
 
-                    patternpage &= "</DIV></CENTER><BR><DIV CLASS=""bodysep""></DIV><BR>" & footer & vbCrLf & vbCrLf
+                        Dim result_page As String = "<h1>302 Found</h1><p>Video is available at this URL: <a href=""/v/" & output_filename & """>Click here</a>.</p>" & vbCrLf
 
-                    Dim watch_resp As String =
-                        "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                        Dim index_resp As String = "HTTP/1.1 302 Found" & vbCrLf &
                         "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
-                        "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
-                        "Connection: close" & vbCrLf &
-                        "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
+                        "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
+                        "Location: /v/" & output_filename & vbCrLf &
+                        "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser
 
-                    Dim watch_bytes As Byte() = iso.GetBytes(watch_resp)
+                        Dim index_data As Byte() = iso.GetBytes(index_resp)
 
-                    Try
-                        stream.Write(watch_bytes, 0, watch_bytes.Length)
-                    Catch ex As Exception
-                        WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
-                    End Try
+                        Try
+                            stream.Write(index_data, 0, index_data.Length)
+                        Catch ex As Exception
+                            WriteLog("Erreur d'envoi de la réponse: " & ex.Message, ConsoleColor.Red, client)
+                        End Try
+
+                        client.Close()
+                        Exit Sub
+                    End If
                 Else
-                    Dim notfound_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>Proxy server is not connected to the World Wide Web.</p>" & vbCrLf)
+                    Dim notfound_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>Proxy server is not connected to the World Wide Web.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
 
                     Try
                         stream.Write(notfound_data, 0, notfound_data.Length)
@@ -1662,12 +1826,45 @@ Module Program
             End Try
 
             client.Close()
-        ElseIf request.StartsWith("GET /search?q=") Then
+        ElseIf request.StartsWith("GET /stream") Then
+            'Requête vide
+            Dim last_host_2 As String = GetHost()
+
+            If last_host_2 = "/" Then last_host_2 = "127.0.0.1"
+
+            Dim result_page As String = "<h1>400 Bad Request</h1><p>You must specify which video to stream with the v parameter.<br>Ex: http://" & last_host_2 & "/stream?v=BbCefdlDDTU</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf
+
+            Dim index_resp As String =
+                "HTTP/" & http_ver & " 400 Bad Request" & vbCrLf &
+                "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
+                "Connection: close" & vbCrLf &
+                "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser
+
+            Dim index_data As Byte() = iso.GetBytes(index_resp)
+
+            Try
+                stream.Write(index_data, 0, index_data.Length)
+            Catch ex As Exception
+                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+            End Try
+
+            client.Close()
+        ElseIf request.StartsWith("GET /search?q=") Or request.StartsWith("GET /lucky?q=") Then
             'Lancement d'une recherche par l'utilisateur.
+
+            Dim get_params As String = String.Empty
 
             If IsNetworkAvailable() Then
                 Dim arg As String = Split(request)(1)
-                arg = arg.Remove(0, 7)
+
+                If request.StartsWith("GET /search") Then
+                    arg = arg.Remove(0, 7)
+                    vt = RequestVideoType.SearchVideo
+                Else
+                    arg = arg.Remove(0, 6)
+                    vt = RequestVideoType.LuckyVideo
+                End If
 
                 'Les caractères systèmes sont retirés par sécurité
                 For i As Integer = 0 To &H1F
@@ -1680,12 +1877,24 @@ Module Program
                 req = req.Replace("+", " ")
 
                 If Not String.IsNullOrEmpty(req) Then
+                    If req.Contains("&") And Not req.EndsWith("&") Then
+                        Dim req_f As Integer = req.IndexOf("&")
+                        get_params = req.Remove(0, req_f)
+                        req = req.Substring(0, req_f)
+                    End If
+
                     WriteLog("Le mot-clef '" & req & "' a été demandé. Recherche en cours...", ConsoleColor.White, client)
+                    If vt = RequestVideoType.LuckyVideo Then WriteLog("Mode chanceux activé par l'utilisateur. Seul le premier résultat sera renvoyé.")
 
                     'Lancement de yt-dlp
                     Dim psi As New ProcessStartInfo()
                     psi.FileName = "yt-dlp.exe"
-                    psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s"" ""ytsearch" & number_of_results.ToString & ":" & req & """ --no-warnings --encoding utf-8"
+
+                    If vt = RequestVideoType.LuckyVideo Then
+                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s"" ""ytsearch1:" & req & """ --no-warnings --encoding utf-8"
+                    Else
+                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s"" ""ytsearch" & number_of_results.ToString & ":" & req & """ --no-warnings --encoding utf-8"
+                    End If
 
                     psi.UseShellExecute = False
                     psi.RedirectStandardOutput = True
@@ -1699,73 +1908,111 @@ Module Program
                     Dim err As String = p.StandardError.ReadToEnd()
 
                     p.WaitForExit()
-                    InitValues("Recherche de " & EscapeHtml(req), req, wanted_skin)
+                    If vt <> RequestVideoType.LuckyVideo Then InitValues("Recherche de " & EscapeHtml(req), req, wanted_skin)
 
                     'Récupération des lignes
                     Dim lines As String() = output.Split({vbCrLf, vbLf}, StringSplitOptions.RemoveEmptyEntries)
 
                     If lines.Count = 0 Then
                         'S'il n'y a aucune ligne retournée.
-                        patternpage &= " <P ALIGN=CENTER><BR><B><FONT SIZE=4>Aucun résultat trouvé !</FONT></B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV><BR><BR>" & vbCrLf & vbCrLf
-                        WriteLog("La recherche du mot-clef '" & req & "' n'a donné aucun résultat.")
+                        If vt = RequestVideoType.LuckyVideo Then
+                            Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Generic message to tell no results were found.</p><br><p>Click <a href=""/"">here</a> to get back to the index page.</p>" & vbCrLf)
+
+                            Try
+                                stream.Write(notfound_data, 0, notfound_data.Length)
+                            Catch ex As Exception
+                                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                                client.Close()
+                                Exit Sub
+                            End Try
+
+                            WriteLog("La recherche du mot-clef '" & req & "' en mode chanceux n'a donné aucun résultat.")
+                            client.Close()
+                            Exit Sub
+                        Else
+                            patternpage &= " <P ALIGN=CENTER><BR><B><FONT SIZE=4>Aucun résultat trouvé !</FONT></B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV><BR><BR>" & vbCrLf & vbCrLf
+                            WriteLog("La recherche du mot-clef '" & req & "' n'a donné aucun résultat.")
+                        End If
                     Else
                         'Sinon, on affiche les résultats dans la page Web.
-                        If lines.Count = 1 Then
-                            patternpage &= " <P ALIGN=CENTER><BR><BR><B><FONT SIZE=4>Le meilleur résultat pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P><BR><BR>" & vbCrLf & vbCrLf
+                        If vt = RequestVideoType.LuckyVideo Then
+                            Dim parts As String() = lines(0).Split(New String() {"<|>"}, StringSplitOptions.None)
+                            '302
+                            Dim result_page As String = "<h1>302 Found</h1><p>A video was found in lucky mode, and is available at this URL: <a href=""/stream?v=" & parts(0) & """>Click here</a>.</p>" & vbCrLf
+
+                            Dim index_resp As String = "HTTP/1.1 302 Found" & vbCrLf &
+                            "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                            "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
+                            "Connection: close" & vbCrLf &
+                            "Location: /stream?v=" & parts(0) & get_params & vbCrLf &
+                            "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser.
+
+                            Dim index_data As Byte() = iso.GetBytes(index_resp)
+
+                            Try
+                                stream.Write(index_data, 0, index_data.Length)
+                            Catch ex As Exception
+                                WriteLog("Erreur d'envoi de la réponse: " & ex.Message, ConsoleColor.Red, client)
+                            End Try
+
+                            client.Close()
+                            Exit Sub
                         Else
-                            patternpage &= " <P ALIGN=CENTER><BR><BR><B><FONT SIZE=4>Les " & lines.Count.ToString & " meilleurs résultats pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P><BR><BR>" & vbCrLf & vbCrLf
-                        End If
-                        patternpage &= "  <CENTER><TABLE BORDER=0 CELLPADDING=8 WIDTH=780 ALIGN=CENTER>" & vbCrLf
-
-                        WriteLog("La recherche du mot-clef '" & req & "' a donné " & lines.Count.ToString & " résultat(s).")
-
-                        For Each line In lines
-
-                            Dim parts = line.Split(New String() {"<|>"}, StringSplitOptions.None)
-
-                            If parts.Length = 9 Then
-                                Dim id As String = parts(0)
-                                Dim title As String = parts(1)
-                                title = CleanText(title)
-
-                                Dim views As String = parts(2)
-                                Dim dateup As String = parts(3)
-                                Dim uploader As String = parts(4)
-                                Dim thumb As String = "/thumbnail?t=" & id
-                                Dim duration As String = parts(6)
-
-                                If Not last_titles.ContainsKey(id) Then
-                                    last_titles.Add(id, title)
-                                End If
-
-                                If Not video_dimensions.ContainsKey(id) Then
-                                    Dim vw, vh As String
-                                    vw = parts(7)
-                                    vh = parts(8)
-                                    If Not IsNumeric(vw) Then vw = 640
-                                    If Not IsNumeric(vh) Then vh = 480
-                                    video_dimensions.Add(id, vw & ":" & vh)
-                                End If
-
-                                Dim legacy_flag As String = String.Empty
-
-                                'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
-                                patternpage &= "   <TR>" & vbCrLf
-                                patternpage &= "    <TD WIDTH=200><A HREF=""/watch?v=" & id & legacy_flag & """><IMG SRC=""" & thumb & """ WIDTH=180 HEIGHT=120 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A></TD>" & vbCrLf
-
-                                If duration = "NA" Then
-                                    patternpage &= "    <TD WIDTH=* VALIGN=TOP><BR><A HREF=""/watch?v=" & id & legacy_flag & """>" & EscapeHtml(title) & " <FONT COLOR=""#808080"">(?:??)</FONT><BR>" & GetThousands(views) & " vue(s)</A><BR><BR>Vidéo publiée le " & GetDate(dateup) & " par <I>" & EscapeHtml(uploader) & "</I>.</TD>" & vbCrLf
-                                Else
-                                    patternpage &= "    <TD WIDTH=* VALIGN=TOP><BR><A HREF=""/watch?v=" & id & legacy_flag & """>" & EscapeHtml(title) & " <FONT COLOR=""#808080"">(" & GetDuration(CInt(duration)) & ")</FONT><BR>" & GetThousands(views) & " vue(s)</A><BR><BR>Vidéo publiée le " & GetDate(dateup) & " par <I>" & EscapeHtml(uploader) & "</I>.</TD>" & vbCrLf
-                                End If
-
-                                patternpage &= "   </TR>" & vbCrLf
-
+                            If lines.Count = 1 Then
+                                patternpage &= " <P ALIGN=CENTER><BR><BR><B><FONT SIZE=4>Le meilleur résultat pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P><BR><BR>" & vbCrLf & vbCrLf
+                            Else
+                                patternpage &= " <P ALIGN=CENTER><BR><BR><B><FONT SIZE=4>Les " & lines.Count.ToString & " meilleurs résultats pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P><BR><BR>" & vbCrLf & vbCrLf
                             End If
+                            patternpage &= "  <CENTER><TABLE BORDER=0 CELLPADDING=8 WIDTH=780 ALIGN=CENTER>" & vbCrLf
 
-                        Next
+                            WriteLog("La recherche du mot-clef '" & req & "' a donné " & lines.Count.ToString & " résultat(s).")
 
-                        patternpage &= "  </TABLE></CENTER>"
+                            For Each line In lines
+
+                                Dim parts As String() = line.Split(New String() {"<|>"}, StringSplitOptions.None)
+
+                                If parts.Length = 9 Then
+                                    Dim id As String = parts(0)
+                                    Dim title As String = parts(1)
+                                    title = CleanText(title)
+
+                                    Dim views As String = parts(2)
+                                    Dim dateup As String = parts(3)
+                                    Dim uploader As String = parts(4)
+                                    Dim thumb As String = "/thumbnail?t=" & id
+                                    Dim duration As String = parts(6)
+
+                                    If Not last_titles.ContainsKey(id) Then
+                                        last_titles.Add(id, title)
+                                    End If
+
+                                    If Not video_dimensions.ContainsKey(id) Then
+                                        Dim vw, vh As String
+                                        vw = parts(7)
+                                        vh = parts(8)
+                                        If Not IsNumeric(vw) Then vw = 640
+                                        If Not IsNumeric(vh) Then vh = 480
+                                        video_dimensions.Add(id, vw & ":" & vh)
+                                    End If
+
+                                    Dim legacy_flag As String = String.Empty
+
+                                    'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
+                                    patternpage &= "   <TR>" & vbCrLf
+                                    patternpage &= "    <TD WIDTH=200><A HREF=""/watch?v=" & id & legacy_flag & """><IMG SRC=""" & thumb & """ WIDTH=180 HEIGHT=120 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A></TD>" & vbCrLf
+
+                                    If duration = "NA" Then
+                                        patternpage &= "    <TD WIDTH=* VALIGN=TOP><BR><A HREF=""/watch?v=" & id & legacy_flag & """>" & EscapeHtml(title) & " <FONT COLOR=""#808080"">(?:??)</FONT><BR>" & GetThousands(views) & " vue(s)</A> - <A HREF=""/stream?v=" & id & """ STYLE=""color: " & link_color & ";"">Flux direct</A><BR><BR>Vidéo publiée le " & GetDate(dateup) & " par <I>" & EscapeHtml(uploader) & "</I>.</TD>" & vbCrLf
+                                    Else
+                                        patternpage &= "    <TD WIDTH=* VALIGN=TOP><BR><A HREF=""/watch?v=" & id & legacy_flag & """>" & EscapeHtml(title) & " <FONT COLOR=""#808080"">(" & GetDuration(CInt(duration)) & ")</FONT><BR>" & GetThousands(views) & " vue(s)</A> - <A HREF=""/stream?v=" & id & """ STYLE=""color: " & link_color & ";"">Flux direct</A><BR><BR>Vidéo publiée le " & GetDate(dateup) & " par <I>" & EscapeHtml(uploader) & "</I>.</TD>" & vbCrLf
+                                    End If
+
+                                    patternpage &= "   </TR>" & vbCrLf
+                                End If
+                            Next
+
+                            patternpage &= "  </TABLE></CENTER>"
+                        End If
                     End If
 
                     patternpage &= "<BR><BR>" & footer
@@ -1789,28 +2036,39 @@ Module Program
                     End Try
                 Else
                     'Si le mot-clef est vide voire invalide.
-                    InitValues("Erreur de recherche", , wanted_skin)
-                    patternpage &= " <P ALIGN=CENTER><BR><B><FONT SIZE=2>Veuillez spécifier un mot-clef pour que la recherche puisse avoir lieu.<BR><BR>Cliquez <A HREF=""/"" STYLE=""color: " & link_color & ";"">ici</A> pour retourner à l'index.</FONT></B></P><BR><BR><DIV CLASS=""bodysep""></DIV>" & vbCrLf & vbCrLf & footer
+                    If vt = RequestVideoType.LuckyVideo Then
+                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Generic message to say the search tag is empty.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
 
-                    Dim req_resp As String =
-                    "HTTP/" & http_ver & " 200 OK" & vbCrLf &
-                    "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
-                    "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
-                    "Connection: close" & vbCrLf &
-                    "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
+                        Try
+                            stream.Write(notfound_data, 0, notfound_data.Length)
+                        Catch ex As Exception
+                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                        End Try
+                        client.Close()
+                    Else
+                        InitValues("Erreur de recherche", , wanted_skin)
+                        patternpage &= " <P ALIGN=CENTER><BR><B><FONT SIZE=2>Veuillez spécifier un mot-clef pour que la recherche puisse avoir lieu.<BR><BR>Cliquez <A HREF=""/"" STYLE=""color: " & link_color & ";"">ici</A> pour retourner à l'index.</FONT></B></P><BR><BR><DIV CLASS=""bodysep""></DIV>" & vbCrLf & vbCrLf & footer
 
-                    Dim req_data As Byte() = iso.GetBytes(req_resp)
+                        Dim req_resp As String =
+                            "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                            "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                            "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
+                            "Connection: close" & vbCrLf &
+                            "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
 
-                    Try
-                        stream.Write(req_data, 0, req_data.Length)
-                    Catch ex As Exception
-                        WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
-                    End Try
+                        Dim req_data As Byte() = iso.GetBytes(req_resp)
+
+                        Try
+                            stream.Write(req_data, 0, req_data.Length)
+                        Catch ex As Exception
+                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                        End Try
+                    End If
                 End If
 
                 client.Close()
             Else
-                Dim notfound_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>Proxy server is not connected to the World Wide Web.</p>" & vbCrLf)
+                Dim notfound_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>Proxy server is not connected to the World Wide Web.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                 Try
                     stream.Write(notfound_data, 0, notfound_data.Length)
@@ -1831,6 +2089,29 @@ Module Program
                 "Connection: close" & vbCrLf &
                 "Location: /" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser
+
+            Dim index_data As Byte() = iso.GetBytes(index_resp)
+
+            Try
+                stream.Write(index_data, 0, index_data.Length)
+            Catch ex As Exception
+                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+            End Try
+
+            client.Close()
+        ElseIf request.StartsWith("GET /lucky") Then
+            'Requête vide
+            'Index du site
+            WriteLog("L'utilisateur demande le formulaire de recherche en mode chanceux.", , client)
+            InitValues("Accueil", , wanted_skin, True)
+            patternpage &= "<P ALIGN=CENTER><BR><B>Faire une recherche en mode chanceux renvoie une unique vidéo basée sur des mot-clefs à rechercher dans la zone ci-dessus.<BR><BR>Cliquez <A HREF=""/about.htm"" STYLE=""color: " & link_color & ";"">ICI</A> pour obtenir plus d'informations sur le fonctionnement.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV><BR><BR>" & footer
+
+            Dim index_resp As String =
+                "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
+                "Connection: close" & vbCrLf &
+                "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
 
             Dim index_data As Byte() = iso.GetBytes(index_resp)
 
@@ -1890,6 +2171,7 @@ Module Program
                 request = request.Replace(Chr(i), String.Empty)
             Next
 
+            Dim selected_one As String = String.Empty
             Dim selected_five As String = String.Empty
             Dim selected_ten As String = String.Empty
             Dim selected_twenty As String = String.Empty
@@ -1903,6 +2185,10 @@ Module Program
             Dim selected_cinema As String = String.Empty
             Dim selected_auto As String = String.Empty
             Dim selected_auto_height As String = String.Empty
+            Dim selected_fullscreen As String = String.Empty
+            Dim selected_fulljs As String = String.Empty
+            Dim selected_gold1 As String = String.Empty
+            Dim selected_gold2 As String = String.Empty
 
             Dim selected_avi_mpeg4 As String = String.Empty
             Dim selected_avi_msvideo1 As String = String.Empty
@@ -1919,6 +2205,8 @@ Module Program
             Dim selected_mov_mpeg4 As String = String.Empty
             Dim selected_avi_cinepak As String = String.Empty 'Cinepak AVI
             Dim selected_mov_rpza As String = String.Empty
+            Dim selected_avi_mjpeg As String = String.Empty
+            Dim selected_mov_mjpeg As String = String.Empty
 
             Dim selected_nointegration As String = String.Empty
             Dim selected_legacy_wmp As String = String.Empty
@@ -1966,6 +2254,7 @@ Module Program
 
             'Nombre de résultats par recherche et affichage en paramètres
             Select Case number_of_results
+                Case 1 : selected_one = " SELECTED"
                 Case 5 : selected_five = " SELECTED"
                 Case 10 : selected_ten = " SELECTED"
                 Case 20 : selected_twenty = " SELECTED"
@@ -1982,6 +2271,10 @@ Module Program
                 Case "cinema" : selected_cinema = " SELECTED"
                 Case "auto" : selected_auto = " SELECTED"
                 Case "autoheight" : selected_auto_height = " SELECTED"
+                Case "fullscreen" : selected_fullscreen = " SELECTED"
+                Case "fulljs" : selected_fulljs = " SELECTED"
+                Case "gold1" : selected_gold1 = " SELECTED"
+                Case "gold2" : selected_gold2 = " SELECTED"
                 Case Else : selected_middle = " SELECTED"
             End Select
 
@@ -2002,6 +2295,8 @@ Module Program
                 Case "3gp" : selected_3gp = " SELECTED"
                 Case "flv" : selected_flv = " SELECTED"
                 Case "rm" : selected_rm = " SELECTED"
+                Case "mov_mjpeg" : selected_mov_mjpeg = " SELECTED"
+                Case "avi_mjpeg" : selected_avi_mjpeg = " SELECTED"
                 Case Else : selected_avi_mpeg4 = " SELECTED" 'Failsafe
             End Select
 
@@ -2023,7 +2318,7 @@ Module Program
                 Case "embed_flash" : selected_embedflash = " SELECTED"
                 Case "activex_flash" : selected_objectflash = " SELECTED"
                 Case "object" : selected_genobject = " SELECTED"
-                Case Else : selected_embed = " SELECTED"
+                Case Else : selected_embed = " SELECTED" 'Failsafe
             End Select
 
             'Nombre d'images par seconde pour la vidéo lue
@@ -2037,7 +2332,7 @@ Module Program
                 Case "25" : selected_framerate25 = " SELECTED"
                 Case "30" : selected_framerate30 = " SELECTED"
                 Case "60" : selected_framerate60 = " SELECTED"
-                Case Else : selected_framerate24 = " SELECTED"
+                Case Else : selected_framerate24 = " SELECTED" 'Failsafe
             End Select
 
             'Résolution utilisée pour la vidéo
@@ -2051,7 +2346,7 @@ Module Program
                 Case "480p" : selected_480p = " SELECTED"
                 Case "720p" : selected_720p = " SELECTED"
                 Case "1080p" : selected_1080p = " SELECTED"
-                Case Else : selected_240p = " SELECTED"
+                Case Else : selected_240p = " SELECTED" 'Failsafe
             End Select
 
             Select Case wanted_skin
@@ -2068,9 +2363,9 @@ Module Program
             patternpage &= "<BR><P ALIGN=CENTER><B><FONT SIZE=4>Configuration du client RetroYT :</FONT></B></P><br>" & vbCrLf & vbCrLf
 
             If request.Contains("message=gotreset") Then
-                patternpage &= "<CENTER><P CLASS=""green_toast""><B><FONT COLOR=""#008000"">La configuration a été remise par défaut avec succès.</FONT></B></P></CENTER><BR>"
+                patternpage &= "<CENTER><P CLASS=""green_toast""><B><FONT COLOR=""#008000"">La configuration a été remise par défaut avec succès (" & Now.ToString & ").</FONT></B></P></CENTER><BR>"
             ElseIf request.Contains("message=gotsaved") Then
-                patternpage &= "<CENTER><P CLASS=""green_toast""><B><FONT COLOR=""#008000"">La configuration a été enregistrée avec succès.</FONT></B></P></CENTER><BR>"
+                patternpage &= "<CENTER><P CLASS=""green_toast""><B><FONT COLOR=""#008000"">La configuration a été enregistrée avec succès (" & Now.ToString & ").</FONT></B></P></CENTER><BR>"
             End If
 
             patternpage &= "  <FORM METHOD=""POST"" ACTION=""/savecfg.cgi"">" & vbCrLf
@@ -2079,6 +2374,7 @@ Module Program
             patternpage &= "	 <TD ALIGN=RIGHT>Nombre de résultats affichés par recherche&nbsp;:&nbsp;</TD>" & vbCrLf
             patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""results"" WIDTH=300>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""1""" & selected_one & ">1 résultat</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""5""" & selected_five & ">5 résultats</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""10""" & selected_ten & ">10 résultats [Par défaut]</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""20""" & selected_twenty & ">20 résultats</OPTION>" & vbCrLf
@@ -2089,24 +2385,30 @@ Module Program
             patternpage &= "	<TR>" & vbCrLf
             patternpage &= "	 <TD ALIGN=RIGHT>Format vidéo et codec utilisés&nbsp;:&nbsp;</TD>" & vbCrLf
             patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
-            patternpage &= "	  <SELECT NAME=""usedcodec"" WIDTH=300>" & vbCrLf
+            patternpage &= "	  <SELECT NAME=""codec"" WIDTH=300>" & vbCrLf
+            patternpage &= "	   <OPTION DISABLED>Formats Microsoft :</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_mpeg4""" & selected_avi_mpeg4 & ">AVI (MPEG-4, MP3) [Par défaut]</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_msvideo1""" & selected_avi_msvideo1 & ">AVI (MSVideo1, PCM) [Windows 3.11/95/NT]</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""avi_yuv""" & selected_avi_yuv & ">AVI (YUV, PCM) [Très lourd!]</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_cinepak""" & selected_avi_cinepak & ">AVI (Cinepak, PCM) [Lent à encoder]</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION DISABLED>------------------------------------</OPTION>" & vbCrLf
-            patternpage &= "       <OPTION VALUE=""mov_cinepak""" & selected_mov_cinepak & ">MOV (Cinepak, PCM) [MacOS 90s] [Lent]</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""avi_mjpeg""" & selected_avi_mjpeg & ">AVI (MJPEG, PCM)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""avi_yuv""" & selected_avi_yuv & ">AVI (YUV, PCM) [Très lourd!]</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""wmv1""" & selected_oldwmv & ">WMV (WMV1, WMAv1) [Windows 9x/NT]</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""wmv2""" & selected_wmv & ">WMV (WMV2, WMAv2) [Windows 98/ME/2000]</OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED></OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Formats Apple QuickTime :</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""mov_cinepak""" & selected_mov_cinepak & ">MOV (Cinepak, PCM) [Lent] [MacOS 90s]</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""mov_mpeg4""" & selected_mov_mpeg4 & ">MOV (MPEG-4, MP2) [MacOS 90s]</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""mov_rpza""" & selected_mov_rpza & ">MOV (RPZA, PCM) [MacOS 90s]</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""mov_svq1""" & selected_mov_svq1 & ">MOV (Sorenson SVQ1, MP3) [MacOS X 2000s]</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION DISABLED>------------------------------------</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""mov_mjpeg""" & selected_mov_mjpeg & ">MOV (MJPEG, PCM) [MacOS]</OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED></OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Autres formats universels ou génériques :</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""mp4""" & selected_mp4 & ">MP4 (H.264, M4A)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""mpeg1""" & selected_mpg & ">MPEG (MPEG-1, MP2)</OPTION>" & vbCrLf
-            patternpage &= "       <OPTION VALUE=""wmv1""" & selected_oldwmv & ">WMV (WMV1, WMAv1) [Windows 9x/NT]</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""wmv2""" & selected_wmv & ">WMV (WMV2, WMAv2) [Windows 98/ME/2000]</OPTION>" & vbCrLf
-            patternpage &= "       <OPTION VALUE=""rm""" & selected_rm & ">Real Media (RV10, Cook)</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""rm""" & selected_rm & ">Real Media (RV10, AC3)</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""3gp""" & selected_3gp & ">3GP (H.263, AMR-NB) [Mobile]</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION DISABLED>------------------------------------</OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED></OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Formats Flash Player :</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""flv""" & selected_flv & ">Macromedia Flash (Sorenson Spark, MP3)</OPTION>" & vbCrLf
             patternpage &= "	  </SELECT>" & vbCrLf
             patternpage &= "	 </TD>" & vbCrLf
@@ -2115,7 +2417,7 @@ Module Program
             patternpage &= "	<TR>" & vbCrLf
             patternpage &= "	 <TD ALIGN=RIGHT>Résolution de la vidéo&nbsp;:&nbsp;</TD>" & vbCrLf
             patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
-            patternpage &= "	  <SELECT NAME=""usedresolution"" WIDTH=300>" & vbCrLf
+            patternpage &= "	  <SELECT NAME=""resolution"" WIDTH=300>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""auto""" & selected_autosize & ">Automatique [Par défaut]</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""96p""" & selected_96p & ">96p (Minimale)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""120p""" & selected_120p & ">120p (Très Faible)</OPTION>" & vbCrLf
@@ -2149,11 +2451,12 @@ Module Program
             patternpage &= "	<TR>" & vbCrLf
             patternpage &= "	 <TD ALIGN=RIGHT>Intégration multimédia utilisée&nbsp;:&nbsp;</TD>" & vbCrLf
             patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
-            patternpage &= "	  <SELECT NAME=""usedplayer"" WIDTH=300>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""no_integration""" & selected_nointegration & ">(Aucun lecteur)</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION DISABLED>------------------------------------</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""legacy_wmp""" & selected_legacy_wmp & ">Lecteur Windows Media 6.4 (ActiveX)</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""wmp""" & selected_wmp & ">Lecteur Windows Media 7.0 et plus (ActiveX)</OPTION>" & vbCrLf
+            patternpage &= "	  <SELECT NAME=""player"" WIDTH=300>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""no_integration""" & selected_nointegration & ">(Aucune intégration)</OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED></OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Lecteurs propriétaires et open source :</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""legacy_wmp""" & selected_legacy_wmp & ">Windows Media Player 6.4 (ActiveX)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""wmp""" & selected_wmp & ">Windows Media Player 7.0 et plus (ActiveX)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""quicktime""" & selected_quicktime & ">Lecteur Apple QuickTime (ActiveX)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""embed_quicktime""" & selected_embed_quick & ">Lecteur Apple QuickTime (Embarqué)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""vlc""" & selected_vlc & ">Lecteur VLC (ActiveX)</OPTION>" & vbCrLf
@@ -2161,14 +2464,16 @@ Module Program
             patternpage &= "       <OPTION VALUE=""embed_vlc""" & selected_vlcembed & ">Lecteur VLC (Embarqué)</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""activex_realplayer""" & selected_realplayer_activex & ">Lecteur Real Player (ActiveX)</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""realplayer""" & selected_realplayer & ">Lecteur Real Player (Embarqué)</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION DISABLED>------------------------------------</OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED></OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Intégration via Flash Player :</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""flash""" & selected_flashplayer & ">Lecteur Flash Player (Javascript)</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""embed_flash""" & selected_embedflash & ">Lecteur Flash Player (Embarqué)</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""activex_flash""" & selected_objectflash & ">Lecteur Flash Player (ActiveX)</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION DISABLED>------------------------------------</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""embed""" & selected_embed & ">Lecteur embarqué générique [Par défaut]</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""object""" & selected_genobject & ">Intégration standard générique</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""video""" & selected_video & ">Vidéo HTML 5.0</OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED></OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Intégrations génériques et HTML5 :</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""embed""" & selected_embed & ">Intégration générique (Embarquée) [Par défaut]</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""object""" & selected_genobject & ">Intégration générique (Object)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""video""" & selected_video & ">Intégration vidéo HTML5</OPTION>" & vbCrLf
             patternpage &= "	  </SELECT>" & vbCrLf
             patternpage &= "	 </TD>" & vbCrLf
             patternpage &= "	</TR>" & vbCrLf & vbCrLf
@@ -2176,15 +2481,19 @@ Module Program
             patternpage &= "	<TR>" & vbCrLf
             patternpage &= "	 <TD ALIGN=RIGHT>Taille du lecteur multimédia intégré&nbsp;:&nbsp;</TD>" & vbCrLf
             patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
-            patternpage &= "	  <SELECT NAME=""playersize"" WIDTH=300>" & vbCrLf
+            patternpage &= "	  <SELECT NAME=""size"" WIDTH=300>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""micro""" & selected_micro & ">Micro (160x140)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""ultrasmall""" & selected_ultrasmall & ">Ultra Compact (256x192)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""small""" & selected_small & ">Compact (320x240)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""middle""" & selected_middle & ">Standard (640x480) [Par défaut]</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""large""" & selected_large & ">Large (854x480)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""cinema""" & selected_cinema & ">Cinéma (1280x720)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""gold1""" & selected_gold1 & ">16:10 Standard (1280x800)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""gold2""" & selected_gold2 & ">16:10 Grand format (1440x900)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""auto""" & selected_auto & ">Automatique (avec Javascript)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""autoheight""" & selected_auto_height & ">Automatique (avec ratio vidéo)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""fullscreen""" & selected_fullscreen & ">Plein écran (avec HTML)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""fulljs""" & selected_fulljs & ">Plein écran (avec Javascript)</OPTION>" & vbCrLf
             patternpage &= "	  </SELECT>" & vbCrLf
             patternpage &= "	 </TD>" & vbCrLf
             patternpage &= "	</TR>" & vbCrLf & vbCrLf
@@ -2235,7 +2544,7 @@ Module Program
             rqcontent = rqcontent.Replace(Chr(13), String.Empty)
 
             If String.IsNullOrEmpty(rqcontent) Then
-                rqcontent = "results=10&playersize=middle&usedcodec=avi_mpeg4&usedplayer=embed&skin=cosmic&usedresolution=auto&framerate=auto"
+                rqcontent = "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto"
             End If
 
             'Pour éviter des injections d'entêtes HTTP
@@ -2295,7 +2604,7 @@ Module Program
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
                 "Connection: close" & vbCrLf &
-                "Set-Cookie: " & cookie_header & "results=10&playersize=middle&usedcodec=avi_mpeg4&usedplayer=embed&skin=cosmic&usedresolution=auto&framerate=auto;path=/" & vbCrLf &
+                "Set-Cookie: " & cookie_header & "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto;path=/" & vbCrLf &
                 "Location: /config.cgi&message=gotreset" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser
 
@@ -2324,10 +2633,13 @@ Module Program
             arg1 = arg1.Replace("\.", String.Empty)
 
             arg1 = arg1.Substring(0, arg1.IndexOf(" "))
+            If arg1.Contains("&") Then
+                arg1 = arg1.Substring(0, arg1.IndexOf("&"))
+            End If
 
             If Not IO.File.Exists(CurDir() & "\vidcache\" & arg1) Then
                 Dim notfound_data As Byte()
-                notfound_data = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Video with file name '" & arg1.Replace(">", "&gt;").Replace("<", "&lt;") & "' was not found on this server.</p>" & vbCrLf)
+                notfound_data = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Video with file name '" & arg1.Replace(">", "&gt;").Replace("<", "&lt;") & "' was not found on this server.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
 
                 Try
                     stream.Write(notfound_data, 0, notfound_data.Length)
@@ -2370,7 +2682,7 @@ Module Program
                 If range_begin >= 0 Or range_end >= 0 Then
                     If range_begin >= f_length Or range_end > f_length Or range_begin < 0 Or range_end < 0 Then
                         'Lever une erreur
-                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p>" & vbCrLf)
+                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                         Try
                             stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -2458,11 +2770,11 @@ Module Program
             InitValues("À propos de RetroYT", , wanted_skin)
             WriteLog("Page des informations sur le logiciel envoyée.", , client)
 
-            patternpage &= "<br><br><center><div style=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;""><B>RetroYT</B> est un proxy multimédia pour YouTube développé en Visual Basic .NET 2022 par Monokeros. La version actuelle, la Bêta 3.3, a été publiée le 8 mai 2026. Ce projet est distribué gratuitement (sous la licence «&nbsp;freeware&nbsp;»), sans aucune garantie explicite ou implicite. L'auteur ne pourra être tenu responsable d'éventuels dommages matériels, logiciels, des éventuelles pertes de données, ou dysfonctionnements résultant de son utilisation, y compris dans un cadre normal.<br>" & vbCrLf
-            patternpage &= "Le projet vise principalement à restaurer la compatibilité de YouTube avec des systèmes d'exploitation, navigateurs web et lecteurs multimédia anciens ou obsolètes, à travers le relais de connexions, formatage vers un code HTML, et l'intégration de formats vidéo historiques, lisible par les navigateurs de toute époque.<br><br>" & vbCrLf
-            patternpage &= "Remerciements à LeJarb pour son aide concernant l'optimisation de certains codecs, ainsi que pour son implémentation de la lecture intégrée via RealPlayer (avec l'assistance de Léo AI).<br><br><br>" & vbCrLf
+            patternpage &= "<br><br><center><div style=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;""><B>RetroYT</B> est un proxy multimédia pour YouTube développé en Visual Basic .NET 2022 par Monokeros. La version actuelle, la Bêta 3.6, a été publiée le 14 mai 2026. Ce projet est distribué gratuitement (sous la licence «&nbsp;freeware&nbsp;»), sans aucune garantie explicite ou implicite. L'auteur ne pourra être tenu responsable d'éventuels dommages matériels, logiciels, des éventuelles pertes de données, ou dysfonctionnements résultant de son utilisation, y compris dans un cadre normal.<br>" & vbCrLf
+            patternpage &= "Le projet vise principalement à restaurer la compatibilité de YouTube avec des systèmes d'exploitation, navigateurs web et lecteurs multimédia anciens ou obsolètes, à travers le relais de connexions, formatage vers un code HTML, et l'intégration de formats vidéo historiques, lisible par les navigateurs de toute époque." & vbCrLf
+            patternpage &= "<br><br><br>" & vbCrLf
 
-            patternpage &= "<div style=""border: 1px solid black; padding: 8px 8px 8px 8px; width: 40%;""><b>Sommaire: </b><br>" & vbCrLf
+            patternpage &= "<div style=""display: block; border-radius: 8px; margin-left: 225px; border: 1px solid black; padding: 8px 8px 8px 8px; width: 40%;""><center><big><b>Sommaire: </b></big></center><br>" & vbCrLf
             patternpage &= "<a href=""#introduction"" style=""color: " & link_color & ";"">I. Introduction</a><br>" & vbCrLf
             patternpage &= "<a href=""#parameters"" style=""color: " & link_color & ";"">II. Paramètres</a><br>" & vbCrLf
             patternpage &= "<a href=""#precautions"" style=""color: " & link_color & ";"">III. Précautions</a><br>" & vbCrLf
@@ -2471,19 +2783,19 @@ Module Program
             patternpage &= "<a href=""#credits"" style=""color: " & link_color & ";"">VI. Crédits</a></div><br><br>" & vbCrLf & vbCrLf
 
             patternpage &= "<center><h2><a name=""introduction"">I. Introduction</a></h2></center><br><br>" & vbCrLf
-            patternpage &= "Le nom «&nbsp;RetroYT&nbsp;» provient du terme «&nbsp;rétro&nbsp;», désignant de manière générale quelque chose d'ancien, de classique ou «&nbsp;à l'ancienne&nbsp;». Le logiciel repose sur un serveur Web codé directement dans l'application (dit «&nbsp;hardcodé&nbsp;»), servant d'intermédiaire entre YouTube et le navigateur client utilisé par l'utilisateur. L'objectif principal du projet est de restaurer un accès fonctionnel à YouTube sur des navigateurs et systèmes d'exploitation devenus trop anciens pour prendre en charge la version moderne du site. Bien que RetroYT puisse également être utilisé depuis un navigateur récent comme un proxy classique, ce n'est pas sa vocation première. De nombreux proxies YouTube modernes existent déjà et offrent généralement de meilleures performances et une compatibilité plus étendue avec les standards Web actuels.<BR>RetroYT vise avant tout à permettre la recherche et la lecture de vidéos YouTube depuis des environnements anciens ou obsolètes, tels que Windows 3.11, Windows 95, Windows 98, Windows NT 4.0, Windows 2000, certaines anciennes versions de Mac OS X, ainsi que divers systèmes UNIX/Linux historiques. La solution a également été testée sous Windows XP et Windows 11 avec succès. Il est donc parfaitement normal de retrouver, au sein de ce projet, du code HTML volontairement ancien, des méthodes d'intégration multimédia historiques, ou encore l'utilisation de technologies aujourd'hui abandonnées comme ActiveX, RealPlayer, des anciennes versions de QuickTime, Flash Player, ou les plugins NPAPI. L'ensemble du projet cherche à reproduire, autant que possible, une expérience cohérente avec les capacités techniques du Web des années 1990 et du début des années 2000, tout en offrant une expérience de navigation proche des services Internet actuels.<br><br>" & vbCrLf
+            patternpage &= "Le nom «&nbsp;RetroYT&nbsp;» provient du terme «&nbsp;rétro&nbsp;», désignant de manière générale quelque chose d'ancien, de classique ou «&nbsp;à l'ancienne&nbsp;». Le logiciel repose sur un serveur Web codé directement dans l'application (dit «&nbsp;hardcodé&nbsp;»), servant d'intermédiaire entre YouTube et le navigateur client utilisé par l'utilisateur. L'objectif principal du projet est de restaurer un accès fonctionnel à YouTube sur des navigateurs et systèmes d'exploitation devenus trop anciens pour prendre en charge la version moderne du site. Bien que RetroYT puisse également être utilisé depuis un navigateur récent comme un proxy classique, ce n'est pas sa vocation première. De nombreux proxies YouTube modernes existent déjà et offrent généralement de meilleures performances et une compatibilité plus étendue avec les standards Web actuels.<BR><B>RetroYT</B> vise avant tout à permettre la recherche et la lecture de vidéos YouTube depuis des environnements anciens ou obsolètes, tels que Windows 3.11, Windows 95, Windows 98, Windows NT 4.0, Windows 2000, certaines anciennes versions de MacOS, ainsi que divers systèmes UNIX/Linux historiques. La solution a également été testée sous Windows XP et Windows 11 avec succès. &Eacute;tant donné l'identité rétrocompatible de ce projet, il est donc parfaitement normal de retrouver, au sein de ce projet, du code HTML volontairement ancien, des méthodes d'intégration multimédia historiques, ou encore l'utilisation de technologies aujourd'hui abandonnées comme ActiveX, RealPlayer, des anciennes versions de QuickTime, Flash Player, ou les plugins NPAPI. L'ensemble du projet cherche à reproduire, autant que possible, une expérience cohérente avec les capacités techniques du Web des années 1990 et du début des années 2000, tout en offrant une expérience de navigation proche des services Internet actuels.<br><br>" & vbCrLf
 
             patternpage &= "<br><center><h2><a name=""parameters"">II. Paramètres</a></h2></center><br><br>" & vbCrLf
 
-            patternpage &= "<b>RetroYT</b> propose un ensemble de paramètres permettant d'adapter le fonctionnement du proxy aux capacités matérielles et logicielles du système cible. L'utilisateur peut notamment choisir la taille du lecteur vidéo, le format et les codecs employés pour la conversion, ainsi que le nombre d'images par seconde. Pour les systèmes les plus anciens, comme Windows 95 ou Windows NT 4.0, l'utilisation du codec MSVideo1 (Microsoft Video 1) est fortement recommandée, en raison de son excellente compatibilité avec les anciennes versions de Windows. Comme beaucoup de codecs historiques, celui-ci produit toutefois des fichiers relativement volumineux, en particulier pour les vidéos dépassant plusieurs minutes.<BR>Selon la puissance de votre machine, votre quantité de mémoire disponible ou la vitesse de votre connexion réseau, le transfert et la lecture des vidéos peuvent devenir plus difficiles. La résolution vidéo peut être choisie parmi un certain nombre de valeurs prédéfinies (96p, 120p, 144p, 240p, 360p, 480p, 720p et 1080p), ou laissée en mode automatique afin que le serveur sélectionne lui-même le format le plus approprié. Certains codecs anciens possèdent volontairement des limitations de résolution ou de format d'image, principalement pour des raisons de compatibilité avec les anciens lecteurs multimédia ou les contraintes matérielles des systèmes ciblés.<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "<b>RetroYT</b> propose un ensemble de paramètres permettant d'adapter le fonctionnement du proxy aux capacités matérielles et logicielles du système cible. L'utilisateur peut notamment choisir la taille du lecteur vidéo, le format et les codecs employés pour la conversion, ainsi que le nombre d'images par seconde. Pour les systèmes les plus anciens, comme Windows 95 ou Windows NT 4.0, l'utilisation des codecs MSVideo1 (Microsoft Video 1), MPEG-1 ou WMV1 est fortement recommandée, en raison de leur excellente compatibilité avec les anciennes versions de Windows. Comme beaucoup de codecs historiques, celui-ci produit toutefois des fichiers relativement volumineux, en particulier pour les vidéos dépassant plusieurs minutes.<BR>Selon la puissance de votre machine, votre quantité de mémoire disponible ou la vitesse de votre connexion réseau, le transfert et la lecture des vidéos peuvent devenir plus difficiles. La résolution vidéo peut être choisie parmi un certain nombre de valeurs prédéfinies (96p, 120p, 144p, 240p, 360p, 480p, 720p et 1080p), ou laissée en mode automatique afin que le serveur sélectionne lui-même le format le plus approprié. Certains codecs anciens possèdent volontairement des limitations de résolution ou de format d'image, principalement pour des raisons de compatibilité avec les anciens lecteurs multimédia ou les contraintes matérielles des systèmes ciblés.<br><br>" & vbCrLf & vbCrLf
             patternpage &= "Le mode d'intégration du lecteur vidéo est également configurable. RetroYT peut utiliser différentes méthodes historiques de lecture multimédia, parmi lesquelles :" & vbCrLf & vbCrLf
 
             patternpage &= "<ul>" & vbCrLf
             patternpage &= " <li>L'intégration ActiveX de Windows Media Player 6.4 ou supérieur ;</li>" & vbCrLf
-            patternpage &= " <li>La balise HTML embed ;</li>" & vbCrLf
+            patternpage &= " <li>La balise HTML &lt;embed&gt; ;</li>" & vbCrLf
             patternpage &= " <li>L'intégration de lecteurs externes tels que VLC, QuickTime ou RealPlayer ;</li>" & vbCrLf
             patternpage &= " <li>Le fameux lecteur Flash Player, très utilisé aux grands débuts de YouTube ;</li>" & vbCrLf
-            patternpage &= " <li>Ou encore la balise video, sous navigateurs modernes compatibles HTML5 (sortis après 2008).</li>" & vbCrLf
+            patternpage &= " <li>Ou encore la balise &lt;video&gt;, sous navigateurs modernes compatibles HTML5 (sortis après 2008).</li>" & vbCrLf
             patternpage &= "</ul>" & vbCrLf
 
             patternpage &= "L'apparence générale de l'interface Web peut également être personnalisée grâce à plusieurs thèmes graphiques :" & vbCrLf & vbCrLf
@@ -2497,7 +2809,7 @@ Module Program
             patternpage &= " <li><b>Aqua :</b> Thème aux couleurs bleues, rappelant l'eau. Le seul thème qui n'embarque pas de rouge partout, un peu comme le mode sombre.</li>" & vbCrLf
             patternpage &= "</ul>" & vbCrLf & vbCrLf
 
-            patternpage &= "Ces options permettent d'adapter RetroYT aussi bien à des machines très anciennes qu'à des systèmes plus récents, tout en conservant une esthétique cohérente avec les différentes époques du Web.<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "Ces options permettent d'adapter RetroYT aussi bien à des machines très anciennes qu'à des systèmes plus récents, tout en conservant une esthétique cohérente avec les différentes époques du Web. Il est intéressant de noter qu'on peut lire aussi des flux vidéo depuis un lecteur externe, sans passer par l'interface Web. Il suffit pour cela de naviguer sur <i>http://adresse_serveur/stream?v=id_video</i> pour lire directement dans un lecteur externe comme VLC. Vous pouvez aussi chercher et lire la première vidéo trouvée de façon immédiate en naviguant sur <i>http://adresse_serveur/lucky?q=motclef</i>. Par défaut, le format permutera automatiquement sur MP4 si vous utilisez VLC. Notez bien que vous pouvez utiliser les paramètres GET documentés dans la <a href=""useget"">partie V</a> de cette documentation.<br><br>" & vbCrLf & vbCrLf
 
             patternpage &= "<br><center><h2><a name=""precautions"">III. Précautions</a></h2></center><br><br>" & vbCrLf
             patternpage &= "<B>RetroYT</B> est distribué sous licence freeware/open source et ne doit pas être revendu sans l'autorisation explicite de son auteur. Afin de conserver une compatibilité maximale avec les anciens navigateurs Web et systèmes d'exploitation, le proxy ne met volontairement pas en œuvre certaines technologies modernes de sécurisation des communications, notamment SSL/TLS côté client. Les échanges entre RetroYT et YouTube utilisent bien des connexions sécurisées modernes, mais les communications entre le client et le proxy restent, quant à elles, entièrement non chiffrées. En effet, nombre d'anciens navigateurs ne prennent pas en charge SSL/TLS, surtout dans leurs dernières versions. Le HTTP sans chiffrement est une solution universelle pour se connecter au serveur.<BR>Pour cette raison, RetroYT est principalement destiné à une utilisation au sein d'un réseau local (LAN), sur une machine personnelle ou dans un environnement contrôlé. Il est fortement déconseillé d'exposer directement le proxy sur Internet ou de l'utiliser sur un réseau public non sécurisé, sauf si vous utilisez des solutions complémentaires de protection telles qu'un VPN ou un tunnel sécurisé.<BR><BR>"
@@ -2540,90 +2852,101 @@ Module Program
             patternpage &= "Veillez à autoriser l'exécution des contrôles ActiveX, si vous utilisez un système d'exploitation de Microsoft. Veillez aussi à avoir un ou plusieurs lecteurs multimédias installés, et les cookies activés sur votre navigateur. Si ce dernier ne semble pas prendre en charge les cookies, vous pourrez toujours forcer le mode rétrocompatibilité sur la page de visualisation, en cliquant sur le lien intitulé «&nbsp;Forcer le mode rétrocompatibilité&nbsp;». Pour les très anciennes versions de Windows, faire usage du codec AVI MSVideo1 depuis la section ""Paramètres"" est recommandé, en résolution 240p et en 15 images/s, tout en veillant à ce que les vidéos ne dépassent pas 10 minutes de longueur. Il s'agit d'un codec avec compression intégrée, totalement compatible avec Windows depuis sa version 3.1. Pour les navigateurs compatibles HTML5, vous pouvez activer l'utilisation du format vidéo MP4, et l'intégration multimédia via la balise video.<br>" & vbCrLf
             patternpage &= "Si vous activez le lecteur Flash Player, seul le format FLV (Flash Video) pourra être lu. Pareil pour Real Player, seul le format Real Media sera lu. Si par malheur aucune de ces options ne fonctionne, vous pouvez également cliquer sur le lien pour lire le flux vidéo directement (lien présent sous le lecteur, si présent). Le navigateur ouvrira un lecteur externe, ou vous proposera de télécharger le fichier pour le lire après. Mais il s'agit d'une option de dernier recours. Concernant le lecteur Windows Media Player 6.4, notez bien que l'utilisation des URL n'est prise en charge qu'à partir de la version 6.4.<br><br>" & vbCrLf & vbCrLf
 
-            patternpage &= "<br><center><h2><a name=""credits"">V. Utilisation du paramètre GET</a></h2></center><br><br>" & vbCrLf
+            patternpage &= "<br><center><h2><a name=""useget"">V. Utilisation du paramètre GET</a></h2></center><br><br>" & vbCrLf
 
-            patternpage &= "Si les cookies ne fonctionnent pas sur votre navigateur, et que vous ne pouvez pas enregistrer les paramètres, ceux par défaut seront appliqués. Par conséquent, certaines fonctionnalités seront incompatibles avec votre configuration. Heureusement, RetroYT inclut une fonctionnalité pour remédier à cet éventuel manque. Pour modifier la configuration de la lecture sans passer par les cookies (et la sauvegarde du paramétrage qui utilise une requête POST), vous pouvez ajouter des paramètres GET dans l'URL qui suit le modèle <i>/watch?v=xxxxxxxxxxx</i>. Ce sont les mêmes attributs que ceux utilisés dans la requête POST. Vous pouvez changer le type de lecteur utilisé, la taille du lecteur, le format vidéo utilisé, le nombre d'images par seconde et la résolution.<br><br>" & vbCrLf
+            patternpage &= "Si les cookies ne fonctionnent pas sur votre navigateur, et que vous ne pouvez pas enregistrer les paramètres, ceux par défaut seront appliqués. Par conséquent, certaines fonctionnalités seront incompatibles avec votre configuration. Heureusement, RetroYT inclut une fonctionnalité pour remédier à cet éventuel manque. Pour modifier la configuration de la lecture sans passer par les cookies (et la sauvegarde du paramétrage qui utilise une requête POST), vous pouvez ajouter des paramètres GET dans l'URL qui suit le modèle <i>/watch?v=xxxxxxxxxxx</i>. Ce sont les mêmes attributs que ceux utilisés dans la requête POST. Vous pouvez changer le type de lecteur utilisé, la taille du lecteur, le format vidéo utilisé, le nombre d'images par seconde et la résolution.<br><br><br>" & vbCrLf
 
-            patternpage &= "<b>Le lecteur utilisé se change via l'entête <i>usedplayer</i> avec pour paramètre un des éléments suivants :</b><br><br>"
-            patternpage &= "no_integration = Aucune intégration<br>" & vbCrLf
-            patternpage &= "legacy_wmp = Lecteur Windows Media Player 6.4<br>" & vbCrLf
-            patternpage &= "wmp = Lecteur Windows Media Player 7.0<br>" & vbCrLf
-            patternpage &= "embed = Intégration par la balise HTML embed<br>" & vbCrLf
-            patternpage &= "video = Intégration avec la balise vidéo de HTML5<br>" & vbCrLf
-            patternpage &= "realplayer = Lecteur Real Player via embed<br>" & vbCrLf
-            patternpage &= "activex_realplayer = Lecteur Real Player via ActiveX<br>" & vbCrLf
-            patternpage &= "embed_vlc = Lecteur VLC via embed<br>" & vbCrLf
-            patternpage &= "vlc = Lecteur VLC via ActiveX<br>" & vbCrLf
-            patternpage &= "alt_vlc = Lecteur VLC via ActiveX (Alternatif)<br>" & vbCrLf
-            patternpage &= "quicktime = Lecteur QuickTime via ActiveX<br>" & vbCrLf
-            patternpage &= "embed_quicktime = Lecteur QuickTime via embed<br>" & vbCrLf
-            patternpage &= "flash = Lecteur Flash via Javascript<br>" & vbCrLf
-            patternpage &= "embed_flash = Lecteur Flash via embed<br>" & vbCrLf
-            patternpage &= "activex_flash = Lecteur Flash via ActiveX<br>" & vbCrLf
-            patternpage &= "object = Intégration via la balise HTML object<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "<center><b>Le lecteur utilisé se change via l'entête <i>player</i> avec pour paramètre un des éléments suivants :</b></center><br><br>"
+            patternpage &= "<table border=1 cellpadding=4 align=center>" & vbCrLf
+            patternpage &= "<tr><td>no_integration</td><td>Aucune intégration</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>legacy_wmp</td><td>Lecteur Windows Media Player 6.4</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>wmp</td><td>Lecteur Windows Media Player 7.0</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>embed</td><td>Intégration par la balise HTML &lt;embed&gt;</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>video</td><td>Intégration avec la balise &lt;video&gt; de HTML5</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>realplayer</td><td>Lecteur Real Player via &lt;embed&gt;</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>activex_realplayer</td><td>Lecteur Real Player via ActiveX</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>embed_vlc</td><td>Lecteur VLC via &lt;embed&gt;</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>vlc</td><td>Lecteur VLC via ActiveX</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>alt_vlc</td><td>Lecteur VLC via ActiveX (Alternatif)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>quicktime</td><td>Lecteur QuickTime via ActiveX</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>embed_quicktime</td><td>Lecteur QuickTime via &lt;embed&gt;</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>flash</td><td>Lecteur Flash via Javascript</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>embed_flash</td><td>Lecteur Flash via &lt;embed&gt;</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>activex_flash</td><td>Lecteur Flash via ActiveX</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>object</td><td>Intégration via la balise HTML object</td></tr></table><br><br>" & vbCrLf & vbCrLf
 
-            patternpage &= "<b>La taille du lecteur utilisée se règle avec l'entête <i>playersize</i>, suivi par un des paramètres suivants :</b><br><br>" & vbCrLf
-            patternpage &= "auto = Taille gérée par Javascript (Il doit être disponible et activé)<br>" & vbCrLf
-            patternpage &= "micro = Taille 160x120 pixels (Pour les écrans de portables)<br>" & vbCrLf
-            patternpage &= "ultrasmall = Taille 256x192 pixels<br>" & vbCrLf
-            patternpage &= "small = Taille 320x240 pixels (Pour les écrans VGA de base)<br>" & vbCrLf
-            patternpage &= "middle = Taille 640x480 pixels (Taille par défaut)<br>" & vbCrLf
-            patternpage &= "large = Taille 854x480 pixels (Format large minimal)<br>" & vbCrLf
-            patternpage &= "cinema = Taille 1280x800 pixels (Format large standard)<br>" & vbCrLf
-            patternpage &= "autoheight = Taille du lecteur basée sur la taille de la vidéo<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "<center><b>La taille du lecteur utilisée se règle avec l'entête <i>size</i>, suivi par un des paramètres suivants :</b></center><br><br>" & vbCrLf
+            patternpage &= "<table border=1 cellpadding=4 align=center>" & vbCrLf
+            patternpage &= "<tr><td>auto</td><td>Taille gérée par Javascript (Il doit être disponible et activé)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>micro</td><td>Taille 160x120 pixels (Pour les écrans de portables)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>ultrasmall</td><td>Taille 256x192 pixels</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>small</td><td>Taille 320x240 pixels (Pour les écrans VGA de base)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>middle</td><td>Taille 640x480 pixels (Taille par défaut)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>large</td><td>Taille 854x480 pixels (Format large minimal)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>cinema</td><td>Taille 1280x720 pixels (Format large standard)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>autoheight</td><td>Taille du lecteur basée sur la taille de la vidéo</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>fullscreen</td><td>Taille du lecteur sur toute la fenêtre (avec HTML)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>fulljs</td><td>Taille du lecteur sur toute la zone visible (avec Javascript)</td></tr>" & vbCrLf
+            patternpage &= "</table><br><br>" & vbCrLf & vbCrLf
 
-            patternpage &= "<b>Le format vidéo utilisé pour la lecture a pour entête <i>usedcodec</i>, et est accompagné d'un des paramètres suivants :</b><br><br>" & vbCrLf
-            patternpage &= "mpeg1 = Format MPEG, codec vidéo MPEG-1, codec audio MP2<br>" & vbCrLf
-            patternpage &= "avi_mpeg4 = Format AVI (Microsoft), codec vidéo MPEG-4, codec audio MP3<br>" & vbCrLf
-            patternpage &= "avi_msvideo1 = Format AVI (Microsoft), codec vidéo MSVideo1, codec audio PCM<br>" & vbCrLf
-            patternpage &= "avi_cinepak = Format AVI (Microsoft), codec vidéo Cinepak, codec audio PCM<br>" & vbCrLf
-            patternpage &= "avi_yuv = Format AVI (Microsoft), vidéo en YUV, codec audio PCM<br>" & vbCrLf
-            patternpage &= "mp4 = Format MP4, codec vidéo H.264, codec audio M4A<br>" & vbCrLf
-            patternpage &= "wmv1 = Format WMV, codec vidéo WMV1, codec audio WMAv1<br>" & vbCrLf
-            patternpage &= "wmv2 = Format WMV, codec vidéo WMV2, codec audio WMAv2<br>" & vbCrLf
-            patternpage &= "mov_cinepak = Format Apple QuickTime (MOV), codec vidéo Cinepak, codec audio PCM<br>" & vbCrLf
-            patternpage &= "mov_svq1 = Format Apple QuickTime (MOV), codec vidéo Sorenson SVQ1, codec audio MP3<br>" & vbCrLf
-            patternpage &= "mov_mpeg4 = Format Apple QuickTime (MOV), codec vidéo MPEG-4, codec audio MP3<br>" & vbCrLf
-            patternpage &= "mov_rpza = Format Apple QuickTime (MOV), codec vidéo RPZA, codec audio PCM<br>" & vbCrLf
-            patternpage &= "3gp = Format 3GP (3G Video), codec vidéo H.263, codec audio AMR Narrowband<br>" & vbCrLf
-            patternpage &= "flv = Format Flash Video, codec vidéo Sorenson Spark, codec audio MP3<br>" & vbCrLf
-            patternpage &= "rm = Format Real Media, codec vidéo RV10, codec audio AC3<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "<center><b>Le format vidéo utilisé pour la lecture a pour entête <i>codec</i>, et est accompagné d'un des paramètres suivants :</b></center><br><br>" & vbCrLf
+            patternpage &= "<table border=1 cellpadding=4 align=center>" & vbCrLf
+            patternpage &= "<tr><td>mpeg1</td><td>Format MPEG, codec vidéo MPEG-1, codec audio MP2</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>avi_mpeg4</td><td>Format AVI (Microsoft), codec vidéo MPEG-4, codec audio MP3</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>avi_msvideo1</td><td>Format AVI (Microsoft), codec vidéo MSVideo1, codec audio PCM</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>avi_cinepak</td><td>Format AVI (Microsoft), codec vidéo Cinepak, codec audio PCM</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>avi_yuv</td><td>Format AVI (Microsoft), vidéo en YUV, codec audio PCM</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>mp4</td><td>Format MP4, codec vidéo H.264, codec audio M4A</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>wmv1</td><td>Format WMV, codec vidéo WMV1, codec audio WMAv1</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>wmv2</td><td>Format WMV, codec vidéo WMV2, codec audio WMAv2</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>mov_cinepak</td><td>Format Apple QuickTime (MOV), codec vidéo Cinepak, codec audio PCM</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>mov_svq1</td><td>Format Apple QuickTime (MOV), codec vidéo Sorenson SVQ1, codec audio MP3</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>mov_mpeg4</td><td>Format Apple QuickTime (MOV), codec vidéo MPEG-4, codec audio MP3</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>mov_rpza</td><td>Format Apple QuickTime (MOV), codec vidéo RPZA, codec audio PCM</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>3gp</td><td>Format 3GP (3G Video), codec vidéo H.263, codec audio AMR Narrowband</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>flv</td><td>Format Flash Video, codec vidéo Sorenson Spark, codec audio MP3</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>rm</td><td>Format Real Media, codec vidéo RV10, codec audio AC3</td></tr>" & vbCrLf
+            patternpage &= "</table><br><br>" & vbCrLf & vbCrLf
 
-            patternpage &= "<b>Le nombre d'images est paramétré avec l'entête <i>framerate</i> suivi du nombre d'images voulues parmi cette liste :</b><br><br>" & vbCrLf
-            patternpage &= "auto = Meilleur nombre d'images par seconde pour un format voulu<br>" & vbCrLf
-            patternpage &= "10 = 10 images par seconde (pour vieux ordinateurs)<br>" & vbCrLf
-            patternpage &= "12 = 12 images par seconde<br>" & vbCrLf
-            patternpage &= "15 = 15 images par seconde (Bon rapport qualité/quantité pour les vieux ordinateurs)<br>" & vbCrLf
-            patternpage &= "20 = 20 images par seconde<br>" & vbCrLf
-            patternpage &= "24 = 24 images par seconde [Par défaut]<br>" & vbCrLf
-            patternpage &= "25 = 25 images par seconde<br>" & vbCrLf
-            patternpage &= "30 = 30 images par seconde<br>" & vbCrLf
-            patternpage &= "60 = 60 images par seconde (Vivement déconseillé sur les anciens PC)<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "<center><b>Le nombre d'images est paramétré avec l'entête <i>framerate</i> suivi du nombre d'images voulues UNIQUEMENT parmi cette liste :</b></center><br><br>" & vbCrLf
+            patternpage &= "<table border=1 cellpadding=4 align=center>" & vbCrLf
+            patternpage &= "<tr><td>auto</td><td>Meilleur nombre d'images par seconde pour le format vidéo voulu.</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>10</td><td>10 images par seconde (pour vieux ordinateurs)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>12</td><td>12 images par seconde</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>15</td><td>15 images par seconde (Bon rapport qualité/quantité pour les vieux ordinateurs)</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>20</td><td>20 images par seconde</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>24</td><td>24 images par seconde [Par défaut]</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>25</td><td>25 images par seconde</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>30</td><td>30 images par seconde</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>60</td><td>60 images par seconde (Vivement déconseillé sur les anciens PC)</td></tr>" & vbCrLf
+            patternpage &= "</table><br><br>" & vbCrLf & vbCrLf
 
-            patternpage &= "<b>La résolution de la vidéo, intitulée <i>usedresolution</i>, peut être choisie parmi les paramètres suivants :</b><br><br>" & vbCrLf
-            patternpage &= "auto = Meilleure résolution choisie par le serveur, pour chaque format voulu<br>" & vbCrLf
-            patternpage &= "96p = Résolution minimale, surtout utile pour le format 3GP<br>" & vbCrLf
-            patternpage &= "120p = Résolution très faible<br>" & vbCrLf
-            patternpage &= "144p = Résolution faible<br>" & vbCrLf
-            patternpage &= "240p = Petite résolution<br>" & vbCrLf
-            patternpage &= "360p = Moyenne résolution<br>" & vbCrLf
-            patternpage &= "480p = Résolution standard<br>" & vbCrLf
-            patternpage &= "720p = Haute résolution<br>" & vbCrLf
-            patternpage &= "1080p = Très haute résolution (Pour les PC de la génération de Windows Vista et plus)<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "<center><b>La résolution de la vidéo, intitulée <i>resolution</i>, peut être choisie parmi les paramètres suivants :</b></center><br><br>" & vbCrLf
+            patternpage &= "<table border=1 cellpadding=4 align=center>" & vbCrLf
+            patternpage &= "<tr><td>auto</td><td>Meilleure résolution choisie par le serveur, pour chaque format voulu</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>96p</td><td>Résolution minimale, surtout utile pour le format 3GP</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>120p</td><td>Résolution très faible</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>144p</td><td>Résolution faible</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>240p</td><td>Petite résolution</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>360p</td><td>Moyenne résolution</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>480p</td><td>Résolution standard</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>720p</td><td>Haute résolution</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>1080p</td><td>Très haute résolution (Pour les PC de la génération de Windows Vista et plus)</td></tr>" & vbCrLf
+            patternpage &= "</table><br><br>" & vbCrLf & vbCrLf
 
-            patternpage &= "Sacrées listes, n'est-ce pas? Certaines résolutions seront indisponibles sous certains formats. Pareil pour le nombre d'images. Les paramètres erronés ou inexistants seront ignorés. Pour illustrer un usage concret de cette fonctionnalité :<br><br>" & vbCrLf & vbCrLf
-            patternpage &= "http://127.0.0.1/watch?v=dQw4w9WgXcQ?usedplayer=video&playersize=auto&usedcodec=mp4&framerate=24&usedresolution=480p<br><br>"
-            patternpage &= "Ceci démarrera la lecture de la vidéo au format MP4 (Résolution 480p @ 24 FPS), via le lecteur vidéo intégré de HTML5. La taille du lecteur sera automatiquement réglée.<br><br>"
+            patternpage &= "Sacrées listes, n'est-ce pas? Certaines résolutions seront indisponibles sous certains formats. Pareil pour le nombre d'images. Ceci pour des raisons de limitations techniques fixées par les créateurs du codec, ou pour éviter toute saturation de la mémoire. Les paramètres erronés ou inexistants seront ignorés. Pour illustrer un usage concret de cette fonctionnalité :<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "<i>http://127.0.0.1/watch?v=dQw4w9WgXcQ&player=video&size=auto&codec=mp4&framerate=24&resolution=480p</i><br><br>"
+            patternpage &= "Visiter cette URL démarrera la lecture de la vidéo indiquée au format MP4 (Résolution 480p @ 24 FPS), via le lecteur vidéo intégré de HTML5. La taille du lecteur sera automatiquement réglée. Cette configuration par défaut est très utile pour les navigateurs prenant en charge le HTML5.<br><br>"
             patternpage &= "Tous les paramètres ne sont pas obligatoires. Ainsi, pour démarrer, par exemple, une lecture avec le lecteur Flash :<br><br>"
-            patternpage &= "http://127.0.0.1/watch?v=ZyhrYis509A?usedplayer=flash&usedcodec=flv&usedresolution=240p<br><br>"
+            patternpage &= "<i>http://127.0.0.1/watch?v=ZyhrYis509A&player=flash&codec=flv&resolution=240p</i><br><br>"
             patternpage &= "Le tout en 240p, avec le nombre d'images par seconde par défaut. Le reste des paramètres utiliseront ceux par défaut également. Cette configuration reste assez typique de l'époque de Flash Player, dans les années 2000.<br>" & vbCrLf
-            patternpage &= "Si vous lisez depuis Windows 3.11 ou Windows NT 3.51, je vous conseille d'installer Real Player 5.0, qui rendra possible la lecture sous Internet Explorer 4 ou 5. Les paramètres à utiliser seront ainsi :<br><br>" & vbCrLf
-            patternpage &= "http://127.0.0.1/watch?v=FuOhQZP821o?usedplayer=realplayer&usedcodec=rm&usedresolution=240p&framerate=15<br><br>" & vbCrLf
+            patternpage &= "Si vous lisez depuis Windows 3.11 ou Windows NT 3.51, je vous conseille d'installer Real Player 5.0, qui rendra possible la lecture sous Internet Explorer 4 ou 5 via intégration ou ActiveX. Les paramètres à utiliser seront ainsi :<br><br>" & vbCrLf
+            patternpage &= "<i>http://127.0.0.1/watch?v=FuOhQZP821o&player=realplayer&codec=rm&resolution=240p&framerate=15</i><br><br>" & vbCrLf
             patternpage &= "Ce ne sont que des exemples, mais ils vous inspireront probablement pour votre configuration. Faites-en bon usage.<br><br>" & vbCrLf & vbCrLf
 
             patternpage &= "<br><center><h2><a name=""credits"">VI. Crédits</a></h2></center><br><br>" & vbCrLf
             patternpage &= "YouTube est une propriété de Google. Il s'agit d'une plateforme de diffusion de vidéos en direct, ou en différé. Ce projet de proxy n'est pas affilié à Google, ni à YouTube." & vbCrLf
-            patternpage &= "Ce logiciel a été développé sous Microsoft Visual Basic .NET 2022. Il fait usage des librairies et binaires ffmpeg, et du projet yt-dlp, que l'utilisateur doit intégrer manuellement au dossier (ils ne sont pas livrés par défaut pour éviter des conflits d'intérêt avec leurs auteurs respectifs, et pour des raisons d'espace disque).<BR>Merci à ChatGPT pour ses astuces de programmation. Sans lui, ce projet n'aurait peut-être jamais vu le jour. Je remercie aussi LeJarb pour le code d'intégration de Real Player, et son optimisation de l'usage des codecs (en s'aidant de Léo AI). Je le remercie aussi pour ses divers feedbacks, et sa participation active dans l'amélioration du projet. Je remercie aussi Val pour ses tests du logiciel sur des configurations réelles. Merci également à vous, l'utilisateur, pour avoir utilisé RetroYT, en espérant qu'il fonctionnera parfaitement sur votre configuration, et qu'il vous procurera entière satisfaction dans l'usage du service YouTube depuis d'anciens systèmes.<br><br><i>L'auteur.</i><br><br>" & vbCrLf & vbCrLf
+            patternpage &= "Ce logiciel a été développé sous Microsoft Visual Basic .NET 2022. Il fait usage des librairies et binaires ffmpeg, et du projet yt-dlp, que l'utilisateur doit intégrer manuellement au dossier (ils ne sont pas livrés par défaut pour éviter des conflits d'intérêt avec leurs auteurs respectifs, et pour des raisons d'espace utilisé).<BR>Merci à ChatGPT pour ses astuces de programmation. Sans lui, ce projet n'aurait peut-être jamais vu le jour. Je remercie aussi LeJarb pour le code d'intégration de Real Player, et son optimisation de l'usage des codecs (en s'aidant de Léo AI). Je le remercie aussi pour ses divers feedbacks, et sa participation active dans l'amélioration du projet. Je remercie aussi Val pour ses tests du logiciel sur des configurations réelles. Merci également à vous, l'utilisateur, pour avoir utilisé RetroYT, en espérant qu'il fonctionnera parfaitement sur votre configuration, et qu'il vous procurera entière satisfaction dans l'usage du service YouTube depuis d'anciens systèmes. Voici la page de débug du projet: <a href=""/debug.cgi"" style=""color: " & link_color & ";"">Cliquez ici</a>.<br><br><i>L'auteur.</i><br><br>" & vbCrLf & vbCrLf
             patternpage &= "<A HREF=""/"" STYLE=""color: " & link_color & ";"">Cliquez ici pour retourner à l'index</A><BR><BR>" & vbCrLf
             patternpage &= "</div></center><div class=bodysep></div>" & footer
 
@@ -2841,7 +3164,7 @@ Module Program
 
                         sent_css &= " font-family: Tahoma, Roboto, Arial, sans-serif;" & vbCrLf
                         sent_css &= " padding: 12px 12px 12px 12px;" & vbCrLf
-                        sent_css &= " line-height: 18px;"
+                        sent_css &= " /* **/line-height: 18px; /** */" 'Pour éviter des décalages bizarres des pages Web sous IE 3.0
                         sent_css &= "}" & vbCrLf & vbCrLf
 
                         sent_css &= "html, body, td, p {" & vbCrLf
@@ -2926,6 +3249,9 @@ Module Program
                         sent_css &= " font-weight: bold;" & vbCrLf
                         sent_css &= " cursor: hand;" & vbCrLf
                         sent_css &= " cursor: pointer;" & vbCrLf
+                        sent_css &= " width: 100px;" & vbCrLf
+                        sent_css &= " height: 26px;" & vbCrLf
+                        sent_css &= " font-size: 12px;" & vbCrLf
                         sent_css &= "}" & vbCrLf & vbCrLf
 
                         sent_css &= ".red_button:hover {" & vbCrLf
@@ -2958,12 +3284,154 @@ Module Program
                         sent_css &= " margin-right: auto;" & vbCrLf
                         sent_css &= " background-color: rgb(64, 255, 64);" & vbCrLf
                         sent_css &= " background-color: rgba(32, 225, 32, 0.25);" & vbCrLf
+                        sent_css &= " !background-color: rgb(64, 255, 64);" & vbCrLf
                         sent_css &= "}" & vbCrLf & vbCrLf
 
                         sent_res &= "Content-Type: text/css" & vbCrLf
                         sent_res &= "Connection: close" & vbCrLf
                         sent_res &= "Content-Length: " & iso.GetBytes(sent_css).Length.ToString & vbCrLf & vbCrLf
                         sent_data = iso.GetBytes(sent_css)
+
+                        Try
+                            stream.Write(sent_data, 0, sent_data.Length)
+                        Catch ex As Exception
+                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                            client.Close()
+                            Exit Sub
+                        End Try
+
+                        client.Close()
+                    Case "debug.cgi"
+                        WriteLog("Page de débug rendue au client.", , client)
+                        Dim sent_page As String = "<HTML>" & vbCrLf & " <HEAD><TITLE>Debug display</TITLE><STYLE>html, body { line-height: 24px; }</STYLE></HEAD>" & vbCrLf & " <BODY>" & vbCrLf
+
+                        sent_page &= "<BR><CENTER><A HREF=""/"">Retour à l'index</A> - <A HREF=""/config.cgi"">Paramètres du client</A> - <A HREF=""/about.htm"">Informations sur RetroYT</A></CENTER><BR><BR>" & vbCrLf
+
+                        sent_page &= "<B>Ressources picturales utilisées par le serveur:</B><BR>" & vbCrLf
+
+                        For Each f As String In IO.Directory.GetFiles(CurDir() & "\resfiles")
+                            f = f.Remove(0, CStr(CurDir() & "\resfiles\").Length)
+                            If (f <> "nopic.jpg") Then sent_page &= "<IMG SRC=""" & f & """ ALT=""" & f & """ />" & vbCrLf
+                        Next
+
+                        sent_page &= "<BR><BR>" & vbCrLf
+                        sent_page &= "<B>Cookie utilisateur:</B> " & EscapeHtml(current_cookie) & "<BR>" & vbCrLf
+                        sent_page &= "<B>Hôte HTTP:</B> " & EscapeHtml(last_host) & "<BR>" & vbCrLf
+                        sent_page &= "<B>Agent utilisateur:</B> " & EscapeHtml(ua_string) & "<BR>" & vbCrLf
+
+                        sent_page &= "<B>Format multimédia utilisé:</B> " & vbCrLf
+
+                        Select Case used_codec
+                            Case "mpeg1"
+                                'Codec vidéo MPEG-1, audio MP2
+                                sent_page &= "Conteneur MPEG (*.mpg), codec vidéo: MPEG-1 (1,15MBPS de bitrate), codec audio: MP2 (96KBPS, 2 canaux stéréo @ 44,1KHz), tampon mémoire: 320Ko"
+                            Case "avi_mpeg4"
+                                'Format AVI encodé avec MPEG-4 (codec vidéo assez fonctionnel et compatible avec les systèmes Windows), et MP3.
+                                sent_page &= "Conteneur AVI (Microsoft), codec vidéo: MS MPEG4v2 (500KBPS de bitrate), codec audio: MP3 (96KBPS)"
+                            Case "avi_yuv"
+                                'Format AVI YUV (sans codec) avec PCM
+                                sent_page &= "Conteneur AVI (Microsoft), vidéo YUV (YUY2), audio PCM (1 canal mono @ 44,1KHz, 16-bits signés, little endian)"
+                            Case "wmv2"
+                                'Format WMV, très utilisé sous Windows, depuis Windows 98. Codec WMV2 et WMAv2
+                                sent_page &= "Conteneur WMV (Microsoft), codec vidéo: WMV2 (800KBPS de bitrate), codec audio: WMAv2 (96KBPS)"
+                            Case "wmv1"
+                                'Format WMV ancien, codec WMV2, audio WMAv1.
+                                sent_page &= "Conteneur WMV (Microsoft), codec vidéo: WMV1 (500KBPS de bitrate), codec audio: WMAv1 (64KBPS, 1 canal mono @ 44,1KHz)"
+                            Case "rm"
+                                'Format Real Media (code par Le Jarb aidé de Léo AI). A permis de faire fonctionner la lecture intégrée sous IE 3.0 et Windows 3.11.
+                                'Codec vidéo RV10 et audio AC3
+                                sent_page &= "Conteneur Real Media (*.rm), codec vidéo: RV10 (640KBPS de bitrate), codec audio: AC3 (64KBPS)"
+                            Case "3gp"
+                                'Format 3GP (pour les vieux mobiles Nokia, SONY, etc.), codec vidéo H.263, audio AMR-NB
+                                sent_page &= "Conteneur 3GP, codec vidéo: H.263 (128KBPS de bitrate), codec audio: AMR Narrowband (12,2KBPS, 1 canal mono @ 8KHz)"
+                            Case "mov_cinepak"
+                                sent_page &= "Conteneur MOV (Apple QuickTime), codec vidéo: Cinepak (Indice qualité: 3), codec audio: PCM (1 canal mono @ 44,1KHz, 16-bits signés, little endian)"
+                                'Format QuickTime (codec vidéo Cinepak, fortement utilisé dans les années 1990, et PCM pour l'audio)
+                            Case "mov_svq1"
+                                'Format QuickTime (codec vidéo Sorenson SVQ1, surtout utilisé dans les années 2000, et codec audio MP3)
+                                sent_page &= "Conteneur MOV (Apple QuickTime), codec vidéo: Sorenson (SVQ1, indice qualité: 3), codec audio: MP3 (64KBPS)"
+                            Case "mov_mpeg4"
+                                'Format QuickTime (codec vidéo MPEG-4, audio MP3)
+                                sent_page &= "Conteneur MOV (Apple QuickTime), codec vidéo: MPEG-4 (500KBPS), codec audio: MP3 (96KBPS, 2 canaux audio @ 44,1KHz)"
+                            Case "mov_mjpeg"
+                                sent_page &= "Conteneur MOV (Apple QuickTime), codec vidéo: MJPEG (Indice qualité: 4), codec audio: PCM (1 canal audio @ 44,1KHz, 16-bits signés, little endian)"
+                            Case "mov_rpza"
+                                'Format QuickTime (codec vidéo RPZA, format très Apple des années 1990, et PCM pour l'audio)
+                                sent_page &= "Conteneur MOV (Apple QuickTime), codec vidéo: RPZA, codec audio: PCM (1 canal audio @ 44,1KHz, signé 16-bits little endian)"
+                            Case "avi_mjpeg"
+                                sent_page &= "Conteneur AVI (Microsoft), codec vidéo: MJPEG (Indice qualité: 4), codec audio: PCM (1 canal audio @ 44,1KHz, 16-bits signés, little endian)"
+                            Case "avi_msvideo1"
+                                'Format AVI encodé avec Microsoft Video 1 (fonctionne en pratique sous toutes les versions de Windows, y compris Windows 3.11, surtout accompagné du codec audio PCM).
+                                sent_page &= "Conteneur AVI (Microsoft), codec vidéo: MSVideo1 (Indice qualité: 3), codec audio: PCM (1 canal audio @ 44,1KHz, 16-bits signés, little endian)"
+                            Case "avi_cinepak"
+                                'Format AVI encodé avec Cinepak (codec répandu dans les années 90, et pris en charge par Windows 3.11, surtout accompagné du codec audio PCM).
+                                sent_page &= "Conteneur AVI (Microsoft), codec vidéo: Cinepak, codec audio: PCM (1 canal audio @ 44,1KHz, 16-bits signés, little endian)"
+                            Case "mp4"
+                                'Format MP4 sans conversion directe
+                                sent_page &= "Conteneur MP4, codec vidéo: H.264 AVC (MPEG-4 Part 10), codec audio: M4A"
+                            Case "flv"
+                                'Format FLV (Codec vidéo Sorenson Spark, audio MP3) [Macromedia Flash Video]
+                                sent_page &= "Conteneur Macromedia Flash Video (*.flv), codec vidéo: Sorenson Spark (500KBPS de bitrate), codec audio: MP3 (96KBPS)"
+                            Case Else
+                                'Par défaut, envoyer du MPEG4.
+                                sent_page &= "Conteneur inconnu"
+                        End Select
+
+                        sent_page &= "<BR>" & vbCrLf
+
+                        If used_resolution = "auto" Then
+                            sent_page &= "<B>Résolution vidéo utilisée:</B> Automatique (En fonction du format multimédia choisi)<BR>" & vbCrLf
+                        Else
+                            sent_page &= "<B>Résolution vidéo utilisée:</B> " & EscapeHtml(used_resolution) & "<BR>" & vbCrLf
+                        End If
+
+                        sent_page &= "<B>Taille du lecteur utilisée:</B> "
+                        For i As Integer = 0 To list_playersize.Length - 1
+                            If list_playersize(i) = player_size Then
+                                sent_page &= EscapeHtml(list_playersize_string(i))
+                                Exit For
+                            End If
+                        Next
+
+                        sent_page &= "<BR>" & vbCrLf
+                        sent_page &= "<B>Nombre d'images par seconde:</B> "
+
+                        If frame_rate = "auto" Then
+                            sent_page &= "Automatique (En fonction du format multimédia choisi)<BR>" & vbCrLf
+                        Else
+                            sent_page &= EscapeHtml(frame_rate) & " images par seconde<BR>" & vbCrLf
+                        End If
+
+                        sent_page &= "<B>Intégration multimédia utilisée:</B> "
+
+                        For i As Integer = 0 To list_used_player.Length - 1
+                            If list_used_player(i) = used_player Then
+                                sent_page &= EscapeHtml(list_used_player_string(i))
+                                Exit For
+                            End If
+                        Next
+
+                        sent_page &= "<BR>" & vbCrLf
+
+                        sent_page &= "<B>Apparence du site utilisée:</B> "
+
+                        For i As Integer = 0 To list_skin.Length - 1
+                            If list_skin(i) = wanted_skin Then
+                                sent_page &= EscapeHtml(list_skin_string(i))
+                                Exit For
+                            End If
+                        Next
+
+                        sent_page &= "<BR>" & vbCrLf
+
+                        sent_page &= "<B>Nombre de résultats par recherche:</B> " & number_of_results.ToString & " résultat(s)" & vbCrLf
+
+                        sent_page &= vbCrLf & "</BODY></HTML>" & vbCrLf & vbCrLf
+
+                        sent_res &= "Content-Type: text/html; charset=iso-8859-1" & vbCrLf
+                        sent_res &= "Connection: close" & vbCrLf
+                        sent_res &= "Content-Length: " & iso.GetBytes(sent_page).Length.ToString & vbCrLf & vbCrLf & sent_page
+                        sent_data = iso.GetBytes(sent_res)
 
                         Try
                             stream.Write(sent_data, 0, sent_data.Length)
@@ -3048,9 +3516,10 @@ Module Program
                         If arg.Length > 40 Then
                             arg = arg.Substring(0, 40) & "..."
                         End If
+
                         WriteLog("Ressource demandée introuvable: " & arg, , client)
 
-                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Resource '<i>/" & arg & "</i>' was not found on this server.</p>" & vbCrLf)
+                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Resource '<i>/" & arg & "</i>' was not found on this server.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
 
                         Try
                             stream.Write(notfound_data, 0, notfound_data.Length)
@@ -3063,12 +3532,11 @@ Module Program
                         client.Close()
                 End Select
             End If
-
         Else
             'Les autres requêtes entraînent une erreur 400 (requête invalide).
             WriteLog("Erreur 400: Requête erronée envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>Invalid or malformed HTTP request.</p>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>Invalid or malformed HTTP request.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
@@ -3081,4 +3549,3 @@ Module Program
             client.Close()
         End If
     End Sub
-End Module
