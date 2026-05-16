@@ -3,6 +3,7 @@ Imports System.Drawing
 Imports System.IO
 Imports System.Net
 Imports System.Net.Sockets
+Imports System.Security.Cryptography
 Imports System.Text
 
 Module Program
@@ -24,7 +25,7 @@ Module Program
     Public list_used_player() As String = {"no_integration", "legacy_wmp", "wmp", "embed", "video", "realplayer", "activex_realplayer", "embed_vlc", "vlc", "alt_vlc", "quicktime", "embed_quicktime", "flash", "embed_flash", "activex_flash", "object"}
     Public list_skin() As String = {"oldyt", "cosmic", "dark", "modern", "rose", "aqua"}
     Public list_playersize() As String = {"auto", "micro", "middle", "ultrasmall", "small", "large", "cinema", "autoheight", "fullscreen", "fulljs", "gold1", "gold2"}
-    Public list_usedcodec() As String = {"mpeg1", "avi_mpeg4", "avi_msvideo1", "avi_mjpeg", "mp4", "rm", "wmv2", "mov_cinepak", "mov_svq1", "3gp", "avi_yuv", "flv", "wmv1", "mov_mpeg4", "avi_cinepak", "mov_rpza", "mov_mjpeg"}
+    Public list_usedcodec() As String = {"mpeg1", "avi_mpeg4", "avi_msvideo1", "avi_mjpeg", "mp4", "rm", "wmv2", "mov_cinepak", "mov_svq1", "3gp", "avi_yuv", "flv", "wmv1", "mov_mpeg4", "avi_cinepak", "mov_rpza", "mov_mjpeg", "xvid"}
     Public list_framerate() As String = {"auto", "10", "12", "15", "20", "24", "25", "30", "60"}
     Public list_resolution() As String = {"auto", "96p", "120p", "144p", "240p", "360p", "480p", "720p", "1080p"}
     Public list_results() As String = {"1", "5", "10", "20"}
@@ -73,10 +74,16 @@ Module Program
         Return "http://" & last_host & "/"
     End Function
 
-    Sub InitValues(Optional ByVal t As String = Nothing, Optional ByVal k As String = Nothing, Optional ByVal wanted_skin As String = "cosmic", Optional ByVal lucky As Boolean = False)
+    Sub InitValues(Optional ByVal t As String = Nothing, Optional ByVal k As String = Nothing, Optional ByVal wanted_skin As String = "cosmic", Optional ByVal lucky As Boolean = False, Optional ByVal uplayer As String = "na")
         System.Threading.Thread.Sleep(100)
         'Cette fonction génère une entête et un corps de page HTML de base à retourner au client.
-        patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
+
+        If uplayer = "video" Then
+            patternpage = "<!doctype html>" & vbCrLf
+        Else
+            patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
+        End If
+
         patternpage &= "<HTML>" & vbCrLf
         patternpage &= " <HEAD>" & vbCrLf
 
@@ -95,19 +102,19 @@ Module Program
 
         Select Case wanted_skin
             Case "dark"
-                patternpage &= "<BODY COLOR=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#FFFFFF"" VLINK=""#FFFFFF"">" & vbCrLf
+                patternpage &= "<BODY TEXT=""#FFFFFF"" BGCOLOR=""#000000"" LINK=""#FFFFFF"" ALINK=""#FFFFFF"" VLINK=""#FFFFFF"">" & vbCrLf
                 link_color = "#c2272f"
             Case "cosmic"
-                patternpage &= "<BODY COLOR=""#000000"" BGCOLOR=""#EAEAEA"" ALINK=""#B6262C"" VLINK=""#B6262C"" BACKGROUND=""cosmic.gif"">" & vbCrLf
+                patternpage &= "<BODY TEXT=""#000000"" BGCOLOR=""#EAEAEA"" LINK=""#B6262C"" ALINK=""#B6262C"" VLINK=""#B6262C"" BACKGROUND=""cosmic.gif"">" & vbCrLf
                 link_color = "#c2272f"
             Case "rose"
-                patternpage &= "<BODY COLOR=""#100010"" BGCOLOR=""#F2DEF2"" ALINK=""#800080"" VLINK=""#800080"">" & vbCrLf
+                patternpage &= "<BODY TEXT=""#100010"" BGCOLOR=""#F2DEF2"" LINK=""#800080"" ALINK=""#800080"" VLINK=""#800080"">" & vbCrLf
                 link_color = "#a0046b"
             Case "aqua"
-                patternpage &= "<BODY COLOR=""#0000F0"" BGCOLOR=""#ECFFFF"" ALINK=""#2037A0"" VLINK=""#2037A0"">" & vbCrLf
+                patternpage &= "<BODY TEXT=""#0000F0"" BGCOLOR=""#ECFFFF"" LINK=""#2037A0"" ALINK=""#2037A0"" VLINK=""#2037A0"">" & vbCrLf
                 link_color = "#1f38a0"
             Case Else
-                patternpage &= "<BODY COLOR=""#000000"" BGCOLOR=""#FFFFFF"" ALINK=""#B6262C"" VLINK=""#B6262C"">" & vbCrLf
+                patternpage &= "<BODY TEXT=""#000000"" BGCOLOR=""#FFFFFF"" LINK=""#B6262C"" ALINK=""#B6262C"" VLINK=""#B6262C"">" & vbCrLf
                 link_color = "#c2272f"
         End Select
 
@@ -134,7 +141,7 @@ Module Program
         patternpage &= "  <TR>" & vbCrLf
         patternpage &= "   <TD WIDTH=90>&nbsp;</TD>" & vbCrLf
         patternpage &= "   <TD WIDTH=120><A HREF=""/""><IMG SRC=""" & used_logo & """ BORDER=0 ALT=""Logo RetroYT"" HEIGHT=44 /></A></TD>" & vbCrLf
-        patternpage &= "   <TD WIDTH=330>&nbsp;<INPUT NAME=""q"" VALUE=""" & k & """ STYLE=""width: 310px;"" WIDTH=320 MAXLENGTH=256 /></TD>" & vbCrLf
+        patternpage &= "   <TD WIDTH=330>&nbsp;<INPUT NAME=""q"" VALUE=""" & k & """ STYLE=""width: 310px;"" WIDTH=320 SIZE=58 MAXLENGTH=256 /></TD>" & vbCrLf
 
         If lucky Then
             patternpage &= "   <TD WIDTH=*><INPUT TYPE=""SUBMIT"" VALUE="" Lucky Mode "" WIDTH=400 CLASS=""red_button"" /> &nbsp; <A HREF=""/config.cgi"" STYLE=""color: " & link_color & ";"">Paramètres</A></TD>" & vbCrLf
@@ -151,6 +158,7 @@ Module Program
 
     Sub UpdateCache()
         Dim cache_dir As String = CurDir() & "\vidcache"
+        Dim source_dir As String = CurDir() & "\srccache"
 
         If Not Directory.Exists(cache_dir) Then Exit Sub
 
@@ -165,12 +173,36 @@ Module Program
 
         Dim freeSpace As Long = 0
 
+        'Pour trouver le chemin racine où se situe l'application serveur
         For Each c As IO.DriveInfo In IO.DriveInfo.GetDrives()
             If LCase(CurDir()).StartsWith(LCase(c.RootDirectory.ToString)) Then
                 freeSpace = c.AvailableFreeSpace
                 Exit For
             End If
         Next
+
+        'Suppression des fichiers vidéo anciens au-delà d'une certaine taille
+        If files.Count > 0 AndAlso (freeSpace < minFree Or files_length > maxCache) Then
+            For Each fi In files
+
+                If freeSpace >= minFree And files_length <= maxCache Then Exit For
+
+                Try
+                    files_length -= fi.Length
+                    freeSpace += fi.Length
+                    fi.Delete()
+                Catch
+                End Try
+
+            Next
+        End If
+
+        'Pareil pour le cache source (où les vidéos originales au format WebM/MP4 sont stockées)
+        files = Directory.GetFiles(source_dir).
+        Select(Function(f) New FileInfo(f)).
+        OrderBy(Function(fi) fi.LastWriteTime).ToList()
+
+        files_length = files.Sum(Function(f) f.Length)
 
         If files.Count > 0 AndAlso (freeSpace < minFree Or files_length > maxCache) Then
             For Each fi In files
@@ -182,6 +214,7 @@ Module Program
                     freeSpace += fi.Length
                     fi.Delete()
                 Catch
+
                 End Try
 
             Next
@@ -207,6 +240,19 @@ Module Program
         Dim emfiles As String() = Directory.GetFiles(cache_dir)
 
         For Each p As String In emfiles
+            If FileLen(p) = 0 Then
+                Try
+                    IO.File.Delete(p)
+                Catch ex As Exception
+
+                End Try
+            End If
+        Next
+
+        'Pareil pour le cache source
+        Dim esfiles As String() = Directory.GetFiles(source_dir)
+
+        For Each p As String In esfiles
             If FileLen(p) = 0 Then
                 Try
                     IO.File.Delete(p)
@@ -383,6 +429,20 @@ Module Program
         End Try
     End Sub
 
+    Function GetMD5(text As String) As String
+        Dim md5 As MD5 = md5.Create()
+        Dim bytes() As Byte = Encoding.UTF8.GetBytes(text)
+        Dim hash() As Byte = md5.ComputeHash(bytes)
+
+        Dim sb As New StringBuilder()
+
+        For Each b As Byte In hash
+            sb.Append(b.ToString("X2"))
+        Next
+
+        Return sb.ToString()
+    End Function
+
     Function GetHTTPBytes(ByVal status As Integer, ByVal message As String, Optional ByVal http_version As String = "1.0")
         Dim http_response As String =
         "HTTP/" & http_version & " " & status.ToString & " " & http_status_labels(status) & vbCrLf &
@@ -427,7 +487,7 @@ Module Program
 
         Console.ForegroundColor = ConsoleColor.Green
         Console.WriteLine("******************************")
-        Console.WriteLine("*      RetroYT Bêta 3.6      *")
+        Console.WriteLine("*      RetroYT Bêta 4.0      *")
         Console.WriteLine("******************************")
         Console.WriteLine()
         Console.ForegroundColor = ConsoleColor.Gray
@@ -453,8 +513,8 @@ Module Program
             WriteLog("Application démarrée avec pour argument: " & Environment.GetCommandLineArgs(1))
             Dim portstring As String = Environment.GetCommandLineArgs(1)
 
-            If portstring = Nothing Then
-                'RAF
+            If portstring = "cross" Then
+                'WriteSymbol()
             Else
                 If IsNumeric(portstring) Then
                     Try
@@ -497,6 +557,10 @@ Module Program
 
         If Not IO.Directory.Exists(CurDir() & "\vidcache") Then
             IO.Directory.CreateDirectory(CurDir() & "\vidcache")
+        End If
+
+        If Not IO.Directory.Exists(CurDir() & "\srccache") Then
+            IO.Directory.CreateDirectory(CurDir() & "\srccache")
         End If
 
         If Not IO.Directory.Exists(CurDir() & "\srvlogs") Then
@@ -574,7 +638,7 @@ Module Program
         number_of_results = 10
 
         If String.IsNullOrEmpty(request) Then
-            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>HTTP request was empty.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Erreur 400 - Requête vide</h1>" & vbCrLf & "<p>La requête HTTP est vide, et ne peut donc être satisfaite.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour retourner à l'index.</p>" & vbCrLf)
 
             Try
                 If Not using_vlc Then stream.Write(baddata, 0, baddata.Length)
@@ -724,7 +788,7 @@ Module Program
                             If corps.Contains(",") Then corps = corps.Substring(0, corps.IndexOf(","))
 
                             If corps = "-" Then
-                                Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                                Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Erreur 416 - Plage de données invalide</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                 Try
                                     stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -740,7 +804,7 @@ Module Program
                                 Dim echec As Boolean = False
 
                                 If String.IsNullOrEmpty(corps) Then
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Erreur 416 - Plage de données invalide</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -767,7 +831,7 @@ Module Program
 
                                         If echec Then
                                             'Lever une erreur
-                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Erreur 416 - Plage de données invalide</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                             Try
                                                 stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -805,7 +869,7 @@ Module Program
 
                                 If echec Then
                                     'Lever une erreur
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Erreur 416 - Plage de données invalide</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -825,7 +889,7 @@ Module Program
 
                                     If Not IsNumeric(param1) Or Not IsNumeric(param2) Then
                                         'Lever une erreur
-                                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Erreur 416 - Plage de données invalide</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                         Try
                                             stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -857,7 +921,7 @@ Module Program
                                         End Try
 
                                         If echec Then
-                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Erreur 416 - Plage de données invalide</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                             Try
                                                 stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -871,7 +935,7 @@ Module Program
                                     End If
                                 Else
                                     'Lever une erreur
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Erreur 416 - Plage de données invalide</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -889,14 +953,16 @@ Module Program
         Next
 
         If bad_cookie Then
-            Dim result_page As String = "<h1>Error 400 - Bad Request</h1><p>Your client cookie was invalid, so it has been reset to the default settings.<br><br>Please go back to the <a href=""/"">index</a> of the website.</p>" & vbCrLf
-            WriteLog("Error #400: Client cookie was invalid and has been reset.", ConsoleColor.Yellow, client)
+            Dim result_page As String = "<h1>Erreur 400 - Requête erronée</h1><p>Le cookie du client était invalide, donc il a été réinitialisé vers les paramètres par défaut.<br><br>Veuillez retourner à l'<a href=""/"">index</a> du site.</p>" & vbCrLf
+            WriteLog("Erreur #400: Le cookie du client était invalide et a été réinitialisé.", ConsoleColor.Yellow, client)
+
+            Dim exp As String = DateTime.UtcNow.AddYears(1).ToString("ddd, dd MMM yyyy HH:mm:ss 'GMT'", Globalization.CultureInfo.InvariantCulture)
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 400 Bad Request" & vbCrLf &
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
-                "Set-Cookie: " & cookie_header & "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto;path=/" & vbCrLf &
+                "Set-Cookie: " & cookie_header & "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto; Path=/; Expires=" & exp & vbCrLf &
                 "Connection: close" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page
 
@@ -912,16 +978,13 @@ Module Program
             Exit Sub
         End If
 
-        'Ecriture de la commande dans les rapports de connexion
-        'WriteLog("[" & Date.Now.ToShortDateString & " à " & Date.Now.ToShortTimeString & "] Requête entrante détectée en provenance de l'adresse IP " & GetClientIP(client) & "...", ConsoleColor.White)
-
         'Erreur 414 - URL trop longue
         If Not String.IsNullOrEmpty(request) Then
             If request.Length > 4 Then
                 Dim uri_arg As String = Split(request)(1)
                 If uri_arg.Length > 512 Then
-                    WriteLog("Erreur HTTP 414: URL trop longue.", , client)
-                    Dim toolongdata As Byte() = GetHTTPBytes(414, "<h1>Error 414 - URI Too Long</h1>" & vbCrLf & "<p>Veuillez envoyer une URL plus courte.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                    WriteLog("Erreur HTTP 414: URI trop longue.", , client)
+                    Dim toolongdata As Byte() = GetHTTPBytes(414, "<h1>Erreur 414 - URI trop longue</h1>" & vbCrLf & "<p>La requête ne peut pas être traitée, car l'URL spécifiée est trop longue.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                     Try
                         stream.Write(toolongdata, 0, toolongdata.Length)
@@ -937,7 +1000,7 @@ Module Program
 
         If request.Length > 8192 Then
             WriteLog("Erreur HTTP 413: Contenu trop grand envoyé.", , client)
-            Dim toomuchdata As Byte() = GetHTTPBytes(414, "<h1>Error 413 - Content Too Large</h1>" & vbCrLf & "<p>Trop de données communiquées au serveur.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+            Dim toomuchdata As Byte() = GetHTTPBytes(414, "<h1>Erreur 413 - Contenu trop grand</h1>" & vbCrLf & "<p>Trop de données communiquées au serveur. Veuillez envoyer moins d'informations.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
             Try
                 stream.Write(toomuchdata, 0, toomuchdata.Length)
@@ -951,7 +1014,7 @@ Module Program
             'Requête vide
             WriteLog("Erreur HTTP 400: Requête vide envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>HTTP request was empty.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Erreur 400 - Requête erronée</h1>" & vbCrLf & "<p>La requête HTTP était vide, et ne peut être satisfaite.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
@@ -1015,15 +1078,6 @@ Module Program
                                             If list_used_player.Contains(single_params(1)) Then used_player = single_params(1)
                                         Case "size"
                                             If list_playersize.Contains(single_params(1)) Then player_size = single_params(1)
-                                        Case "legacy"
-                                            'If single_params(1) = "true" Then
-                                            '    player_size = "small"
-                                            '    used_codec = "avi_msvideo1"
-                                            '    used_player = "legacy_wmp"
-                                            '    used_resolution = "240p"
-                                            '    frame_rate = "15"
-                                            '    ultra_legacy = True
-                                            'End If
                                     End Select
                                 End If
                             End If
@@ -1040,7 +1094,7 @@ Module Program
                 Select Case used_codec
                     Case "mpeg1", "avi_msvideo1", "rm", "avi_yuv", "mov_rpza", "avi_mjpeg", "mov_mjpeg" : num_frame_rate = 15
                     Case "3gp", "avi_cinepak", "mov_cinepak" : num_frame_rate = 10
-                    Case "wmv2", "mp4", "mov_svq1", "avi_mpeg4", "wmv1", "mov_mpeg4" : num_frame_rate = 25
+                    Case "wmv2", "mp4", "mov_svq1", "avi_mpeg4", "wmv1", "mov_mpeg4", "xvid" : num_frame_rate = 25
                     Case "flv" : num_frame_rate = 24
                     Case Else : num_frame_rate = 25
                 End Select
@@ -1050,7 +1104,7 @@ Module Program
 
             If used_resolution = "auto" Then
                 Select Case used_codec
-                    Case "avi_mpeg4", "wmv2", "mov_svq1", "flv", "wmv1", "mov_mpeg4" : num_used_resolution = 480
+                    Case "avi_mpeg4", "wmv2", "mov_svq1", "flv", "wmv1", "mov_mpeg4", "xvid" : num_used_resolution = 480
                     Case "avi_msvideo1", "mpeg1", "avi_yuv", "mov_rpza", "avi_mjpeg", "mov_mjpeg" : num_used_resolution = 240
                     Case "rm", "3gp", "mov_cinepak", "avi_cinepak" : num_used_resolution = 144
                     Case "mp4" : num_used_resolution = 720
@@ -1108,6 +1162,8 @@ Module Program
                 If num_frame_rate = 60 Then num_frame_rate = 30
             End If
 
+            'Le WMV2 et le MP4 ne sont pas bridés
+
             'On retire les paramètres qui suivent "&".
             If watcharg.Contains("&") Then
                 watcharg = watcharg.Substring(0, watcharg.IndexOf("&"))
@@ -1124,6 +1180,7 @@ Module Program
                 Case "avi_yuv" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_yuv.avi"
                 Case "avi_cinepak" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_cinepak.avi"
                 Case "avi_mjpeg" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_mjpeg.avi"
+                Case "xvid" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_xvid.avi"
                 Case "3gp" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p.3gp"
                 Case "avi_msvideo1" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p_msvideo1.avi"
                 Case "rm" : tmp_filename = "output_" & watcharg & "_" & num_used_resolution.ToString & "p.rm"
@@ -1146,6 +1203,7 @@ Module Program
             End Select
 
             Dim a As Integer = tmp_filename.IndexOf("."c)
+            Dim destfile As String = String.Empty
             output_filename = GetShortName(tmp_filename) & UCase(tmp_filename.Substring(a, tmp_filename.Length - a))
             output_path = CurDir() & "\vidcache\" & output_filename
 
@@ -1154,14 +1212,13 @@ Module Program
                 last_view = watcharg
 
                 WriteLog("Vidéo demandée: https://www.youtube.com/watch?v=" & last_view, ConsoleColor.Green, client)
-                WriteLog("Résolution en " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " FPS demandée.", ConsoleColor.Green)
+                'WriteLog("Résolution en " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " FPS demandée.", ConsoleColor.Green)
 
                 If IsNetworkAvailable() Then
                     'Si la vidéo n'est pas en cache, le logiciel va interroger yt-dlp pour l'obtenir.
-                    If Not IO.File.Exists(output_path) Then
-
-                        WriteLog("Téléchargement au format MP4 (Codec vidéo H.264, codec audio M4A, en résolution " & num_used_resolution.ToString & "p" & num_frame_rate.ToString & ")...")
+                    If Not IO.File.Exists(CurDir() & "\srccache\" & GetMD5(last_view) & ".mp4") And Not IO.File.Exists(CurDir() & "\srccache\" & GetMD5(last_view) & ".webm") Then 'Not IO.File.Exists(output_path)
                         'Exécution du processus d'obtention de la vidéo souhaitée.
+                        WriteLog("Téléchargement de la vidéo en cours...")
 
                         Dim freeSpace As Long = -1
                         For Each c As IO.DriveInfo In IO.DriveInfo.GetDrives()
@@ -1172,7 +1229,7 @@ Module Program
                         Next
 
                         If freeSpace >= 0 And freeSpace <= 134217728 Then
-                            Dim baddata As Byte() = GetHTTPBytes(507, "<h1>Error 507 - Insufficient Disk Space</h1>" & vbCrLf & "<p>Il n'y a plus assez d'espace sur le périphérique de stockage du serveur pour mettre en cache la vidéo demandée.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                            Dim baddata As Byte() = GetHTTPBytes(507, "<h1>Erreur 507 - Espace disque insuffisant</h1>" & vbCrLf & "<p>Il n'y a plus assez d'espace sur le périphérique de stockage du serveur pour mettre en cache la vidéo demandée.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                             Try
                                 stream.Write(baddata, 0, baddata.Length)
@@ -1185,19 +1242,23 @@ Module Program
                         Else
                             Dim psi As New ProcessStartInfo()
                             psi.FileName = "yt-dlp.exe"
-                            Dim intermed As Integer = num_used_resolution
-                            If intermed = 120 Then intermed = 144 'Le 120p n'existe pas sur YouTube
-                            If intermed = 96 Then intermed = 144 'Ni le 96p.
+                            'Dim intermed As Integer = num_used_resolution
+                            'If intermed = 120 Then intermed = 144 'Le 120p n'existe pas sur YouTube
+                            'If intermed = 96 Then intermed = 144 'Ni le 96p.
                             'If intermed <= 360 Then intermed = 480
-                            Dim destfile As String = CurDir() & "\vidcache\" & UCase(GetShortName("output_" & watcharg & "_" & num_used_resolution.ToString & "p.mp4")) & ".MP4"
+
+                            'Formatage du nom de fichier de destination vers un nom insensible à la casse (usage de l'algorithme MD5) -> ID YouTube vers hash MD5 + extension .dat, qui contiendra MP4 H.264, WebM VP8, VP9, AV1, etc.
+                            destfile = CurDir() & "\srccache\" & GetMD5(last_view) 'CurDir() & "\vidcache\" & UCase(GetShortName("output_" & watcharg & "_" & num_used_resolution.ToString & "p.mp4")) & ".MP4"
 
                             If Not IO.File.Exists(destfile) Then
                                 'La commande suivante demande une vidéo au format MP4 (Codec vidéo H.264, audio M4A).
 
                                 '-f ""bestvideo[height<=" & intermed.ToString & "]+bestaudio/best[height<=" & intermed.ToString & "]""
                                 '""bv*[vcodec^=avc1][height<=" & intermed.ToString & "]+ba[ext=m4a]/b[height<=" & intermed.ToString & "][ext=mp4]""
+                                '-f "bv*[height<=1080]+ba/b[height<=1080]"
 
-                                psi.Arguments = "-f ""bv*[vcodec^=avc1][height<=" & intermed.ToString & "]+ba[ext=m4a]/b[height<=" & intermed.ToString & "][ext=mp4]"" --no-part --no-continue -o """ & destfile & """ ""https://www.youtube.com/watch?v=" & last_view & """"
+                                'La vidéo est téléchargée en forçant le 1080p
+                                psi.Arguments = "-f ""bv*[height<=1080]+ba/b[height<=1080]"" --no-part --no-continue -o """ & destfile & """ ""https://www.youtube.com/watch?v=" & last_view & """"
                                 psi.UseShellExecute = False
                                 psi.CreateNoWindow = True
                                 psi.RedirectStandardOutput = True
@@ -1216,20 +1277,19 @@ Module Program
                                 WriteLog("La vidéo a déjà été téléchargée, et est disponible en cache.")
                             End If
 
-                            'Code pansement nécessaire pour ajouter ou retirer des extensions face aux caprices de yt-dlp, qui en ajoute ou en retire selon son bon vouloir.
-                            For Each i As String In IO.Directory.GetFiles(CurDir() & "\vidcache")
-                                Dim i_path() As String = Split(i, "\")
-                                Dim i_end As String = i_path(i_path.Length - 1)
+                            'If IO.File.Exists(destfile & ".mp4") Then destfile = destfile & ".mp4"
+                            'If IO.File.Exists(destfile & ".webm") Then destfile = destfile & ".webm"
 
-                                If i_end.Contains(".") = False Then
-                                    IO.File.Move(i, i & ".MP4") 'Ajouter .MP4
-                                ElseIf i_end.EndsWith(".MP4.mp4") Then
-                                    IO.File.Move(i, i.Remove(i.Length - 4, 4)) 'Virer la mention .mp4 de trop
+                            'Trouver le fichier généré depuis le nom
+                            For Each source_f As String In IO.Directory.GetFiles(CurDir() & "\srccache")
+                                If source_f.Contains(GetMD5(last_view)) Then
+                                    destfile = source_f
+                                    Exit For
                                 End If
                             Next
 
                             If Not IO.File.Exists(destfile) Then
-                                Dim ise_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>The requested video could not be downloaded (Known ID: <i>" & last_view & "</i>). Please try another input format/resolution.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                                Dim ise_data As Byte() = GetHTTPBytes(500, "<h1>Erreur 500 - Erreur interne du serveur</h1>" & vbCrLf & "<p>La vidéo demandée n'a pas pu être téléchargée (Identifiant connu: <i>" & last_view & "</i>). Veuillez essayer un autre format, ou une autre résolution plus grande.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                                 Try
                                     stream.Write(ise_data, 0, ise_data.Length)
@@ -1240,147 +1300,165 @@ Module Program
                                 client.Close()
                                 Exit Sub
                             End If
-
-                            Dim psi2 As New ProcessStartInfo()
-                            psi2.FileName = "ffmpeg.exe"
-
-                            Select Case used_codec
-                                Case "mpeg1"
-                                    'Codec vidéo MPEG-1, audio MP2
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format MPEG (Codec vidéo MPEG-1, codec audio MP2)...")
-                                    num_used_resolution = 360
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=352:240 -r 30000/1001 -c:v mpeg1video -b:v 1150k -maxrate 1150k -minrate 1150k -bufsize 327680 -c:a mp2 -b:a 96k -ar 44100 -ac 2 """ & output_path & """"
-                                Case "avi_mpeg4"
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format AVI (Codec vidéo MPEG-4, codec audio MP3)...")
-                                    'Format AVI encodé avec MPEG-4 (codec vidéo assez fonctionnel et compatible avec les systèmes Windows), et MP3.
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 96k """ & output_path & """"
-                                Case "avi_yuv"
-                                    'Format AVI YUV (sans codec) avec PCM
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format AVI (Vidéo YUV, codec audio PCM)...")
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v rawvideo -pix_fmt yuyv422 -vtag YUY2 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                Case "wmv2"
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format WMV nouveau (Codec vidéo WMV2, codec audio WMAv2)...")
-                                    'Format WMV, très utilisé sous Windows, depuis Windows 98. Codec WMV2 et WMAv2
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv2 -b:v 800k -c:a wmav2 -b:a 96k """ & output_path & """"
-                                Case "wmv1"
-                                    'Format WMV ancien, codec WMV2, audio WMAv1.
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format WMV ancien (Codec vidéo WMV1, codec audio WMAv1)...")
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv1 -b:v 500k -c:a wmav1 -b:a 64k -ar 44100 -ac 1 """ & output_path & """"
-                                Case "rm"
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format RealMedia (Codec vidéo RV10, codec audio AC3)...")
-                                    'Format Real Media (code par Le Jarb aidé de Léo AI). A permis de faire fonctionner la lecture intégrée sous IE 3.0 et Windows 3.11.
-                                    'Codec vidéo RV10 et audio AC3
-                                    If num_used_resolution <= 120 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=160:128 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
-                                    ElseIf num_used_resolution = 144 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
-                                    ElseIf num_used_resolution = 240 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
-                                    Else
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=480:360 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
-                                    End If
-                                Case "3gp"
-                                    'Format 3GP (pour les vieux mobiles Nokia, SONY, etc.), codec vidéo H.263, audio AMR-NB
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format 3GP (Codec vidéo H.263, codec audio AMR-NB)...")
-                                    If num_used_resolution = 96 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=128:96 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """"
-                                    Else
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=176:144 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """"
-                                    End If
-                                Case "mov_cinepak"
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format Apple QuickTime (Codec vidéo Cinepak, codec audio PCM)...")
-                                    'Format QuickTime (codec vidéo Cinepak, fortement utilisé dans les années 1990, et PCM pour l'audio)
-                                    If num_used_resolution <= 120 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    ElseIf num_used_resolution = 144 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    Else
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    End If
-                                Case "mov_svq1"
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format Apple QuickTime (Codec vidéo Sorenson SVQ1, codec audio PCM)...")
-                                    'Format QuickTime (codec vidéo Sorenson SVQ1, surtout utilisé dans les années 2000, et codec audio MP3)
-                                    If num_used_resolution >= 720 Then num_used_resolution = 480 'HQ indisponible
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v svq1 -q:v 3 -c:a libmp3lame -b:a 64k """ & output_path & """"
-                                Case "mov_mpeg4"
-                                    'Format QuickTime (codec vidéo MPEG-4, audio MP3)
-                                    If num_used_resolution >= 720 Then num_used_resolution = 480 'Bridé à 480p
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format Apple QuickTime (Codec vidéo MPEG-4, codec audio MP3)...")
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mpeg4 -b:v 500k -c:a libmp3lame -b:a 96k -ar 44100 -ac 2 """ & output_path & """"
-                                Case "mov_mjpeg"
-                                    If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format Apple QuickTime, Motion JPEG (Codec vidéo MJPEG, codec audio PCM)...")
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                Case "mov_rpza"
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format Apple QuickTime (Codec vidéo RPZA, codec audio PCM)...")
-                                    'Format QuickTime (codec vidéo RPZA, format très Apple des années 1990, et PCM pour l'audio)
-                                    If num_used_resolution <= 120 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    ElseIf num_used_resolution = 144 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    Else
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    End If
-                                Case "avi_mjpeg"
-                                    If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format AVI Motion JPEG (Codec vidéo MJPEG, codec audio PCM)...")
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                Case "avi_msvideo1"
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format AVI (Codec vidéo MSVideo1, codec audio PCM)...")
-                                    'Format AVI encodé avec Microsoft Video 1 (fonctionne en pratique sous toutes les versions de Windows, y compris Windows 3.11, surtout accompagné du codec audio PCM).
-                                    If num_used_resolution <= 120 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    ElseIf num_used_resolution = 144 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    ElseIf num_used_resolution = 240 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    ElseIf num_used_resolution = 360 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=480:360 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    Else
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=640:480 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    End If
-                                Case "avi_cinepak"
-                                    'Cinepak version AVI, audio PCM
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format AVI (Codec vidéo Cinepak, codec audio PCM)...")
-                                    'Format AVI encodé avec Cinepak (codec répandu dans les années 90, et pris en charge par Windows 3.11, surtout accompagné du codec audio PCM).
-                                    If num_used_resolution <= 120 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    ElseIf num_used_resolution = 144 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    ElseIf num_used_resolution = 240 Then
-                                        psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
-                                    End If
-                                Case "mp4"
-                                    'Format MP4 sans conversion directe
-                                    WriteLog("Usage du format MP4, aucune conversion n'est donc nécessaire.")
-                                Case "flv"
-                                    'Format FLV (Codec vidéo Sorenson Spark, audio MP3) [Macromedia Flash Video]
-                                    WriteLog("Conversion du fichier MP4 trouvé vers le format vidéo Flash (Codec vidéo Sorenson Spark, codec audio MP3)...")
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v flv -b:v 500k -c:a libmp3lame -b:a 96k """ & output_path & """"
-                                Case Else
-                                    WriteLog("Aucun format de destination valide, choix du format AVI (Codec vidéo MPEG-4, codec audio MP3) par défaut...")
-                                    'Par défaut, envoyer du MPEG4.
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 96k """ & output_path & """"
-                            End Select
-
-                            If used_codec <> "mp4" Then
-                                psi2.UseShellExecute = False
-                                psi2.CreateNoWindow = True
-
-                                Dim p2 As Process = Process.Start(psi2)
-
-                                Try
-                                    IO.File.WriteAllText(CurDir() & "\output.lock", p2.Id.ToString & vbCrLf & output_filename)
-                                    p2.WaitForExit()
-                                    IO.File.Delete(CurDir() & "\output.lock")
-                                Catch ex As Exception
-                                    WriteLog("Erreur lors de la conversion: " & ex.Message, ConsoleColor.Red)
-                                End Try
-                            End If
                         End If
                     Else
-                        WriteLog("Vidéo déjà en cache !")
-                        WriteLog("Résolution en " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " FPS demandée.", ConsoleColor.Green)
+                        WriteLog("Vidéo déjà présente dans le cache source !")
+                        'WriteLog("Résolution en " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " FPS demandée.", ConsoleColor.Green)
+                    End If
+
+                    'Trouver le fichier généré depuis le nom
+                    For Each source_f As String In IO.Directory.GetFiles(CurDir() & "\srccache")
+                        If source_f.Contains(GetMD5(last_view)) Then
+                            destfile = source_f
+                            Exit For
+                        End If
+                    Next
+
+                    If Not IO.File.Exists(output_path) Then
+                        Dim psi2 As New ProcessStartInfo()
+                        psi2.FileName = "ffmpeg.exe"
+
+                        Select Case used_codec
+                            Case "mpeg1"
+                                'Codec vidéo MPEG-1, audio MP2
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format MPEG (Codec vidéo MPEG-1, codec audio MP2)...")
+                                num_used_resolution = 360
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=352:240 -r 30000/1001 -c:v mpeg1video -b:v 1150k -maxrate 1150k -minrate 1150k -bufsize 327680 -c:a mp2 -b:a 96k -ar 44100 -ac 2 """ & output_path & """"
+                            Case "avi_mpeg4"
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo MPEG-4, codec audio MP3)...")
+                                'Format AVI encodé avec MPEG-4 (codec vidéo assez fonctionnel et compatible avec les systèmes Windows), et MP3.
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 96k """ & output_path & """"
+                            Case "avi_yuv"
+                                'Format AVI YUV (sans codec) avec PCM
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Vidéo YUV, codec audio PCM)...")
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v rawvideo -pix_fmt yuyv422 -vtag YUY2 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                            Case "wmv2"
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format WMV nouveau (Codec vidéo WMV2, codec audio WMAv2)...")
+                                'Format WMV, très utilisé sous Windows, depuis Windows 98. Codec WMV2 et WMAv2
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv2 -b:v 800k -c:a wmav2 -b:a 96k """ & output_path & """"
+                            Case "wmv1"
+                                'Format WMV ancien, codec WMV2, audio WMAv1.
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format WMV ancien (Codec vidéo WMV1, codec audio WMAv1)...")
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv1 -b:v 500k -c:a wmav1 -b:a 64k -ar 44100 -ac 1 """ & output_path & """"
+                            Case "rm"
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format RealMedia (Codec vidéo RV10, codec audio AC3)...")
+                                'Format Real Media (code par Le Jarb aidé de Léo AI). A permis de faire fonctionner la lecture intégrée sous IE 3.0 et Windows 3.11.
+                                'Codec vidéo RV10 et audio AC3
+                                If num_used_resolution <= 120 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:128 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
+                                ElseIf num_used_resolution = 144 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
+                                ElseIf num_used_resolution = 240 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
+                                Else
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=480:360 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
+                                End If
+                            Case "3gp"
+                                'Format 3GP (pour les vieux mobiles Nokia, SONY, etc.), codec vidéo H.263, audio AMR-NB
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format 3GP (Codec vidéo H.263, codec audio AMR-NB)...")
+                                If num_used_resolution = 96 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=128:96 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """"
+                                Else
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=176:144 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """"
+                                End If
+                            Case "mov_cinepak"
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo Cinepak, codec audio PCM)...")
+                                'Format QuickTime (codec vidéo Cinepak, fortement utilisé dans les années 1990, et PCM pour l'audio)
+                                If num_used_resolution <= 120 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                ElseIf num_used_resolution = 144 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                Else
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                End If
+                            Case "mov_svq1"
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo Sorenson SVQ1, codec audio PCM)...")
+                                'Format QuickTime (codec vidéo Sorenson SVQ1, surtout utilisé dans les années 2000, et codec audio MP3)
+                                If num_used_resolution >= 720 Then num_used_resolution = 480 'HQ indisponible
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v svq1 -q:v 3 -c:a libmp3lame -b:a 64k """ & output_path & """"
+                            Case "mov_mpeg4"
+                                'Format QuickTime (codec vidéo MPEG-4, audio MP3)
+                                If num_used_resolution >= 720 Then num_used_resolution = 480 'Bridé à 480p
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo MPEG-4, codec audio MP3)...")
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mpeg4 -b:v 500k -c:a libmp3lame -b:a 96k -ar 44100 -ac 2 """ & output_path & """"
+                            Case "mov_mjpeg"
+                                'Format QuickTime, encodé MJPEG et PCM
+                                If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime, Motion JPEG (Codec vidéo MJPEG, codec audio PCM)...")
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                            Case "mov_rpza"
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo RPZA, codec audio PCM)...")
+                                'Format QuickTime (codec vidéo RPZA, format très Apple des années 1990, et PCM pour l'audio)
+                                If num_used_resolution <= 120 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                ElseIf num_used_resolution = 144 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                Else
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                End If
+                            Case "avi_mjpeg"
+                                'Format AVI encodé avec MJPEG et PCM
+                                If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI Motion JPEG (Codec vidéo MJPEG, codec audio PCM)...")
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                            Case "avi_msvideo1"
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo MSVideo1, codec audio PCM)...")
+                                'Format AVI encodé avec Microsoft Video 1 (fonctionne en pratique sous toutes les versions de Windows, y compris Windows 3.11, surtout puisqu'il accompagné du codec audio PCM).
+                                If num_used_resolution <= 120 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                ElseIf num_used_resolution = 144 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                ElseIf num_used_resolution = 240 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                ElseIf num_used_resolution = 360 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=480:360 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                Else
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=640:480 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                End If
+                            Case "avi_cinepak"
+                                'Cinepak version AVI, audio PCM
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo Cinepak, codec audio PCM)...")
+                                'Format AVI encodé avec Cinepak (codec répandu dans les années 90, et pris en charge par Windows 3.11, surtout accompagné du codec audio PCM).
+                                If num_used_resolution <= 120 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                ElseIf num_used_resolution = 144 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                ElseIf num_used_resolution = 240 Then
+                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                End If
+                            Case "mp4"
+                                'Format MP4 - Codec vidéo: H.264, codec audio: AAC, avec le format pixel forcé à YUV420P pour éviter les erreurs d'affichage sur les vieux lecteurs.
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format MP4 (Codec vidéo H.264, codec audio AAC)...")
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k """ & output_path & """"
+                                    'WriteLog("Usage du format MP4, aucune conversion n'est donc nécessaire.")
+                            Case "xvid"
+                                'Format Xvid, avec le conteneur AVI, et le codec audio MP3
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo Xvid, codec audio MP3)...")
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libxvid -qscale:v 3 -vtag xvid -c:a libmp3lame -b:a 128k """ & output_path & """"
+                            Case "flv"
+                                'Format FLV (Codec vidéo Sorenson Spark, audio MP3) [Macromedia Flash Video]
+                                WriteLog("Conversion du fichier vidéo trouvé vers le format vidéo Flash (Codec vidéo Sorenson Spark, codec audio MP3)...")
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v flv -b:v 500k -c:a libmp3lame -b:a 96k """ & output_path & """"
+                            Case Else
+                                WriteLog("Aucun format de destination valide, conversion de la vidéo vers le format AVI (Codec vidéo MPEG-4, codec audio MP3) par défaut...")
+                                'Par défaut, envoyer du MPEG4.
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 96k """ & output_path & """"
+                        End Select
+
+                        psi2.UseShellExecute = False
+                        psi2.CreateNoWindow = True
+
+                        Dim p2 As Process = Process.Start(psi2)
+
+                        Try
+                            IO.File.WriteAllText(CurDir() & "\output.lock", p2.Id.ToString & vbCrLf & output_filename)
+                            p2.WaitForExit()
+                            IO.File.Delete(CurDir() & "\output.lock")
+                        Catch ex As Exception
+                            WriteLog("Erreur lors de la conversion: " & ex.Message, ConsoleColor.Red)
+                        End Try
+                    Else
+                        WriteLog("Fichier vidéo de destination déjà existant au format demandé! Aucune conversion nécessaire", , client)
                     End If
 
                     'Mise en cache du titre (et de l'ID)
@@ -1414,7 +1492,7 @@ Module Program
                     'Formatage de la page en HTML, avec lecteur intégré
 
                     If vt = RequestVideoType.WatchVideo Then
-                        InitValues(tmp_title, , wanted_skin)
+                        InitValues(tmp_title, , wanted_skin, , used_player)
                         patternpage &= "<CENTER><DIV WIDTH=780 ALIGN=CENTER><BR>" & vbCrLf
                         patternpage &= "<P ALIGN=CENTER><B><FONT SIZE=4>" & EscapeHtml(tmp_title) & "</FONT></B></P><BR>" & vbCrLf
 
@@ -1423,7 +1501,7 @@ Module Program
                         Select Case used_codec
                             Case "mp4" : media_type = "video/mp4"
                             Case "rm" : media_type = "application/vnd.rn-realmedia"
-                            Case "avi_msvideo1", "avi_mpeg4", "avi_yuv", "avi_cinepak", "avi_mjpeg" : media_type = "video/x-msvideo"
+                            Case "avi_msvideo1", "avi_mpeg4", "avi_yuv", "avi_cinepak", "avi_mjpeg", "xvid" : media_type = "video/x-msvideo"
                             Case "wmv1", "wmv2" : media_type = "video/x-ms-wmv"
                             Case "mov_cinepak", "mov_svq1", "mov_mpeg4", "mov_rpza", "mov_mjpeg" : media_type = "video/quicktime"
                             Case "3gp" : media_type = "video/3gpp"
@@ -1532,7 +1610,13 @@ Module Program
                                 'ChatGPT m'a généré ce code.
                             Case "fulljs"
                                 'Plein écran avec Javascript
-                                patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
+
+                                If used_player = "video" Then
+                                    patternpage = "<!DOCTYPE html>" & vbCrLf
+                                Else
+                                    patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
+                                End If
+
                                 patternpage &= "<HTML>" & vbCrLf
                                 patternpage &= "<HEAD>" & vbCrLf
                                 patternpage &= " <META HTTP-EQUIV=""Content-Type"" CONTENT=""text/html; charset=iso-8859-1"">" & vbCrLf
@@ -1540,7 +1624,7 @@ Module Program
                                 patternpage &= " <LINK REL=""shortcut icon"" HREF=""favicon.ico"" />" & vbCrLf
                                 patternpage &= "</HEAD>" & vbCrLf & vbCrLf
 
-                                patternpage &= "<BODY COLOR=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"">" & vbCrLf
+                                patternpage &= "<BODY TEXT=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"" TOPMARGIN=0 LEFTMARGIN=0 MARGINHEIGHT=0 MARGINWIDTH=0>" & vbCrLf
                                 patternpage &= "<script language=""javascript"">" & vbCrLf
                                 patternpage &= " function resizePlayer() {" & vbCrLf
                                 patternpage &= "  var player = document.getElementById(""mainplayer"");" & vbCrLf & vbCrLf
@@ -1560,7 +1644,13 @@ Module Program
                             Case "fullscreen"
                                 'Plein écran avec HTML (peut dépasser le cadre)
                                 link_color = "#c2272f"
-                                patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
+
+                                If used_player = "video" Then
+                                    patternpage = "<!DOCTYPE html>" & vbCrLf
+                                Else
+                                    patternpage = "<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">" & vbCrLf
+                                End If
+
                                 patternpage &= "<HTML>" & vbCrLf
                                 patternpage &= "<HEAD>" & vbCrLf
                                 patternpage &= " <META HTTP-EQUIV=""Content-Type"" CONTENT=""text/html; charset=iso-8859-1"">" & vbCrLf
@@ -1568,7 +1658,7 @@ Module Program
                                 patternpage &= " <LINK REL=""shortcut icon"" HREF=""favicon.ico"" />" & vbCrLf
                                 patternpage &= "</HEAD>" & vbCrLf & vbCrLf
 
-                                patternpage &= "<BODY COLOR=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"">" & vbCrLf
+                                patternpage &= "<BODY TEXT=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"" TOPMARGIN=0 LEFTMARGIN=0 MARGINHEIGHT=0 MARGINWIDTH=0>" & vbCrLf
 
                                 player_width = 100
                                 player_height = 100
@@ -1598,7 +1688,13 @@ Module Program
                             Case "wmp"
                                 'Nouveau lecteur Windows Media (7.0 et +) intégré avec la balise <object> (ActiveX).
                                 patternpage &= "<!-- Intégration d'un objet ActiveX pour Windows Media Player 7.0 et plus -->" & vbCrLf & vbCrLf
-                                patternpage &= "<object id=""mainplayer"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ classid=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">" & vbCrLf
+
+                                If player_prop = "%" Then
+                                    patternpage &= "<object id=""mainplayer"" width=""" & player_width.ToString & "%"" height=""" & player_height.ToString & "%"" classid=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">" & vbCrLf
+                                Else
+                                    patternpage &= "<object id=""mainplayer"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """ classid=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">" & vbCrLf
+                                End If
+
                                 patternpage &= " <param name=""URL"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
                                 patternpage &= " <param name=""AutoStart"" value=""true"">" & vbCrLf
                                 patternpage &= " <param name=""EnableFullScreenControls"" value=""true"">" & vbCrLf
@@ -1610,7 +1706,13 @@ Module Program
                             Case "vlc"
                                 'Lecteur VLC Media Player (via ActiveX)
                                 patternpage &= "<!-- Intégration d'un objet ActiveX pour le lecteur VLC -->" & vbCrLf & vbCrLf
-                                patternpage &= "<object id=""mainplayer"" classid=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """>" & vbCrLf
+
+                                If player_prop = "%" Then
+                                    patternpage &= "<object id=""mainplayer"" classid=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" width=""" & player_width.ToString & "%"" height=""" & player_height.ToString & "%"">" & vbCrLf
+                                Else
+                                    patternpage &= "<object id=""mainplayer"" classid=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" width=""" & player_width.ToString & """ height=""" & player_height.ToString & """>" & vbCrLf
+                                End If
+
                                 patternpage &= " <param name=""target"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
                                 patternpage &= " <param name=""MRL"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
                                 patternpage &= " <param name=""src"" value=""" & GetHost() & "v/" & output_filename & """>" & vbCrLf
@@ -1658,7 +1760,7 @@ Module Program
                             Case "video"
                                 'Balise <video> de HTML 5.0 (Standard W3C natif aux navigateurs récents)
                                 patternpage &= "<!-- Utilisation de la balise video de HTML5 -->" & vbCrLf & vbCrLf
-                                patternpage &= "<video id=""mainplayer"" controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autoplay=""true"">" & vbCrLf 'style=""object-fit: fill;""
+                                patternpage &= "<video id=""mainplayer"" webkit-playsinline controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autoplay=""true"">" & vbCrLf 'style=""object-fit: fill;""
                                 patternpage &= " <source src=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ />" & vbCrLf
                                 patternpage &= " <source poster=""" & GetHost() & "thumbnail?t=" & last_view & """ />" & vbCrLf
                                 patternpage &= " <p align=center>Votre navigateur ne semble pas prendre en charge la balise video de HTML5.<br><br>Vous pouvez cliquer sur <a href=""/config.cgi"">ce lien</a> pour adapter les paramètres de RetroYT à votre configuration.</p>"
@@ -1775,7 +1877,7 @@ Module Program
                         Exit Sub
                     End If
                 Else
-                    Dim notfound_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>Proxy server is not connected to the World Wide Web.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
+                    Dim notfound_data As Byte() = GetHTTPBytes(500, "<h1>Erreur 500 - Erreur interne du serveur</h1>" & vbCrLf & "<p>Le serveur proxy n'est pas connecté à Internet, et ne peut donc pas traiter cette requête.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour retourner à la page d'index.</p>" & vbCrLf)
 
                     Try
                         stream.Write(notfound_data, 0, notfound_data.Length)
@@ -1785,7 +1887,7 @@ Module Program
                 End If
             Else
                 'Identifiant invalide manifestement!
-                InitValues("Erreur de saisie", , wanted_skin)
+                InitValues("Erreur de saisie", , wanted_skin, , used_player)
                 patternpage &= " <P ALIGN=CENTER><BR><B>L'identifiant vidéo que vous avez entré semble invalide. Aucune lecture ne peut être poursuivie.<br><br>Cliquez <A HREF=""/"" STYLE=""color: " & link_color & ";"">ici</A> pour retourner à l'index.</B></P><BR><BR></BODY></HTML>" & vbCrLf & vbCrLf
 
                 Dim watch_resp As String =
@@ -1832,7 +1934,7 @@ Module Program
 
             If last_host_2 = "/" Then last_host_2 = "127.0.0.1"
 
-            Dim result_page As String = "<h1>400 Bad Request</h1><p>You must specify which video to stream with the v parameter.<br>Ex: http://" & last_host_2 & "/stream?v=BbCefdlDDTU</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf
+            Dim result_page As String = "<h1>Erreur 400 - Requête erronée</h1><p>Vous devez préciser quel vidéo lire directement en flux, avec le paramètre <i>v</i>.<br>Ex: http://" & last_host_2 & "/stream?v=BbCefdlDDTU<br><br>" & vbCrLf & "Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 400 Bad Request" & vbCrLf &
@@ -1908,7 +2010,7 @@ Module Program
                     Dim err As String = p.StandardError.ReadToEnd()
 
                     p.WaitForExit()
-                    If vt <> RequestVideoType.LuckyVideo Then InitValues("Recherche de " & EscapeHtml(req), req, wanted_skin)
+                    If vt <> RequestVideoType.LuckyVideo Then InitValues("Recherche de " & EscapeHtml(req), req, wanted_skin, , used_player)
 
                     'Récupération des lignes
                     Dim lines As String() = output.Split({vbCrLf, vbLf}, StringSplitOptions.RemoveEmptyEntries)
@@ -1916,7 +2018,7 @@ Module Program
                     If lines.Count = 0 Then
                         'S'il n'y a aucune ligne retournée.
                         If vt = RequestVideoType.LuckyVideo Then
-                            Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Generic message to tell no results were found.</p><br><p>Click <a href=""/"">here</a> to get back to the index page.</p>" & vbCrLf)
+                            Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Erreur 404 - Ressource introuvable</h1>" & vbCrLf & "<p>Ceci est un message d'erreur générique pour annoncer qu'aucune vidéo avec le(s) mot-clef(s) spécifié(s) n'a été trouvée.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour retourner à la page d'index.</p>" & vbCrLf)
 
                             Try
                                 stream.Write(notfound_data, 0, notfound_data.Length)
@@ -1938,7 +2040,7 @@ Module Program
                         If vt = RequestVideoType.LuckyVideo Then
                             Dim parts As String() = lines(0).Split(New String() {"<|>"}, StringSplitOptions.None)
                             '302
-                            Dim result_page As String = "<h1>302 Found</h1><p>A video was found in lucky mode, and is available at this URL: <a href=""/stream?v=" & parts(0) & """>Click here</a>.</p>" & vbCrLf
+                            Dim result_page As String = "<h1>302 Found</h1><p>Une vidéo a été trouvée en mode chanceux, et elle est disponible à cette URL: <a href=""/stream?v=" & parts(0) & """>Cliquez ici</a>.</p>" & vbCrLf
 
                             Dim index_resp As String = "HTTP/1.1 302 Found" & vbCrLf &
                             "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
@@ -2037,7 +2139,7 @@ Module Program
                 Else
                     'Si le mot-clef est vide voire invalide.
                     If vt = RequestVideoType.LuckyVideo Then
-                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Generic message to say the search tag is empty.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
+                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Erreur 404 - Ressource introuvable</h1>" & vbCrLf & "<p>Message générique pour annoncer à l'utilisateur qu'aucun mot-clef n'a été spécifié.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour retourner à la page d'index.</p>" & vbCrLf)
 
                         Try
                             stream.Write(notfound_data, 0, notfound_data.Length)
@@ -2046,7 +2148,7 @@ Module Program
                         End Try
                         client.Close()
                     Else
-                        InitValues("Erreur de recherche", , wanted_skin)
+                        InitValues("Erreur de recherche", , wanted_skin, , used_player)
                         patternpage &= " <P ALIGN=CENTER><BR><B><FONT SIZE=2>Veuillez spécifier un mot-clef pour que la recherche puisse avoir lieu.<BR><BR>Cliquez <A HREF=""/"" STYLE=""color: " & link_color & ";"">ici</A> pour retourner à l'index.</FONT></B></P><BR><BR><DIV CLASS=""bodysep""></DIV>" & vbCrLf & vbCrLf & footer
 
                         Dim req_resp As String =
@@ -2068,7 +2170,7 @@ Module Program
 
                 client.Close()
             Else
-                Dim notfound_data As Byte() = GetHTTPBytes(500, "<h1>Error 500 - Internal Server Error</h1>" & vbCrLf & "<p>Proxy server is not connected to the World Wide Web.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                Dim notfound_data As Byte() = GetHTTPBytes(500, "<h1>Erreur 500 - Erreur interne du serveur</h1>" & vbCrLf & "<p>Le serveur proxy n'est pas connecté à Internet, ainsi, la requête ne peut pas être satisfaite.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                 Try
                     stream.Write(notfound_data, 0, notfound_data.Length)
@@ -2080,7 +2182,7 @@ Module Program
             End If
         ElseIf request.StartsWith("GET /search") Then
             'Requête vide
-            Dim result_page As String = "<h1>302 Found</h1><p>Please go to this <a href=""/"">link</a> to search a video.</p>" & vbCrLf
+            Dim result_page As String = "<h1>302 Found</h1><p>Veuillez vous rendre <a href=""/"">ici</a> pour chercher une vidéo.</p>" & vbCrLf
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 302 Found" & vbCrLf &
@@ -2103,7 +2205,7 @@ Module Program
             'Requête vide
             'Index du site
             WriteLog("L'utilisateur demande le formulaire de recherche en mode chanceux.", , client)
-            InitValues("Accueil", , wanted_skin, True)
+            InitValues("Accueil", , wanted_skin, True, used_player)
             patternpage &= "<P ALIGN=CENTER><BR><B>Faire une recherche en mode chanceux renvoie une unique vidéo basée sur des mot-clefs à rechercher dans la zone ci-dessus.<BR><BR>Cliquez <A HREF=""/about.htm"" STYLE=""color: " & link_color & ";"">ICI</A> pour obtenir plus d'informations sur le fonctionnement.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV><BR><BR>" & footer
 
             Dim index_resp As String =
@@ -2161,7 +2263,7 @@ Module Program
             End Try
 
             client.Close()
-        ElseIf request.StartsWith("GET /config.cgi") Then
+        ElseIf request.StartsWith("GET /config.cgi") Or request.StartsWith("POST /config.cgi") Then 'Implémenter POST pour obtenir la page de configuration permet d'éviter de mystérieuses erreurs 400 sous IE3.
             'Montrer le panneau de configuration client du navigateur
             'message=gotreset, message=gotsaved
 
@@ -2207,6 +2309,7 @@ Module Program
             Dim selected_mov_rpza As String = String.Empty
             Dim selected_avi_mjpeg As String = String.Empty
             Dim selected_mov_mjpeg As String = String.Empty
+            Dim selected_xvid As String = String.Empty
 
             Dim selected_nointegration As String = String.Empty
             Dim selected_legacy_wmp As String = String.Empty
@@ -2297,6 +2400,7 @@ Module Program
                 Case "rm" : selected_rm = " SELECTED"
                 Case "mov_mjpeg" : selected_mov_mjpeg = " SELECTED"
                 Case "avi_mjpeg" : selected_avi_mjpeg = " SELECTED"
+                Case "xvid" : selected_xvid = " SELECTED"
                 Case Else : selected_avi_mpeg4 = " SELECTED" 'Failsafe
             End Select
 
@@ -2359,7 +2463,7 @@ Module Program
                 Case Else : selected_cosmic = " SELECTED"
             End Select
 
-            InitValues("Configuration client", , wanted_skin)
+            InitValues("Configuration client", , wanted_skin, , used_player)
             patternpage &= "<BR><P ALIGN=CENTER><B><FONT SIZE=4>Configuration du client RetroYT :</FONT></B></P><br>" & vbCrLf & vbCrLf
 
             If request.Contains("message=gotreset") Then
@@ -2386,10 +2490,11 @@ Module Program
             patternpage &= "	 <TD ALIGN=RIGHT>Format vidéo et codec utilisés&nbsp;:&nbsp;</TD>" & vbCrLf
             patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""codec"" WIDTH=300>" & vbCrLf
-            patternpage &= "	   <OPTION DISABLED>Formats Microsoft :</OPTION>" & vbCrLf
+            If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Formats Microsoft :</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_mpeg4""" & selected_avi_mpeg4 & ">AVI (MPEG-4, MP3) [Par défaut]</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_msvideo1""" & selected_avi_msvideo1 & ">AVI (MSVideo1, PCM) [Windows 3.11/95/NT]</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_cinepak""" & selected_avi_cinepak & ">AVI (Cinepak, PCM) [Lent à encoder]</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""xvid""" & selected_xvid & ">AVI (Xvid, MP3)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_mjpeg""" & selected_avi_mjpeg & ">AVI (MJPEG, PCM)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_yuv""" & selected_avi_yuv & ">AVI (YUV, PCM) [Très lourd!]</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""wmv1""" & selected_oldwmv & ">WMV (WMV1, WMAv1) [Windows 9x/NT]</OPTION>" & vbCrLf
@@ -2403,7 +2508,7 @@ Module Program
             patternpage &= "	   <OPTION VALUE=""mov_mjpeg""" & selected_mov_mjpeg & ">MOV (MJPEG, PCM) [MacOS]</OPTION>" & vbCrLf
             If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED></OPTION>" & vbCrLf
             If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Autres formats universels ou génériques :</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""mp4""" & selected_mp4 & ">MP4 (H.264, M4A)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""mp4""" & selected_mp4 & ">MP4 (H.264, AAC)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""mpeg1""" & selected_mpg & ">MPEG (MPEG-1, MP2)</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""rm""" & selected_rm & ">Real Media (RV10, AC3)</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""3gp""" & selected_3gp & ">3GP (H.263, AMR-NB) [Mobile]</OPTION>" & vbCrLf
@@ -2543,17 +2648,19 @@ Module Program
             rqcontent = rqcontent.Replace(Chr(10), String.Empty)
             rqcontent = rqcontent.Replace(Chr(13), String.Empty)
 
-            If String.IsNullOrEmpty(rqcontent) Then
-                rqcontent = "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto"
-            End If
+            If Not String.IsNullOrEmpty(rqcontent) Then
+                'client.Close()
+                'rqcontent = "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto"
+                'Exit Sub
 
-            'Pour éviter des injections d'entêtes HTTP
-            If rqcontent.Contains(vbCrLf) Then
-                rqcontent = rqcontent.Substring(0, rqcontent.IndexOf(vbCrLf))
-            End If
+                'Pour éviter des injections d'entêtes HTTP
+                If rqcontent.Contains(vbCrLf) Then
+                    rqcontent = rqcontent.Substring(0, rqcontent.IndexOf(vbCrLf))
+                End If
 
-            If rqcontent.Length > 1024 Then 'Limiter le cookie à 1Ko
-                rqcontent = rqcontent.Substring(0, 1024)
+                If rqcontent.Length > 1024 Then 'Limiter le cookie à 1Ko
+                    rqcontent = rqcontent.Substring(0, 1024)
+                End If
             End If
 
             Dim result_page As String = "<h1>302 Found</h1><p>Configuration has been saved, you can now navigate to <a href=""/config.cgi"">this page</a>.</p>" & vbCrLf
@@ -2562,9 +2669,15 @@ Module Program
                 "HTTP/" & http_ver & " 302 Found" & vbCrLf &
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
-                "Connection: close" & vbCrLf &
-                "Set-Cookie: " & cookie_header & rqcontent & ";path=/" & vbCrLf & 'L'ajout de la variable path garantit l'usage du cookie sur tout le domaine (compatibilité IE6 et assimilés)
-                "Location: /config.cgi?message=gotsaved" & vbCrLf &
+                "Connection: close" & vbCrLf
+
+            Dim exp As String = DateTime.UtcNow.AddYears(1).ToString("ddd, dd MMM yyyy HH:mm:ss 'GMT'", Globalization.CultureInfo.InvariantCulture)
+
+            If Not String.IsNullOrEmpty(rqcontent) Then
+                index_resp &= "Set-Cookie: " & cookie_header & rqcontent & "; Path=/; Expires=" & exp & vbCrLf 'L'ajout de la variable path garantit l'usage du cookie sur tout le domaine (compatibilité IE6 et assimilés)
+            End If
+
+            index_resp &= "Location: /config.cgi?message=gotsaved" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message avec lien si le navigateur de l'utilisateur n'arrive pas à localiser
 
             Dim index_data As Byte() = iso.GetBytes(index_resp)
@@ -2577,14 +2690,14 @@ Module Program
                 Exit Sub
             End Try
 
-            WriteLog("Nouveau cookie pour le client: " & rqcontent, ConsoleColor.Yellow, client)
+            If Not String.IsNullOrEmpty(rqcontent) Then WriteLog("Nouveau cookie pour le client: " & cookie_header & rqcontent & "; Path=/; Expires=" & exp, ConsoleColor.Yellow, client)
             client.Close()
 
         ElseIf request.Contains("GET /savecfg.cgi") Then
             'Message d'erreur requête vide
             WriteLog("Erreur 400: Requête erronée envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>HTTP request is empty. Please use the <a href=""/config.cgi"">parameters section</a> to change the client settings.</p>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Erreur 400 - Requête erronée</h1>" & vbCrLf & "<p>Ce formulaire ne peut être utilisé par la requête GET. Veuillez passer par <a href=""/config.cgi"">la section paramètres</a> pour changer les paramètres du client.</p>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
@@ -2597,14 +2710,16 @@ Module Program
         ElseIf request.StartsWith("GET /resetcfg.cgi") Then
             'Réinitialiser la configuration client
 
-            Dim result_page As String = "<h1>302 Found</h1><p>Configuration has been reset, you can now navigate to <a href=""/config.cgi"">this page</a>.</p>" & vbCrLf
+            Dim result_page As String = "<h1>302 Found</h1><p>La configuration a été réinitialisée, vous pouvez maintenant naviguer sur <a href=""/config.cgi"">cette page</a>.</p>" & vbCrLf
+
+            Dim exp As String = DateTime.UtcNow.AddYears(1).ToString("ddd, dd MMM yyyy HH:mm:ss 'GMT'", Globalization.CultureInfo.InvariantCulture)
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 302 Found" & vbCrLf &
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
                 "Connection: close" & vbCrLf &
-                "Set-Cookie: " & cookie_header & "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto;path=/" & vbCrLf &
+                "Set-Cookie: " & cookie_header & "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto; Path=/; Expires=" & exp & vbCrLf &
                 "Location: /config.cgi&message=gotreset" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser
 
@@ -2639,7 +2754,7 @@ Module Program
 
             If Not IO.File.Exists(CurDir() & "\vidcache\" & arg1) Then
                 Dim notfound_data As Byte()
-                notfound_data = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Video with file name '" & arg1.Replace(">", "&gt;").Replace("<", "&lt;") & "' was not found on this server.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
+                notfound_data = GetHTTPBytes(404, "<h1>Erreur 404 - Ressource introuvable</h1>" & vbCrLf & "<p>La vidéo avec pour nom de fichier '" & arg1.Replace(">", "&gt;").Replace("<", "&lt;") & "' n'a pas été trouvée sur ce serveur.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour retourner à la page d'index.</p>" & vbCrLf)
 
                 Try
                     stream.Write(notfound_data, 0, notfound_data.Length)
@@ -2657,7 +2772,7 @@ Module Program
                 Select Case used_codec
                     Case "mp4" : media_type = "video/mp4"
                     Case "rm" : media_type = "application/vnd.rn-realmedia"
-                    Case "avi_msvideo1", "avi_mpeg4", "avi_yuv", "avi_cinepak" : media_type = "video/x-msvideo"
+                    Case "avi_msvideo1", "avi_mpeg4", "avi_yuv", "avi_cinepak", "xvid" : media_type = "video/x-msvideo"
                     Case "wmv1", "wmv2" : media_type = "video/x-ms-wmv"
                     Case "mov_cinepak", "mov_svq1", "mov_mpeg4", "mov_rpza" : media_type = "video/quicktime"
                     Case "mpeg1" : media_type = "video/mpeg"
@@ -2682,7 +2797,7 @@ Module Program
                 If range_begin >= 0 Or range_end >= 0 Then
                     If range_begin >= f_length Or range_end > f_length Or range_begin < 0 Or range_end < 0 Then
                         'Lever une erreur
-                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Error 416 - Range Not Satisfiable</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.</p><br><p>Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
+                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<h1>Erreur 416 - Plage de données invalide</h1>" & vbCrLf & "<p>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour revenir à la page d'index.</p>" & vbCrLf)
 
                         Try
                             stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -2767,10 +2882,10 @@ Module Program
             End If
         ElseIf request.StartsWith("GET /about.htm") Then
             'Afficher le "à propos" du proxy
-            InitValues("À propos de RetroYT", , wanted_skin)
+            InitValues("À propos de RetroYT", , wanted_skin, , used_player)
             WriteLog("Page des informations sur le logiciel envoyée.", , client)
 
-            patternpage &= "<br><br><center><div style=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;""><B>RetroYT</B> est un proxy multimédia pour YouTube développé en Visual Basic .NET 2022 par Monokeros. La version actuelle, la Bêta 3.6, a été publiée le 14 mai 2026. Ce projet est distribué gratuitement (sous la licence «&nbsp;freeware&nbsp;»), sans aucune garantie explicite ou implicite. L'auteur ne pourra être tenu responsable d'éventuels dommages matériels, logiciels, des éventuelles pertes de données, ou dysfonctionnements résultant de son utilisation, y compris dans un cadre normal.<br>" & vbCrLf
+            patternpage &= "<br><br><center><div style=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;""><B>RetroYT</B> est un proxy multimédia pour YouTube développé en Visual Basic .NET 2022 par Monokeros. La version actuelle, la Bêta 4.0, a été publiée le 16 mai 2026. Ce projet est distribué gratuitement (sous la licence «&nbsp;freeware&nbsp;»), sans aucune garantie explicite ou implicite. L'auteur ne pourra être tenu responsable d'éventuels dommages matériels, logiciels, des éventuelles pertes de données, ou dysfonctionnements résultant de son utilisation, y compris dans un cadre normal.<br>" & vbCrLf
             patternpage &= "Le projet vise principalement à restaurer la compatibilité de YouTube avec des systèmes d'exploitation, navigateurs web et lecteurs multimédia anciens ou obsolètes, à travers le relais de connexions, formatage vers un code HTML, et l'intégration de formats vidéo historiques, lisible par les navigateurs de toute époque." & vbCrLf
             patternpage &= "<br><br><br>" & vbCrLf
 
@@ -2787,7 +2902,7 @@ Module Program
 
             patternpage &= "<br><center><h2><a name=""parameters"">II. Paramètres</a></h2></center><br><br>" & vbCrLf
 
-            patternpage &= "<b>RetroYT</b> propose un ensemble de paramètres permettant d'adapter le fonctionnement du proxy aux capacités matérielles et logicielles du système cible. L'utilisateur peut notamment choisir la taille du lecteur vidéo, le format et les codecs employés pour la conversion, ainsi que le nombre d'images par seconde. Pour les systèmes les plus anciens, comme Windows 95 ou Windows NT 4.0, l'utilisation des codecs MSVideo1 (Microsoft Video 1), MPEG-1 ou WMV1 est fortement recommandée, en raison de leur excellente compatibilité avec les anciennes versions de Windows. Comme beaucoup de codecs historiques, celui-ci produit toutefois des fichiers relativement volumineux, en particulier pour les vidéos dépassant plusieurs minutes.<BR>Selon la puissance de votre machine, votre quantité de mémoire disponible ou la vitesse de votre connexion réseau, le transfert et la lecture des vidéos peuvent devenir plus difficiles. La résolution vidéo peut être choisie parmi un certain nombre de valeurs prédéfinies (96p, 120p, 144p, 240p, 360p, 480p, 720p et 1080p), ou laissée en mode automatique afin que le serveur sélectionne lui-même le format le plus approprié. Certains codecs anciens possèdent volontairement des limitations de résolution ou de format d'image, principalement pour des raisons de compatibilité avec les anciens lecteurs multimédia ou les contraintes matérielles des systèmes ciblés.<br><br>" & vbCrLf & vbCrLf
+            patternpage &= "<b>RetroYT</b> propose un ensemble de paramètres permettant d'adapter le fonctionnement du proxy aux capacités matérielles et logicielles du système cible. La méthode de récupération des fichiers depuis YouTube est agnostique. En d'autres termes, le proxy prendra le premier format venu, il peut être en extension MP4, WebM, ou MKV, etc. avec un encodage comme VP8, VP9, AV1, AV2, H.264, etc. Pour le fichier de destination, un second cache existe et permet de convertir dans un autre format compatible avec les anciennes configurations. Ces formats sont entièrement configurables depuis le navigateur client. L'utilisateur peut notamment choisir la taille du lecteur vidéo, le format et les codecs employés pour la conversion, ainsi que le nombre d'images par seconde. Pour les systèmes les plus anciens, comme Windows 95 ou Windows NT 4.0, l'utilisation des codecs MSVideo1 (Microsoft Video 1), MPEG-1 ou WMV1 est fortement recommandée, en raison de leur excellente compatibilité avec les anciennes versions de Windows. Comme beaucoup de codecs historiques, celui-ci produit toutefois des fichiers assez volumineux, en particulier pour les vidéos dépassant plusieurs minutes. Le codec Cinepak est aussi rétrocompatible, mais peut mettre beaucoup de temps à être encodé.<BR>Selon la puissance de votre machine, votre quantité de mémoire disponible ou la vitesse de votre connexion réseau, le transfert et la lecture des vidéos peuvent devenir plus difficiles. La résolution vidéo peut être choisie parmi un certain nombre de valeurs prédéfinies (96p, 120p, 144p, 240p, 360p, 480p, 720p et 1080p), ou laissée en mode automatique afin que le serveur sélectionne lui-même le format le plus approprié. Certains codecs anciens possèdent volontairement des limitations de résolution ou de format d'image, principalement pour des raisons de compatibilité avec les anciens lecteurs multimédia ou les contraintes matérielles des systèmes ciblés.<br><br>" & vbCrLf & vbCrLf
             patternpage &= "Le mode d'intégration du lecteur vidéo est également configurable. RetroYT peut utiliser différentes méthodes historiques de lecture multimédia, parmi lesquelles :" & vbCrLf & vbCrLf
 
             patternpage &= "<ul>" & vbCrLf
@@ -2805,8 +2920,8 @@ Module Program
             patternpage &= " <li><b>Cosmic :</b> Reproduction fidèle du thème «&nbsp;Cosmic Panda&nbsp;» utilisé officiellement entre 2011 et 2013 sur ce même site ;</li>" & vbCrLf
             patternpage &= " <li><b>Modern :</b> Interface proche du YouTube actuel ;</li>" & vbCrLf
             patternpage &= " <li><b>Dark Mode :</b> Affichage clair sur fond sombre ;</li>" & vbCrLf
-            patternpage &= " <li><b>Rose :</b> Thème aux couleurs douces, rappelant certaines interfaces Web des années 1990 ;</li>" & vbCrLf
-            patternpage &= " <li><b>Aqua :</b> Thème aux couleurs bleues, rappelant l'eau. Le seul thème qui n'embarque pas de rouge partout, un peu comme le mode sombre.</li>" & vbCrLf
+            patternpage &= " <li><b>Rose :</b> Thème aux couleurs violacées, rappelant certaines interfaces Web des années 1990 ;</li>" & vbCrLf
+            patternpage &= " <li><b>Aqua :</b> Thème aux couleurs bleues, rappelant l'eau.</li>" & vbCrLf
             patternpage &= "</ul>" & vbCrLf & vbCrLf
 
             patternpage &= "Ces options permettent d'adapter RetroYT aussi bien à des machines très anciennes qu'à des systèmes plus récents, tout en conservant une esthétique cohérente avec les différentes époques du Web. Il est intéressant de noter qu'on peut lire aussi des flux vidéo depuis un lecteur externe, sans passer par l'interface Web. Il suffit pour cela de naviguer sur <i>http://adresse_serveur/stream?v=id_video</i> pour lire directement dans un lecteur externe comme VLC. Vous pouvez aussi chercher et lire la première vidéo trouvée de façon immédiate en naviguant sur <i>http://adresse_serveur/lucky?q=motclef</i>. Par défaut, le format permutera automatiquement sur MP4 si vous utilisez VLC. Notez bien que vous pouvez utiliser les paramètres GET documentés dans la <a href=""useget"">partie V</a> de cette documentation.<br><br>" & vbCrLf & vbCrLf
@@ -2816,6 +2931,7 @@ Module Program
             patternpage &= "RetroYT utilise également un système de cache local afin d'améliorer les performances et limiter les téléchargements répétés. Deux dossiers principaux sont utilisés :" & vbCrLf & vbCrLf
             patternpage &= "<ul>" & vbCrLf
             patternpage &= " <li>Le dossier <i>thumbs</i> : Stockage des miniatures YouTube (Qualité moyenne, alias MQ) envoyées au client à la demande ;</li>" & vbCrLf
+            patternpage &= " <li>Le dossier <i>srccache</i> : Stockage des vidéos sources et mises en cache pour être converties.</li>" & vbCrLf
             patternpage &= " <li>Le dossier <i>vidcache</i> : Stockage des vidéos converties et mises en cache pour être envoyées au client.</li>" & vbCrLf
             patternpage &= "</ul>" & vbCrLf & vbCrLf
 
@@ -2826,7 +2942,7 @@ Module Program
             patternpage &= " <li>Le dossier <i>flplayer</i>, qui contient les fichiers du lecteur Flash Player, au cas où il serait activé ;</li>" & vbCrLf
             patternpage &= " <li>Les fichiers <i>YTSrv.deps.json</i>, et <i>YTSrv.runtimeconfig.json</i> qui sont des scripts json vitaux pour que les binaires fonctionnent ;</li>" & vbCrLf
             patternpage &= " <li>Les fichiers <i>YTSrv.dll</i> et <i>YTSrv.pdb</i>, générés par Visual Basic .NET et indispensables au fonctionnement du logiciel ;</li>" & vbCrLf
-            patternpage &= " <li><i>ffmpeg.exe</i> mis par les soins de l'utilisateur. Il permet de convertir à la volée les fichiers vidéo téléchargés au format MP4 ;</li>" & vbCrLf
+            patternpage &= " <li><i>ffmpeg.exe</i> mis par les soins de l'utilisateur. Il permet de convertir à la volée les fichiers vidéo téléchargés au format voulu ;</li>" & vbCrLf
             patternpage &= " <li><i>yt-dlp.exe</i> mis par les soins de l'utilisateur également. Il permet d'obtenir des vidéos depuis YouTube ;</li>" & vbCrLf
             patternpage &= " <li>RetroYT.exe qui est le fichier binaire de lancement du logiciel lui-même.</li>" & vbCrLf
             patternpage &= "</ul>" & vbCrLf & vbCrLf
@@ -2836,20 +2952,21 @@ Module Program
             patternpage &= "<br><center><h2><a name=""configuration"">IV. Configuration</a></h2></center><br><br>" & vbCrLf
             patternpage &= "Du côté du serveur, il est recommandé d'exécuter RetroYT sur une machine relativement performante. Une connexion Internet stable et rapide est également recommandé. Le transcodage vidéo effectué par FFmpeg peut solliciter fortement le processeur, en particulier lors de l'utilisation de codecs anciens ou peu optimisés comme Cinepak ou MSVideo1. Windows 10 et Windows 11 sont actuellement les systèmes les plus recommandés pour héberger le proxy. Le logiciel nécessite l'environnement .NET 6.0 ou plus, afin de fonctionner correctement. Du côté client, RetroYT a été conçu pour rester accessible à des navigateurs et systèmes beaucoup plus anciens. La navigation sur le proxy ainsi que la lecture vidéo intégrée ont notamment été testées avec succès sur les configurations suivantes :<br><br>" & vbCrLf & vbCrLf
             patternpage &= "<ul>" & vbCrLf
-            patternpage &= " <li>Windows NT 4.0 SP6 / Internet Explorer 5.5 / Windows Media Player 6.4 / 1Go de RAM, 32Mo de mém. vidéo et proc. de 700MHz ;</li>" & vbCrLf
-            patternpage &= " <li>Windows 2000 SP4 / Internet Explorer 6.0 / Windows Media Player 9.0 / 3Go de RAM, 256Mo de mém. vidéo et proc. de 1,85GHz ;</li>" & vbCrLf
-            patternpage &= " <li>Windows XP / Internet Explorer 6.0 / Windows Media Player 11.0 / 2Go de RAM ;</li>" & vbCrLf
-            patternpage &= " <li>Windows XP / Firefox 52.0 / Plugin de VLC Media Player 3.0 / 2Go de RAM ;</li>" & vbCrLf
-            patternpage &= " <li>Windows ME / Internet Explorer 5.5 / Windows Media Player 7.0 / 1Go de RAM ;</li>" & vbCrLf
-            patternpage &= " <li>Windows 98 SE / Internet Explorer 4.01 / Flash Player 8 / 1Go de RAM ;</li>" & vbCrLf
-            patternpage &= " <li>Windows 3.11 / Internet Explorer 4.01 / Real Player 5.0 / 64Mo de RAM ;</li>" & vbCrLf
-            patternpage &= " <li>Windows NT 3.51 / Internet Explorer 4.01 / Real Player 5.0 / 64Mo de RAM ;</li>" & vbCrLf
-            patternpage &= " <li>MacOS X 7.5.3 / NetScape 1.1 et Internet Explorer 4.01 / Apple QuickTime 3 / 512Mo de RAM ;</li>" & vbCrLf
-            patternpage &= " <li>Linux CentOS 6.10 / SeaMonkey 2.49.7 / Totem et GStreamer / 2Go de RAM ;</li>" & vbCrLf
-            patternpage &= " <li>Windows 11 / Opera 130.0 / Intégration vidéo HTML5 / 16Go de RAM, 2,8GHz de processeur, et 6Go de mémoire vidéo.</li>" & vbCrLf
+            patternpage &= " <li>Windows NT 4.0 SP6, Internet Explorer 5.5, Windows Media Player 6.4, 1Go de RAM, 32Mo de mém. vidéo et proc. de 700MHz ;</li>" & vbCrLf
+            patternpage &= " <li>Windows 2000 SP4, Internet Explorer 6.0, Windows Media Player 9.0, 3Go de RAM, 256Mo de mém. vidéo et proc. de 1,85GHz ;</li>" & vbCrLf
+            patternpage &= " <li>Windows XP, Internet Explorer 6.0, Windows Media Player 11.0, 2Go de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>Windows XP, Mozilla Firefox 52.0, Plugin de VLC Media Player 3.0, 2Go de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>Windows ME, Internet Explorer 5.5, Windows Media Player 7.0, 1Go de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>Windows 98 SE, Internet Explorer 4.01, Flash Player 8, 1Go de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>Windows 95 OSR 2.0, Internet Explorer 3.0, ActiveMovie et Media Player, 128Mo de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>Windows 3.11, Internet Explorer 4.01, Real Player 5.0, 64Mo de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>Windows NT 3.51, Internet Explorer 4.01, Real Player 5.0, 64Mo de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>MacOS X 7.5.3, NetScape 1.1 et Internet Explorer 4.01, Apple QuickTime 3, 512Mo de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>Linux CentOS 6.10, SeaMonkey 2.49.7, Totem et GStreamer, 2Go de RAM ;</li>" & vbCrLf
+            patternpage &= " <li>Windows 11, Opera 130.0, Intégration vidéo HTML5 avec 16Go de RAM, 2,8GHz de processeur, et 6Go de mémoire vidéo.</li>" & vbCrLf
             patternpage &= "</ul><br>" & vbCrLf & vbCrLf
 
-            patternpage &= "Veillez à autoriser l'exécution des contrôles ActiveX, si vous utilisez un système d'exploitation de Microsoft. Veillez aussi à avoir un ou plusieurs lecteurs multimédias installés, et les cookies activés sur votre navigateur. Si ce dernier ne semble pas prendre en charge les cookies, vous pourrez toujours forcer le mode rétrocompatibilité sur la page de visualisation, en cliquant sur le lien intitulé «&nbsp;Forcer le mode rétrocompatibilité&nbsp;». Pour les très anciennes versions de Windows, faire usage du codec AVI MSVideo1 depuis la section ""Paramètres"" est recommandé, en résolution 240p et en 15 images/s, tout en veillant à ce que les vidéos ne dépassent pas 10 minutes de longueur. Il s'agit d'un codec avec compression intégrée, totalement compatible avec Windows depuis sa version 3.1. Pour les navigateurs compatibles HTML5, vous pouvez activer l'utilisation du format vidéo MP4, et l'intégration multimédia via la balise video.<br>" & vbCrLf
+            patternpage &= "Veillez à autoriser l'exécution des contrôles ActiveX, si vous utilisez un système d'exploitation de Microsoft. Veillez aussi à avoir un ou plusieurs lecteurs multimédias installés, et les cookies activés sur votre navigateur. En effet, RetroYT fait usage d'un cookie pour mémoriser les paramètres du client. Si ce dernier ne semble pas prendre en charge les cookies, vous pourrez toujours faire usage des paramètres GET dans l'URL de /watch, /lucky, ou /stream. Pour les très anciennes versions de Windows, faire usage du codec AVI MSVideo1 depuis la section ""Paramètres"" est recommandé, en résolution 240p et en 15 images/s, tout en veillant à ce que les vidéos ne dépassent pas 10 minutes de longueur. Il s'agit d'un codec avec compression intégrée, totalement compatible avec Windows depuis sa version 3.1. Pour les navigateurs compatibles HTML5, vous pouvez activer l'utilisation du format vidéo MP4, et l'intégration multimédia via la balise video.<br>" & vbCrLf
             patternpage &= "Si vous activez le lecteur Flash Player, seul le format FLV (Flash Video) pourra être lu. Pareil pour Real Player, seul le format Real Media sera lu. Si par malheur aucune de ces options ne fonctionne, vous pouvez également cliquer sur le lien pour lire le flux vidéo directement (lien présent sous le lecteur, si présent). Le navigateur ouvrira un lecteur externe, ou vous proposera de télécharger le fichier pour le lire après. Mais il s'agit d'une option de dernier recours. Concernant le lecteur Windows Media Player 6.4, notez bien que l'utilisation des URL n'est prise en charge qu'à partir de la version 6.4.<br><br>" & vbCrLf & vbCrLf
 
             patternpage &= "<br><center><h2><a name=""useget"">V. Utilisation du paramètre GET</a></h2></center><br><br>" & vbCrLf
@@ -2896,7 +3013,7 @@ Module Program
             patternpage &= "<tr><td>avi_msvideo1</td><td>Format AVI (Microsoft), codec vidéo MSVideo1, codec audio PCM</td></tr>" & vbCrLf
             patternpage &= "<tr><td>avi_cinepak</td><td>Format AVI (Microsoft), codec vidéo Cinepak, codec audio PCM</td></tr>" & vbCrLf
             patternpage &= "<tr><td>avi_yuv</td><td>Format AVI (Microsoft), vidéo en YUV, codec audio PCM</td></tr>" & vbCrLf
-            patternpage &= "<tr><td>mp4</td><td>Format MP4, codec vidéo H.264, codec audio M4A</td></tr>" & vbCrLf
+            patternpage &= "<tr><td>mp4</td><td>Format MP4, codec vidéo H.264, codec audio AAC</td></tr>" & vbCrLf
             patternpage &= "<tr><td>wmv1</td><td>Format WMV, codec vidéo WMV1, codec audio WMAv1</td></tr>" & vbCrLf
             patternpage &= "<tr><td>wmv2</td><td>Format WMV, codec vidéo WMV2, codec audio WMAv2</td></tr>" & vbCrLf
             patternpage &= "<tr><td>mov_cinepak</td><td>Format Apple QuickTime (MOV), codec vidéo Cinepak, codec audio PCM</td></tr>" & vbCrLf
@@ -2991,7 +3108,7 @@ Module Program
             If arg.Length = 0 Then
                 'Index du site
                 WriteLog("L'utilisateur demande l'index du site. Renvoi vers la page d'accueil.", , client)
-                InitValues("Accueil", , wanted_skin)
+                InitValues("Accueil", , wanted_skin, , used_player)
                 patternpage &= "<P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez <A HREF=""/about.htm"" STYLE=""color: " & link_color & ";"">ICI</A> pour obtenir plus d'informations sur le fonctionnement.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV><BR><BR>" & footer
 
                 Dim index_resp As String =
@@ -3164,7 +3281,7 @@ Module Program
 
                         sent_css &= " font-family: Tahoma, Roboto, Arial, sans-serif;" & vbCrLf
                         sent_css &= " padding: 12px 12px 12px 12px;" & vbCrLf
-                        sent_css &= " /* **/line-height: 18px; /** */" 'Pour éviter des décalages bizarres des pages Web sous IE 3.0
+                        If Not LCase(ua_string).Contains("msie 3.") Then sent_css &= " line-height: 18px;" 'Pour éviter des décalages bizarres des pages Web sous IE 3.0 " /* **/line-height: 18px; /** */"
                         sent_css &= "}" & vbCrLf & vbCrLf
 
                         sent_css &= "html, body, td, p {" & vbCrLf
@@ -3193,13 +3310,14 @@ Module Program
 
                         sent_css &= "img {" & vbCrLf
                         sent_css &= " border: 0;" & vbCrLf
-                        sent_css &= " background-color: black;" & vbCrLf
+                        'sent_css &= " background-color: black;" & vbCrLf
                         sent_css &= "}" & vbCrLf & vbCrLf
 
                         sent_css &= ".thumbstyle {" & vbCrLf
                         sent_css &= " border-radius: 4px;" & vbCrLf
                         sent_css &= " width: 180px;" & vbCrLf
                         sent_css &= " height: 120px;" & vbCrLf
+                        sent_css &= " background-color: black;" & vbCrLf
                         sent_css &= "}" & vbCrLf & vbCrLf
 
                         sent_css &= "a {" & vbCrLf
@@ -3222,9 +3340,9 @@ Module Program
                         sent_css &= " background-color: black;" & vbCrLf
                         sent_css &= " border-radius: 8px;" & vbCrLf
                         sent_css &= " display: block;" & vbCrLf
-                        sent_css &= " object-fit: center;" & vbCrLf
-                        sent_css &= " margin-left: auto;" & vbCrLf
-                        sent_css &= " margin-right: auto;" & vbCrLf
+                        If Not old_ie Then sent_css &= " object-fit: center;" & vbCrLf
+                        If Not old_ie Then sent_css &= " margin-left: auto;" & vbCrLf
+                        If Not old_ie Then sent_css &= " margin-right: auto;" & vbCrLf
                         sent_css &= " text-align: center;" & vbCrLf
                         sent_css &= "}" & vbCrLf & vbCrLf
 
@@ -3286,6 +3404,9 @@ Module Program
                         sent_css &= " background-color: rgba(32, 225, 32, 0.25);" & vbCrLf
                         sent_css &= " !background-color: rgb(64, 255, 64);" & vbCrLf
                         sent_css &= "}" & vbCrLf & vbCrLf
+
+                        'Pseudo-obfuscation du code et économie en espace
+                        'sent_css = sent_css.Replace(" ", String.Empty).Replace(vbCrLf, String.Empty)
 
                         sent_res &= "Content-Type: text/css" & vbCrLf
                         sent_res &= "Connection: close" & vbCrLf
@@ -3367,8 +3488,10 @@ Module Program
                                 'Format AVI encodé avec Cinepak (codec répandu dans les années 90, et pris en charge par Windows 3.11, surtout accompagné du codec audio PCM).
                                 sent_page &= "Conteneur AVI (Microsoft), codec vidéo: Cinepak, codec audio: PCM (1 canal audio @ 44,1KHz, 16-bits signés, little endian)"
                             Case "mp4"
-                                'Format MP4 sans conversion directe
-                                sent_page &= "Conteneur MP4, codec vidéo: H.264 AVC (MPEG-4 Part 10), codec audio: M4A"
+                                'Format MP4 H.264, AAC
+                                sent_page &= "Conteneur MP4, codec vidéo: H.264 AVC (MPEG-4 Part 10), codec audio: AAC"
+                            Case "xvid"
+                                sent_page &= "Conteneur AVI, codec vidéo: Xvid, codec audio: MP3 (128KBPS)"
                             Case "flv"
                                 'Format FLV (Codec vidéo Sorenson Spark, audio MP3) [Macromedia Flash Video]
                                 sent_page &= "Conteneur Macromedia Flash Video (*.flv), codec vidéo: Sorenson Spark (500KBPS de bitrate), codec audio: MP3 (96KBPS)"
@@ -3519,7 +3642,7 @@ Module Program
 
                         WriteLog("Ressource demandée introuvable: " & arg, , client)
 
-                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Error 404 - Not Found</h1>" & vbCrLf & "<p>Resource '<i>/" & arg & "</i>' was not found on this server.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
+                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<h1>Erreur 404 - Ressource introuvable</h1>" & vbCrLf & "<p>Le fichier '<i>/" & arg & "</i>' n'a pas été trouvé sur ce serveur.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour retourner à la page d'index.</p>" & vbCrLf)
 
                         Try
                             stream.Write(notfound_data, 0, notfound_data.Length)
@@ -3536,7 +3659,7 @@ Module Program
             'Les autres requêtes entraînent une erreur 400 (requête invalide).
             WriteLog("Erreur 400: Requête erronée envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Error 400 - Bad Request</h1>" & vbCrLf & "<p>Invalid or malformed HTTP request.</p><br><p>Click <a href=""/"">here</a> to go back to the index page.</p>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<h1>Erreur 400 - Requête erronée</h1>" & vbCrLf & "<p>Requête HTTP invalide ou malformée.<br><br>" & vbCrLf & "Cliquez <a href=""/"">ici</a> pour retourner à l'index.</p>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
