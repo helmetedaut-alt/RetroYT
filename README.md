@@ -1,11 +1,11 @@
 RetroYT est un projet de proxy YouTube pour les anciens navigateurs et systèmes.
 En effet, l'an passé, j'ai constaté que YouTube ne fonctionnait plus sur Firefox 52.0 sous mon Windows 2000.
-J'ai connu Browservice au début des années 2020, et il m'a beaucoup inspiré pour ce projet.
-Je me disais donc qu'il était temps que je lance mon propre projet, qui combine l'apparence des services en ligne actuels, tout en adaptant le contenu aux anciennes configurations, avec l'ergonomie des services YouTube, afin de rendre l'expérience accessible à d'anciens navigateurs qui ne sont plus pris en charge.
-RetroYT fait usage du framework Microsoft .NET 6.0, FFMPEG, SWFObject et YT-DLP.
-Il utilise l'encodage ISO-8859-1, pour garantir une compatibilité maximale avec tous les anciens navigateurs. Entre YouTube et le proxy, en revanche, UTF-8 est utilisé.
+J'ai connu Browservice au début des années 2020. Il permet à d'anciens navigateurs d'accéder au Web moderne, en envoyant en temps réel un rendu chromium à jour. Il m'a beaucoup inspiré pour ce projet.
+Je me disais donc qu'il était temps que je lance mon propre projet, qui combine l'apparence des services en ligne actuels, tout en adaptant le contenu aux anciennes configurations, avec l'ergonomie des services YouTube, afin de rendre l'expérience accessible à d'anciens navigateurs qui ne sont plus pris en charge officiellement.
+RetroYT fait usage du Microsoft .NET Framework 6.0, de FFMPEG, de SWFObject et de YT-DLP.
+Il utilise l'encodage ISO-8859-1 pour formater les pages Web, pour garantir une compatibilité maximale avec tous les anciens navigateurs. Pour les communications entre YouTube et le proxy, en revanche, UTF-8 est utilisé.
 Program.vb contient l'ensemble du code source utilisé dans ce projet.
-Les binaires du projet (c'est-à-dire une version exécutable) se situent dans la catégorie Release de cette page.
+Les binaires du projet (c'est-à-dire une version exécutable) se situent dans la catégorie "Release" de cette page.
 Vous pouvez télécharger le ZIP, et ouvrir RetroYT.exe pour lancer le serveur proxy. Il utilise le port 80 par défaut, mais vous pouvez modifier le numéro de port en le précisant en paramètre.
 Exemple: YTSrv 8080
 ... Pour utiliser le port 8080, au lieu du port 80.
@@ -14,9 +14,10 @@ Une connexion Internet est nécessaire pour récupérer les vidéos. FFMPEG sera
  * AVI (Codec vidéo MPEG-4 et audio MP3), un format assez transversal parmi les Windows anciens et nouveaux.
  * AVI (Codec vidéo MSVideo1 et audio PCM) pour les systèmes comme Windows 3.11 / NT 4.0 / 95. Dans l'absolu, il est compatible avec tous les Windows.
  * AVI (Codec vidéo Cinepak et audio PCM) qui est un codec extrêmement lent à encoder, mais plutôt léger à lire et en taille de fichiers.
- * AVI (YUV, PCM) est très très lourd, et peut ne pas être lu sous tous les lecteurs. Uniquement implémenté à titre expérimental.
- * AVI (Codec vidéo MJPEG, PCM) est universel et très facile à encoder/décoder, mais peut donner lieu à des vidéos assez lourdes.
- * MP4 original, avec un paramètre pour forcer le codec vidéo H.264 et audio M4A, pour les navigateurs déjà compatibles HTML5 mais incompatibles avec le YouTube moderne.
+ * AVI (Codec vidéo Xvid et audio MP3), qui est un codec phare des années 2000. Il supporte jusqu'à du 1080p, est assez léger, et est compatible avec des anciens systèmes comme Windows XP.
+ * AVI (YUV, PCM) est très très lourd, et peut ne pas être lu sous tous les lecteurs. Uniquement implémenté à titre expérimental. NE PAS TENTER DE LIRE DES VIDEOS DE PLUS DE QUELQUES MINUTES.
+ * AVI (Codec vidéo MJPEG, audio PCM) est universel et très facile à encoder/décoder, mais peut produire des vidéos assez lourdes.
+ * MP4 (Codec vidéo H.264, audio AAC), pour les navigateurs déjà compatibles HTML5 mais incompatibles avec le YouTube moderne.
  * MPEG-1 avec le codec audio MP2
  * WMV (Codec vidéo WMV2, codec audio WMAv2, très compatible avec Windows 98SE et plus, et plus léger que le format AVI MSVideo1)
  * WMV (Codec vidéo WMV1, codec audio WMAv1, compatible à partir de Windows 95)
@@ -56,7 +57,7 @@ Le proxy utilise un cookie pour mémoriser les paramètres. En son absence, les 
 Si ces paramètres ne fonctionnent pas avec votre configuration, et que la vidéo ne démarre pas, vous pouvez essayer de cliquer sur un des liens sous le lecteur vidéo.
 Il y en a deux: un pour télécharger la vidéo directement (ou l'ouvrir dans un logiciel externe), et un pour forcer la rétrocompatibilité maximale (lecteur en 320x240, codec MSVideo1, intégration WMP 6.4, etc.)
 
-Le client doit avoir Windows Media Player 6.4 minimum d'installé pour fonctionner, mais vous pouvez toujours lire le lien généré dans VLC, avec la fonction CTRL+N.
+Le client doit avoir ActiveMovie ou Windows Media Player 6.4 minimum d'installé pour fonctionner, mais vous pouvez toujours lire le lien généré dans VLC, avec la fonction CTRL+N.
 Toutes les versions d'Internet Explorer fonctionnent à priori, de la 1.0 à la 11.0. Veillez à adapter la configuration dans les paramètres du client.
 
 Lorsque vous naviguez sur le proxy, la page d'index s'affiche, et vous invite à faire une recherche. Vous avez le lien "Paramètres" ou "À propos de RetroYT" pour obtenir plus d'informations.
@@ -72,15 +73,15 @@ Je conseille donc de laisser la taille du lecteur en 640x480 pour la plupart des
 En pratique, la configuration minimale conseillée pour la lecture dans le navigateur est la suivante:
 * Ecran VGA en 800x600 en 16-bits de couleurs
 * Microsoft Windows 95
-* Microsoft Internet Explorer 4.0
-* Windows Media Player 6.4
+* Microsoft Internet Explorer 3.0
+* Windows Media Player 6.4 ou ActiveMovie
 * Flash Player 7
 * 64Mo de RAM
 * 4Mo de VRAM
 * Quelques centaines de Mo d'espace disque, j'imagine?
 * Processeur Intel Pentium I ou équivalents
 
-Il est possible de naviguer sur le site avec Internet Explorer 1.0, 2.0, et 3.0 mais l'intégration OLE est difficile voire impossible.
+Il est possible de naviguer sur le site avec Internet Explorer 1.0 et 2.0 mais l'intégration OLE n'est pas disponible.
 J'ai déjà eu des feedbacks sur le fait que Flash Player 7 fonctionne, et qu'on peut lire aussi sous Windows 3.11, mais il s'agit de cas exceptionnels peu documentés.
 Naviguer sur le site avec Arachne serait possible sur MS-DOS, mais dans ces cas-là, il faudrait télécharger la vidéo PUIS l'ouvrir sur un lecteur externe.
 L'expérience YouTube sera donc en deux temps, comme dans les années 90 où chaque logiciel avait son but bien paramétré en amont, et aucune intégration/interaction directe.
