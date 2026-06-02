@@ -3,7 +3,6 @@ Imports System.Drawing
 Imports System.IO
 Imports System.Net
 Imports System.Net.Sockets
-Imports System.Runtime
 Imports System.Security.Cryptography
 Imports System.Text
 
@@ -15,7 +14,7 @@ Module Program
     Public port As Integer = 80 'Port à écouter pour créer le serveur
     Public patternpage As String = Nothing 'Page HTML modèle à renvoyer au client
     Public video_props As New Dictionary(Of String, VideoProperties)
-    Public last_view As String = Nothing 'Identifiant de la vidéo en cours de lecture
+    'Public last_view As String = Nothing 'Identifiant de la vidéo en cours de lecture
     Public iso As Encoding = Encoding.GetEncoding("iso-8859-1")
     Public last_host As String = String.Empty
     Public link_color As String = "#800000"
@@ -25,23 +24,26 @@ Module Program
     Public number_of_dls As Integer = 0
     Public sw As New Stopwatch
     Public ip_list As New Dictionary(Of String, Decimal) 'Liste des adresses IP connectés, et du nombre de requêtes par IP.
+    Public log_lock As New Object
 
     Public list_used_player() As String = {"no_integration", "legacy_wmp", "wmp", "embed", "video", "realplayer", "activex_realplayer", "embed_vlc", "vlc", "alt_vlc", "quicktime", "embed_quicktime", "flash", "embed_flash", "activex_flash", "object"}
-    Public list_skin() As String = {"oldyt", "cosmic", "dark", "modern", "rose", "aqua", "monochrome"}
+    Public list_skin() As String = {"oldyt", "cosmic", "dark", "modern", "rose", "aqua", "monochrome", "mint"}
     Public list_playersize() As String = {"auto", "micro", "middle", "ultrasmall", "small", "large", "cinema", "bigcinema", "autoheight", "fullscreen", "fulljs", "gold1", "gold2", "cs"}
     Public list_usedcodec() As String = {"mpeg1", "avi_mpeg4", "avi_msvideo1", "avi_mjpeg", "mp4", "rm", "wmv2", "mov_cinepak", "mov_svq1", "3gp", "avi_yuv", "flv", "wmv1", "mov_mpeg4", "avi_cinepak", "mov_rpza", "mov_mjpeg", "xvid"}
     Public list_framerate() As String = {"auto", "10", "12", "15", "20", "24", "25", "30", "60"}
     Public list_resolution() As String = {"auto", "96p", "120p", "144p", "240p", "360p", "480p", "720p", "1080p"}
     Public list_results() As String = {"1", "5", "10", "20"}
+    Public list_coms() As String = {"0", "10", "20", "50", "100"}
+    Public list_vids_channels() As String = {"9", "18", "27"}
 
     Public list_used_player_string() As String = {"Aucune intégration", "Windows Media Player 6.4 (ActiveX)", "Windows Media Player 7.0 ou plus (ActiveX)", "Intégration générique (Embarquée)", "Intégration vidéo HTML5", "Real Player (Embarqué)", "Real Player (ActiveX)", "Lecteur VLC (Embarqué)", "Lecteur VLC (ActiveX)", "Lecteur VLC (ActiveX avec un CLSID alternatif)", "Apple QuickTime (ActiveX)", "Apple QuickTime (Embarqué)", "Flash Player (Javascript)", "Flash Player (Embarqué)", "Flash Player (ActiveX)", "Intégration générique (Object)"}
-    Public list_skin_string() As String = {"Apparence classique", "Cosmic Tube", "Mode sombre", "Apparence moderne", "Thème rose", "Thème aquatique"}
-    Public list_playersize_string() As String = {"Automatique (Javascript)", "Taille micro (160x120)", "Taille standard (640x480)", "Taille ultra compacte (256x144)", "Taille compacte (320x240)", "Taille large (854x480)", "Taille cinéma (1280x720)", "Automatique (En fonction du ratio de la vidéo)", "Plein écran (Proportionnellement à la taille du rendu)", "Plein écran (Javascript)", "16:10 Standard (1280x800)", "16:10 Grand (1440x900)"}
+    Public list_skin_string() As String = {"Apparence classique", "Cosmic Tube", "Mode sombre", "Apparence moderne", "Thème rose", "Thème aquatique", "Apparence monochrome", "Thème menthe"}
+    Public list_playersize_string() As String = {"Automatique (Javascript)", "Taille micro (160x120)", "Taille standard (640x480)", "Taille ultra compacte (256x144)", "Taille compacte (320x240)", "Taille large (854x480)", "Taille cinéma (1280x720)", "Taille grand cinéma (2560x1440)", "Automatique (En fonction du ratio de la vidéo)", "Plein écran (Proportionnellement à la taille du rendu)", "Plein écran (Javascript)", "16: 10 Standard (1280x800)", "16:10 Grand (1440x900)", "Taille classique (480x360)"}
 
     Public http_status_labels(1024) As String
 
     'Pied de page générique à certaines pages.
-    Public footer As String = "<HR WIDTH=880 ALIGN=CENTER />" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT Bêta 5.5</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"" STYLE=""color: " & link_color & """>Plus d'informations sur RetroYT</A>.</P>" & vbCrLf & "<!-- Préchargement des images utilisées par les différents skins -->" & vbCrLf & "<IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
+    Public footer As String = "<HR WIDTH=99% ALIGN=CENTER /><BR>" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT Bêta 6.0</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"" STYLE=""color: " & link_color & """>Plus d'informations sur RetroYT</A>.</P>" & vbCrLf & "<!-- Préchargement des images utilisées par les différents skins -->" & vbCrLf & "<IMG SRC=""btn_mint.png"" alt=""Button Mint Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_mint.png"" alt=""Button Mint Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
     Public Const cookie_header As String = "retroyt="
     Public vt As RequestVideoType = RequestVideoType.WatchVideo
 
@@ -53,14 +55,25 @@ Module Program
     End Enum
 
     Public Class VideoProperties
+        Public ID As String = String.Empty
         Public Title As String = "(Titre inconnu)"
         Public Dimensions As String = "640:480"
         Public Description As String = "Aucune description disponible."
         Public Creator As String = "(Créateur inconnu)"
+        Public Channel_URL As String = "about:blank"
         Public DateOfRelease As String = "1 jan. 1970"
         Public Duration As String = "0:00"
         Public Views As String = "0"
         Public DateAdded As Date = New Date(1970, 1, 1)
+    End Class
+
+    Public Class YoutubeComments
+        Public text As String
+        Public author As String
+        Public like_count As Integer
+        Public timestamp As Integer
+        Public author_url As String
+        Public author_thumbnail As String
     End Class
 
     Function IsNetworkAvailable() As Boolean
@@ -87,6 +100,51 @@ Module Program
         End If
 
         Return "http://" & last_host & "/"
+    End Function
+
+    Function UnicodeJson(ByVal t As String) As String
+        If t.Contains("\u00") Then
+            Dim first_u As Integer = 0
+            Dim second_u As String = "00"
+            Dim fc As Integer = 0
+            Do
+                'Conversion Unicode vers ISO
+                first_u = t.IndexOf("\u00")
+                If first_u = -1 Or first_u > t.Length - 6 Then Exit Do
+                second_u = t.Substring(first_u + 4, 2)
+                fc = CInt("&H" & second_u)
+
+                If fc > &H1F And fc < &HFF Then
+                    t = t.Substring(0, first_u) & ChrW(fc) & t.Substring(first_u + 6, t.Length - first_u - 6)
+                Else
+                    t = t.Substring(0, first_u) & t.Substring(first_u + 6, t.Length - first_u - 6)
+                End If
+            Loop
+        End If
+
+        t = t.Replace("\u0153", "oe")
+        t = t.Replace("\u2019", "'")
+        t = t.Trim
+        t = EscapeHtml(t)
+        t = t.Replace("\n", "<BR>")
+        t = t.Replace("\r", String.Empty)
+
+        'Virer les \u$$$$ et les remplacer par un indicateur de caractère inconnu générique.
+        If t.Contains("\u") Then
+            Dim first_u As Integer = 0
+
+            Do Until t.Contains("\u") = False
+                first_u = t.IndexOf("\u")
+                If first_u = -1 Then Exit Do
+                t = t.Substring(0, first_u) & "&lt;?&gt;" & t.Substring(first_u + 6, t.Length - first_u - 6)
+            Loop
+        End If
+
+        For i As Integer = 0 To &H1F
+            t = t.Replace(Chr(i), String.Empty)
+        Next
+
+        Return t
     End Function
 
     Sub InitValues(Optional ByVal t As String = Nothing, Optional ByVal k As String = Nothing, Optional ByVal wanted_skin As String = "cosmic", Optional ByVal lucky As Boolean = False, Optional ByVal uplayer As String = "na", Optional ByVal disp_search As Boolean = True)
@@ -131,6 +189,9 @@ Module Program
             Case "monochrome"
                 patternpage &= "<BODY TEXT=""#000000"" BGCOLOR=""#FFFFFF"" LINK=""#606060"" ALINK=""#606060"" VLINK=""#606060"">" & vbCrLf
                 link_color = "#606060"
+            Case "mint"
+                patternpage &= "<BODY TEXT=""#000000"" BGCOLOR=""#E8FFE8"" LINK=""#358832"" ALINK=""#358832"" VLINK=""#358832"">" & vbCrLf
+                link_color = "#358832"
             Case Else
                 patternpage &= "<BODY TEXT=""#000000"" BGCOLOR=""#FFFFFF"" LINK=""#B6262C"" ALINK=""#B6262C"" VLINK=""#B6262C"">" & vbCrLf
                 link_color = "#1034be"
@@ -148,6 +209,7 @@ Module Program
             Case "dark" : used_logo = "yt_dark.gif"
             Case "rose" : used_logo = "yt_rose.gif"
             Case "aqua" : used_logo = "yt_aqua.gif"
+            Case "mint" : used_logo = "yt_mint.gif"
             Case "monochrome" : used_logo = "yt_mono.gif"
             Case Else : used_logo = "yt_modrn.gif"
         End Select
@@ -173,16 +235,16 @@ Module Program
         End If
 
         If lucky Then
-            patternpage &= "   <TD WIDTH=*><INPUT TYPE=""SUBMIT"" VALUE="" Lucky Mode "" WIDTH=400 CLASS=""red_button"" /> &nbsp; <A HREF=""/config.cgi"" STYLE=""color: " & link_color & ";"">Paramètres</A></TD>" & vbCrLf
+            patternpage &= "   <TD WIDTH=*><INPUT TYPE=""SUBMIT"" VALUE="" Lucky Mode "" WIDTH=400 CLASS=""red_button"" /> &nbsp; <A HREF=""/config.cgi"">Paramètres</A></TD>" & vbCrLf
         Else
-            patternpage &= "   <TD WIDTH=*><INPUT TYPE=""SUBMIT"" VALUE="" Rechercher "" WIDTH=400 CLASS=""red_button"" /> &nbsp; <A HREF=""/config.cgi"" STYLE=""color: " & link_color & ";"">Paramètres</A></TD>" & vbCrLf
+            patternpage &= "   <TD WIDTH=*><INPUT TYPE=""SUBMIT"" VALUE="" Rechercher "" WIDTH=400 CLASS=""red_button"" /> &nbsp; <A HREF=""/config.cgi"">Paramètres</A></TD>" & vbCrLf
         End If
 
         patternpage &= "  </TR>" & vbCrLf
         patternpage &= " </TABLE></CENTER>" & vbCrLf
-        patternpage &= " </FORM><BR><BR>" & vbCrLf & vbCrLf '<HR WIDTH=880 ALIGN=CENTER />
+        patternpage &= " </FORM><BR><BR><HR WIDTH=99% ALIGN=CENTER /><BR>" & vbCrLf & vbCrLf '<HR WIDTH=880 ALIGN=CENTER />
 
-        footer = "<HR WIDTH=880 ALIGN=CENTER />" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT Bêta 5.5</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"" STYLE=""color: " & link_color & ";"">Plus d'informations sur RetroYT</A>.</P>" & vbCrLf & "<!-- Préchargement des images utilisées par les différents skins -->" & vbCrLf & "<IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
+        footer = "<HR WIDTH=99% ALIGN=CENTER /><BR>" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT Bêta 6.0</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"">Plus d'informations sur RetroYT</A>.</P>" & vbCrLf & "<!-- Préchargement des images utilisées par les différents skins -->" & vbCrLf & "<IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
     End Sub
 
     Sub UpdateCache()
@@ -514,6 +576,8 @@ Module Program
         'Les caractères inutiles ou qui peuvent menacer la sécurité du visualisateur.
         h = h.Replace("<", "&lt;")
         h = h.Replace(">", "&gt;")
+        'h = h.Replace("&", "&amp;")
+        h = h.Replace("""", "&quot;")
         Return h
     End Function
 
@@ -524,25 +588,27 @@ Module Program
     End Function
 
     Sub WriteLog(ByVal line As String, Optional ByVal clr As ConsoleColor = ConsoleColor.Gray, Optional ByVal c As TcpClient = Nothing)
-        Dim f As String = Nothing
+        SyncLock log_lock
+            Dim f As String = Nothing
 
-        If (c Is Nothing) Then
-            f = "[" & Date.Now.ToShortDateString & " à " & Date.Now.ToShortTimeString & "] "
-        Else
-            f = "[" & Date.Now.ToShortDateString & " à " & Date.Now.ToShortTimeString & "] (" & GetClientIP(c) & ") "
-        End If
+            If (c Is Nothing) Then
+                f = "[" & Date.Now.ToShortDateString & " à " & Date.Now.ToShortTimeString & "] "
+            Else
+                f = "[" & Date.Now.ToShortDateString & " à " & Date.Now.ToShortTimeString & "] (" & GetClientIP(c) & ") "
+            End If
 
-        f &= line
+            f &= line
 
-        If clr <> ConsoleColor.Gray Then Console.ForegroundColor = clr
-        Console.WriteLine(f)
-        Console.ForegroundColor = ConsoleColor.Gray
+            If clr <> ConsoleColor.Gray Then Console.ForegroundColor = clr
+            Console.WriteLine(f)
+            Console.ForegroundColor = ConsoleColor.Gray
 
-        Try
-            IO.File.AppendAllText("srvlogs\retroyt_server_" & DateTime.Now.ToString("dd-MM-yyyy") & ".log", f & vbCrLf)
-        Catch ex As Exception
+            Try
+                IO.File.AppendAllText("srvlogs\retroyt_server_" & DateTime.Now.ToString("dd-MM-yyyy") & ".log", f & vbCrLf)
+            Catch ex As Exception
 
-        End Try
+            End Try
+        End SyncLock
     End Sub
 
     Function GetMD5(text As String) As String
@@ -611,7 +677,7 @@ Module Program
         Console.Write(Space(Console.WindowWidth / 2 - 19))
         Console.WriteLine("║                                    ║")
         Console.Write(Space(Console.WindowWidth / 2 - 19))
-        Console.WriteLine("║          RetroYT Bêta 5.5          ║")
+        Console.WriteLine("║          RetroYT Bêta 6.0          ║")
         Console.Write(Space(Console.WindowWidth / 2 - 19))
         Console.WriteLine("║                                    ║")
         Console.Write(Space(Console.WindowWidth / 2 - 19))
@@ -706,6 +772,18 @@ Module Program
             IO.Directory.CreateDirectory(CurDir() & "\prclocks")
         End If
 
+        If Not IO.Directory.Exists(CurDir() & "\comments") Then
+            IO.Directory.CreateDirectory(CurDir() & "\comments")
+        End If
+
+        If Not IO.Directory.Exists(CurDir() & "\avatars") Then
+            IO.Directory.CreateDirectory(CurDir() & "\avatars")
+        End If
+
+        If Not IO.Directory.Exists(CurDir() & "\banners") Then
+            IO.Directory.CreateDirectory(CurDir() & "\banners")
+        End If
+
         'Nettoyer les fichiers en cours de décodage
         CleanupLock()
         CleanupDownload()
@@ -784,9 +862,13 @@ Module Program
         Dim current_cookie As String = String.Empty
         Dim ua_string As String = String.Empty
         Dim right_panel As Boolean = True
+        Dim disp_comments_per_video As Integer = 20
+        Dim disp_vids_per_channel As Integer = 9
+        Dim display_trends As Boolean = False
 
         'Prise en charge des requêtes par le client
         System.Threading.Thread.Sleep(50)
+        client.ReceiveTimeout = 5000
         Dim stream = client.GetStream()
 
         'Lire la requête HTTP
@@ -848,6 +930,8 @@ Module Program
         End If
 
         Dim header_list As New List(Of String)
+
+        rq = rq.Replace(vbLf, vbCrLf) 'Compatibilité avec anciens navigateurs qui n'envoient que \n et pas \r\n.
 
         If Not rq.Contains(vbCrLf) Then
             header_list.Add(rq)
@@ -952,6 +1036,44 @@ Module Program
                                             right_panel = False
                                         ElseIf p2 = "true" Then
                                             right_panel = True
+                                        Else
+                                            bad_cookie = True
+                                        End If
+                                    Case "displaycomments"
+                                        If IsNumeric(p2) Then
+                                            Try
+                                                Dim disp_comments As Integer = CInt(p2)
+                                                If Not list_coms.Contains(p2) Then
+                                                    bad_cookie = True
+                                                Else
+                                                    disp_comments_per_video = disp_comments
+                                                End If
+                                            Catch ex As Exception
+                                                bad_cookie = True
+                                            End Try
+                                        Else
+                                            bad_cookie = True
+                                        End If
+                                    Case "vcn"
+                                        If IsNumeric(p2) Then
+                                            Try
+                                                Dim disp_vid_channels As Integer = CInt(p2)
+                                                If Not list_vids_channels.Contains(p2) Then
+                                                    bad_cookie = True
+                                                Else
+                                                    disp_vids_per_channel = disp_vid_channels
+                                                End If
+                                            Catch ex As Exception
+                                                bad_cookie = True
+                                            End Try
+                                        Else
+                                            bad_cookie = True
+                                        End If
+                                    Case "trends"
+                                        If p2 = "enable" Then
+                                            display_trends = True
+                                        ElseIf p2 = "disable" Then
+                                            display_trends = False
                                         Else
                                             bad_cookie = True
                                         End If
@@ -1159,7 +1281,7 @@ Module Program
                 "HTTP/" & http_ver & " 400 Bad Request" & vbCrLf &
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
-                "Set-Cookie: " & cookie_header & "results=10&size=cs&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto&panel=true; Path=/; Expires=" & exp & vbCrLf &
+                "Set-Cookie: " & cookie_header & "results=10&size=cs&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto&panel=true&displaycomments=20&vcn=18&trends=disable; Path=/; Expires=" & exp & vbCrLf &
                 "Connection: close" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page
 
@@ -1407,6 +1529,7 @@ Module Program
 
             'Début du traitement de la requête. On vérifie si l'ID est valide (pas s'il existe).
             If LooksLikeYoutubeID(watcharg) Then
+                Dim last_view As String = String.Empty
                 last_view = watcharg
 
                 WriteLog("Vidéo demandée: https://www.youtube.com/watch?v=" & last_view, ConsoleColor.Green, client)
@@ -1474,8 +1597,14 @@ Module Program
                                     client.Close()
                                     Exit Sub
                                 Else
+                                    Dim add_cookie As String = String.Empty
                                     'La vidéo est téléchargée en forçant le 1080p
-                                    psi.Arguments = "-f ""bv*[height<=1080]+ba/b[height<=1080]"" --no-part --no-continue -o """ & destfile & """ ""https://www.youtube.com/watch?v=" & last_view & """"
+                                    If IO.File.Exists("cookies.txt") Then
+                                        add_cookie &= " --cookies cookies.txt"
+                                        WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+                                    End If
+
+                                    psi.Arguments = "-f ""bv*[height<=1080]+ba/b[height<=1080]"" --no-part --no-continue -o """ & destfile & """ ""https://www.youtube.com/watch?v=" & last_view & """ --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
                                     psi.UseShellExecute = False
                                     psi.CreateNoWindow = True
                                     psi.RedirectStandardOutput = True
@@ -1702,7 +1831,7 @@ Module Program
                             Case "mp4"
                                 'Format MP4 - Codec vidéo: H.264, codec audio: AAC, avec le format pixel forcé à YUV420P pour éviter les erreurs d'affichage sur les vieux lecteurs. Baseline et level 3.0 avec pour rendre compatible avec les vieux lecteurs Android.
                                 WriteLog("Conversion du fichier vidéo trouvé vers le format MP4 (Codec vidéo H.264, codec audio AAC)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libx264 -preset fast -crf 23 -profile:v baseline -level 3.0 -pix_fmt yuv420p -c:a aac -b:a 128k """ & output_path & """"
+                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libx264 -preset ultrafast -crf 23 -profile:v baseline -level 3.0 -pix_fmt yuv420p -tune zerolatency -movflags +faststart -c:a aac -b:a 192k """ & output_path & """"
                                 'psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k """ & output_path & """"
                             Case "xvid"
                                 'Format Xvid, avec le conteneur AVI, et le codec audio MP3
@@ -1768,9 +1897,15 @@ Module Program
                         End If
 
                         If Not video_props.ContainsKey(watcharg) Then
+                            Dim add_cookie As String = String.Empty
+                            If IO.File.Exists("cookies.txt") Then
+                                add_cookie &= " --cookies cookies.txt"
+                                WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+                            End If
+
                             Dim psi3 As New ProcessStartInfo()
                             psi3.FileName = "yt-dlp.exe"
-                            psi3.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s"" --no-warnings ""https://www.youtube.com/watch?v=" & watcharg & """ --encoding utf-8"
+                            psi3.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s"" --no-warnings ""https://www.youtube.com/watch?v=" & watcharg & """ --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
 
                             psi3.UseShellExecute = False
                             psi3.RedirectStandardOutput = True
@@ -1795,22 +1930,33 @@ Module Program
                                     Next
                                 Next
 
+                                If IO.File.Exists("cookies.txt") Then
+                                    add_cookie &= " --cookies cookies.txt"
+                                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+                                End If
+
                                 output_elements(9) = output_elements(9).Replace(vbCrLf, "<BR>")
                                 output_elements(9) = output_elements(9).Replace(vbCr, "<BR>")
                                 output_elements(9) = output_elements(9).Replace(vbLf, "<BR>")
 
-                                With tmp_prop
-                                    .Title = CleanText(output_elements(1))
-                                    .Views = IIf(LCase(output_elements(2)) = "na", "0", GetThousands(output_elements(2)))
-                                    .DateOfRelease = GetDate(output_elements(3))
-                                    .Creator = CleanText(output_elements(4))
-                                    .Duration = GetDuration(output_elements(6))
-                                    .Dimensions = IIf(IsNumeric(output_elements(7)), output_elements(7), 640) & ":" & IIf(IsNumeric(output_elements(8)), output_elements(8), 480)
-                                    .Description = CleanText(output_elements(9))
-                                    .DateAdded = Now
-                                End With
+                                tmp_prop.ID = output_elements(0)
+                                tmp_prop.Title = CleanText(output_elements(1))
+                                tmp_prop.Views = IIf(LCase(output_elements(2)) = "na", "0", GetThousands(output_elements(2)))
+                                tmp_prop.DateOfRelease = GetDate(output_elements(3))
+                                tmp_prop.Creator = CleanText(output_elements(4))
+                                tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(output_elements(10))
 
-                                video_props.Add(watcharg, tmp_prop)
+                                If LCase(output_elements(6)) = "na" Then
+                                    tmp_prop.Duration = "?:??"
+                                Else
+                                    tmp_prop.Duration = GetDuration(output_elements(6))
+                                End If
+
+                                tmp_prop.Dimensions = IIf(IsNumeric(output_elements(7)), output_elements(7), 640) & ":" & IIf(IsNumeric(output_elements(8)), output_elements(8), 480)
+                                tmp_prop.Description = CleanText(output_elements(9))
+                                tmp_prop.DateAdded = Now
+
+                                    video_props.Add(watcharg, tmp_prop)
                             Catch ex As Exception
 
                             End Try
@@ -2017,7 +2163,7 @@ Module Program
                             patternpage &= "<CENTER><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=4 ALIGN=CENTER WIDTH=" & actual_width & ">" & vbCrLf
                             patternpage &= " <TR>" & vbCrLf
                             patternpage &= "  <TD COLSPAN=2>" & vbCrLf
-                            patternpage &= "   <H2><B>" & EscapeHtml(tmp_prop.Title) & " (<A HREF=""/v/" & output_filename & """ STYLE=""color: " & link_color & ";"">Flux direct</A>)</B></H2>" & vbCrLf
+                            patternpage &= "   <H2><B>" & EscapeHtml(tmp_prop.Title) & " (<A HREF=""/v/" & output_filename & """>Flux direct</A>)</B></H2>" & vbCrLf
                             patternpage &= "  </TD>" & vbCrLf
                             patternpage &= " </TR>" & vbCrLf
 
@@ -2116,7 +2262,7 @@ Module Program
                             Case "video"
                                 'Balise <video> de HTML 5.0 (Standard W3C natif aux navigateurs récents)
                                 patternpage &= "<!-- Utilisation de la balise video de HTML5 -->" & vbCrLf & vbCrLf
-                                patternpage &= "<video id=""mainplayer"" webkit-playsinline controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autoplay=""true"">" & vbCrLf 'STYLE=""object-fit: fill;""
+                                patternpage &= "<video id=""mainplayer"" webkit-playsinline controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autoplay=""true"">" & vbCrLf 'STYLE=""object-fit: fill;"" onclick=""this.play()""
                                 patternpage &= " <source src=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ />" & vbCrLf
                                 patternpage &= " <source poster=""" & GetHost() & "thumbnail?t=" & last_view & """ />" & vbCrLf
                                 patternpage &= " <P ALIGN=CENTER>Votre navigateur ne semble pas prendre en charge la balise video de HTML5.<BR><BR>Vous pouvez cliquer sur <A HREF=""/config.cgi"">ce lien</A> pour adapter les paramètres de RetroYT à votre configuration.</P>"
@@ -2186,8 +2332,126 @@ Module Program
                             patternpage &= "</BODY></HTML>" & vbCrLf
                         Else
                             patternpage &= "</CENTER>" & vbCrLf
-                            patternpage &= "<P><B>Publié le " & tmp_prop.DateOfRelease & " par " & tmp_prop.Creator & ". " & tmp_prop.Views & " vue(s).</B></P>" & vbCrLf
-                            patternpage &= "<P STYLE=""text-align: justify;"">" & tmp_prop.Description & "</P><BR>" & vbCrLf
+                            patternpage &= "<P><B>Publié le " & tmp_prop.DateOfRelease & " par <A HREF=""" & tmp_prop.Channel_URL & """>" & tmp_prop.Creator & "</A>. " & tmp_prop.Views & " vue(s).</B></P>" & vbCrLf
+                            patternpage &= "<P STYLE=""text-align: justify;"">" & tmp_prop.Description & "</P><BR><BR>" & vbCrLf
+
+                            Dim psi4 As New ProcessStartInfo()
+                            psi4.FileName = "yt-dlp.exe"
+
+                            Dim add_cookie As String = String.Empty
+
+                            If IO.File.Exists("cookies.txt") Then
+                                add_cookie &= " --cookies cookies.txt"
+                                WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+                            End If
+
+                            psi4.Arguments = "--write-comments --no-download ""https://www.youtube.com/watch?v=" & last_view & """ --no-write-info-json --extractor-args ""youtube:max_comments=500,max_comment_depth=1"" --print-to-file ""after_filter:%(comments)j"" """ & CurDir() & "\comments\" & GetMD5(last_view) & ".json"" --parse-meta ""video::(?P<comments>)"" --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                            psi4.UseShellExecute = False
+                            psi4.RedirectStandardOutput = True
+                            psi4.RedirectStandardError = True
+                            psi4.CreateNoWindow = True
+                            psi4.StandardOutputEncoding = Encoding.UTF8
+                            psi4.StandardErrorEncoding = Encoding.UTF8
+
+                            Dim p4 As Process = Process.Start(psi4)
+                            Dim output4 As String = p4.StandardOutput.ReadToEnd()
+                            Dim err4 As String = p4.StandardError.ReadToEnd()
+                            Dim acc_com As String = String.Empty
+                            Dim total_comments As Integer = 0
+
+                            p4.WaitForExit()
+
+                            If IO.File.Exists(CurDir() & "\comments\" & GetMD5(last_view) & ".json") AndAlso FileLen(CurDir() & "\comments\" & GetMD5(last_view) & ".json") > 6 AndAlso disp_comments_per_video > 0 Then
+                                WriteLog("Lecture du fichier JSON contenant les commentaires de la vidéo...")
+                                Dim output_comments As String = IO.File.ReadAllText(CurDir() & "\comments\" & GetMD5(last_view) & ".json")
+                                Dim cid1, cid2 As Integer
+                                cid1 = 0
+                                cid2 = 0
+
+                                Do
+                                    total_comments += 1
+                                    cid1 = output_comments.IndexOf("{""id"":", cid2)
+                                    If cid1 = -1 Then Exit Do
+                                    cid2 = output_comments.IndexOf("}", cid1)
+                                    If cid1 >= cid2 Or cid1 = -1 Then Exit Do
+
+                                    Dim one_comment As String = output_comments.Substring(cid1, cid2 - cid1)
+                                    one_comment = one_comment.Replace("\""", "&quot;")
+                                    Dim com_author As String = "(Auteur inconnu)"
+                                    Dim com_content As String = "(Contenu indisponible)"
+                                    Dim com_date As String = "(Date inconnue)"
+                                    Dim com_likes As String = "0"
+                                    Dim com_channel As String = "about:blank"
+                                    Dim param1, param2 As Integer
+
+                                    'Trouver l'auteur
+                                    param1 = one_comment.IndexOf("""author"": ""@")
+                                    If param1 >= 0 Then
+                                        param2 = one_comment.IndexOf("""", param1 + 12)
+                                        com_author = one_comment.Substring(param1 + 11, param2 - param1 - 11)
+                                    End If
+
+                                    param1 = one_comment.IndexOf("""text"": """)
+                                    If param1 >= 0 Then
+                                        param2 = one_comment.IndexOf("""", param1 + 9)
+                                        com_content = one_comment.Substring(param1 + 9, param2 - param1 - 9)
+                                        com_content = UnicodeJson(com_content)
+                                    End If
+
+                                    param1 = one_comment.IndexOf("""_time_text"": """)
+                                    If param1 >= 0 Then
+                                        param2 = one_comment.IndexOf("""", param1 + 15)
+                                        com_date = one_comment.Substring(param1 + 15, param2 - param1 - 15)
+                                        com_date = com_date.Replace(" ago", String.Empty)
+                                        com_date = com_date.Replace("years", "ans")
+                                        com_date = com_date.Replace("year", "an")
+                                        com_date = com_date.Replace("days", "jours")
+                                        com_date = com_date.Replace("day", "jour")
+                                        com_date = com_date.Replace("months", "mois")
+                                        com_date = com_date.Replace("month", "mois")
+                                        com_date = com_date.Replace("hours", "heures")
+                                        com_date = com_date.Replace("hour", "heure")
+                                        com_date = com_date.Replace("weeks", "semaines")
+                                        com_date = com_date.Replace("week", "semaine")
+                                        com_date = com_date.Replace("(edited)", "(modifié)")
+                                        com_date = "il y a " & com_date
+                                    End If
+
+                                    param1 = one_comment.IndexOf("""like_count"": """)
+                                    If param1 > -1 Then
+                                        param2 = one_comment.IndexOf(",", param1 + 14)
+                                        com_likes = one_comment.Substring(param1 + 14, param2 - param1 - 14)
+                                    End If
+
+                                    param1 = one_comment.IndexOf("""author_id"": """)
+                                    If param1 > -1 Then
+                                        param2 = one_comment.IndexOf("""", param1 + 14)
+                                        com_channel = "/channel.cgi?id=" & one_comment.Substring(param1 + 14, param2 - param1 - 14)
+                                    End If
+
+                                    acc_com &= "<HR WIDTH=100% />" & vbCrLf
+                                    acc_com &= "<BR><P><B>Par <A HREF=""" & com_channel & """ STYLE=""color: " & link_color & """>" & com_author & "</A>, " & com_date & " :</B><BR>" & vbCrLf
+                                    acc_com &= com_content & "<BR>" & vbCrLf
+                                    If com_likes <> "0" Then
+                                        acc_com &= "<B><FONT COLOR=GREEN>" & com_likes & " utilisateur(s) ont aimé ce message.</FONT></B>" & vbCrLf
+                                    End If
+                                    acc_com &= "</P><BR>" & vbCrLf & vbCrLf
+
+                                    'Affichage des x premiers commentaires
+                                    If total_comments > disp_comments_per_video - 1 Then Exit Do
+                                Loop
+
+                                WriteLog("Il y a " & total_comments.ToString & " commentaire(s) sélectionné(s) sur cette vidéo.", ConsoleColor.Blue)
+                            End If
+
+                            If total_comments = 0 Then
+                                patternpage &= "<P><H2>Commentaires désactivés par l'utilisateur.</H2></P><BR>" & vbCrLf
+                            Else
+                                patternpage &= "<P><H2>Commentaires (" & total_comments.ToString & " sélectionnés) :</H2></P><BR>" & vbCrLf
+                            End If
+                            patternpage &= acc_com & vbCrLf
+                            'patternpage &= "</P>" & vbCrLf
+                            patternpage &= "<P><A HREF=""/com.cgi?v=" & last_view & """ TARGET=""_blank"">Afficher tous les commentaires</A></P>" & vbCrLf
                             patternpage &= "  </TD>" & vbCrLf
 
                             If right_panel Then
@@ -2250,7 +2514,7 @@ Module Program
             Else
                 'Identifiant invalide manifestement!
                 InitValues("Erreur de saisie", , wanted_skin, , used_player)
-                patternpage &= " <P ALIGN=CENTER><BR><B>L'identifiant vidéo que vous avez entré semble invalide. Aucune lecture ne peut être poursuivie.<BR><BR>Cliquez <A HREF=""/"" STYLE=""color: " & link_color & ";"">ici</A> pour retourner à l'index.</B></P><BR><BR></BODY></HTML>" & vbCrLf & vbCrLf
+                patternpage &= " <P ALIGN=CENTER><BR><B>L'identifiant vidéo que vous avez entré semble invalide. Aucune lecture ne peut être poursuivie.<BR><BR>Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</B></P><BR><BR></BODY></HTML>" & vbCrLf & vbCrLf
 
                 Dim watch_resp As String =
                     "HTTP/" & http_ver & " 200 OK" & vbCrLf &
@@ -2362,9 +2626,9 @@ Module Program
                     End If
 
                     If vt = RequestVideoType.LuckyVideo Then
-                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<||>"" ""ytsearch1:" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<||>"" ""ytsearch1:" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
                     Else
-                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<||>"" ""ytsearch" & number_of_results.ToString & ":" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<||>"" ""ytsearch" & number_of_results.ToString & ":" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
                     End If
 
                     psi.UseShellExecute = False
@@ -2381,7 +2645,7 @@ Module Program
                     p.WaitForExit()
                     If vt <> RequestVideoType.LuckyVideo Then InitValues("Recherche de " & EscapeHtml(req), req, wanted_skin, , used_player)
 
-                    patternpage &= "<HR WIDTH=880 ALIGN=CENTER /><BR>" & vbCrLf
+                    'patternpage &= "<HR WIDTH=880 ALIGN=CENTER /><BR>" & vbCrLf
 
                     'Récupération des lignes
                     If String.IsNullOrEmpty(output) Then
@@ -2455,7 +2719,7 @@ Module Program
                                         Next
                                     Next
 
-                                    If parts.Length = 10 Then
+                                    If parts.Length = 11 Then
                                         Dim id As String = parts(0)
                                         Dim title As String = parts(1)
                                         Dim tmp_prop As New VideoProperties
@@ -2463,22 +2727,30 @@ Module Program
 
                                         tmp_prop.Title = CleanText(parts(1))
 
-                                        tmp_prop.Title = tmp_prop.Title.Replace(" ?", "&nbsp;?")
-                                        tmp_prop.Title = tmp_prop.Title.Replace(" !", "&nbsp;!")
-                                        tmp_prop.Title = tmp_prop.Title.Replace(" :", "&nbsp;:")
-                                        tmp_prop.Title = tmp_prop.Title.Replace(" ;", "&nbsp;;")
+                                        'tmp_prop.Title = tmp_prop.Title.Replace(" ?", "&nbsp;?")
+                                        'tmp_prop.Title = tmp_prop.Title.Replace(" !", "&nbsp;!")
+                                        'tmp_prop.Title = tmp_prop.Title.Replace(" :", "&nbsp;:")
+                                        'tmp_prop.Title = tmp_prop.Title.Replace(" ;", "&nbsp;;")
 
+                                        tmp_prop.ID = parts(0)
                                         tmp_prop.Views = IIf(LCase(parts(2)) = "na", "0", GetThousands(parts(2)))
                                         tmp_prop.DateOfRelease = GetDate(parts(3))
                                         tmp_prop.Creator = CleanText(parts(4))
-                                        tmp_prop.Duration = IIf(IsNumeric(parts(6)), GetDuration(parts(6)), "?:??")
+                                        tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(parts(10))
+
+                                        If LCase(parts(6)) = "na" Then
+                                            tmp_prop.Duration = "?:??"
+                                        Else
+                                            tmp_prop.Duration = GetDuration(parts(6))
+                                        End If
+
                                         tmp_prop.Dimensions = IIf(IsNumeric(parts(7)), parts(7), "640") & ":" & IIf(IsNumeric(parts(8)), parts(8), "480")
 
                                         tmp_prop.Description = IIf(String.IsNullOrEmpty(parts(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(parts(9))))
                                         If tmp_prop.Description.Length > 1024 Then tmp_prop.Description = tmp_prop.Description.Substring(0, 1024)
+                                        tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
                                         tmp_prop.Description = tmp_prop.Description.Replace(vbCr, "<BR>")
                                         tmp_prop.Description = tmp_prop.Description.Replace(vbLf, "<BR>")
-                                        tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
                                         tmp_prop.DateAdded = Now
 
                                         SyncLock video_props
@@ -2503,8 +2775,8 @@ Module Program
                                         patternpage &= "     <A HREF=""/watch?v=" & id & """><IMG SRC=""/thumbnail?t=" & id & """ WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A>" & vbCrLf
                                         patternpage &= "    </TD>" & vbCrLf
                                         patternpage &= "    <TD WIDTH=* VALIGN=TOP>" & vbCrLf
-                                        patternpage &= "     <A HREF=""/watch?v=" & id & """>" & EscapeHtml(title) & "</A> &bull; <A HREF=""/stream?v=" & id & """ STYLE=""color: " & link_color & ";"">Flux&nbsp;direct</A><BR>" & vbCrLf
-                                        patternpage &= "     Vidéo publiée le " & tmp_prop.DateOfRelease & " par <I>" & EscapeHtml(tmp_prop.Creator) & "</I>.<BR>" & vbCrLf
+                                        patternpage &= "     <A HREF=""/watch?v=" & id & """>" & EscapeHtml(title) & "</A> <B>(</B><A HREF=""/stream?v=" & id & """>Flux&nbsp;direct</A><B>)</B><BR>" & vbCrLf
+                                        patternpage &= "     Vidéo publiée le " & tmp_prop.DateOfRelease & " par <A HREF=""" & tmp_prop.Channel_URL & """>" & tmp_prop.Creator & "</A>.<BR>" & vbCrLf
                                         patternpage &= "     Durée: " & tmp_prop.Duration & " &bull; Vues: " & tmp_prop.Views & "<BR></TD>" & vbCrLf
                                         patternpage &= "   </TR>" & vbCrLf
                                     End If
@@ -2547,8 +2819,8 @@ Module Program
                         client.Close()
                     Else
                         InitValues("Erreur de recherche", , wanted_skin, , used_player)
-                        patternpage &= " <HR WIDTH=880 ALIGN=CENTER /><BR>" & vbCrLf
-                        patternpage &= " <P ALIGN=CENTER><BR><B><FONT SIZE=2>Veuillez spécifier un mot-clef pour que la recherche puisse avoir lieu.<BR><BR>Cliquez <A HREF=""/"" STYLE=""color: " & link_color & ";"">ici</A> pour retourner à l'index.</FONT></B></P><BR><BR><DIV CLASS=""bodysep""></DIV>" & vbCrLf & vbCrLf & footer
+                        'patternpage &= " <HR WIDTH=880 ALIGN=CENTER /><BR>" & vbCrLf
+                        patternpage &= " <P ALIGN=CENTER><BR><B><FONT SIZE=2>Veuillez spécifier un mot-clef pour que la recherche puisse avoir lieu.<BR><BR>Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</FONT></B></P><BR><BR><DIV CLASS=""bodysep""></DIV>" & vbCrLf & vbCrLf & footer
 
                         Dim req_resp As String =
                             "HTTP/" & http_ver & " 200 OK" & vbCrLf &
@@ -2604,13 +2876,15 @@ Module Program
                     req = arg.Remove(0, 2) 'Juste q=
                 End If
 
-                For Each r As String In rel_params
-                    If r.StartsWith("q=") Then
-                        req = r.Remove(0, 2)
-                    ElseIf r.StartsWith("exclude=") Then
-                        excl = r.Remove(0, 8)
-                    End If
-                Next
+                If rel_params IsNot Nothing AndAlso rel_params.Count > 0 Then
+                    For Each r As String In rel_params
+                        If r.StartsWith("q=") Then
+                            req = r.Remove(0, 2)
+                        ElseIf r.StartsWith("exclude=") Then
+                            excl = r.Remove(0, 8)
+                        End If
+                    Next
+                End If
 
                 'Récupérer les 10 vidéos en rapport avec le mot-clef spécifié
                 req = UrlDecodeLatin1(req)
@@ -2636,7 +2910,7 @@ Module Program
                         WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur.", ConsoleColor.Magenta)
                     End If
 
-                    psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<||>"" ""ytsearch" & number_of_results.ToString & ":" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                    psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<||>"" ""ytsearch" & number_of_results.ToString & ":" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
 
                     psi.UseShellExecute = False
                     psi.RedirectStandardOutput = True
@@ -2679,30 +2953,32 @@ Module Program
                                     Next
                                 Next
 
-                                If parts.Length = 10 Then
+                                If parts.Length = 11 Then
                                     Dim id As String = parts(0)
                                     Dim title As String = parts(1)
                                     Dim tmp_prop As New VideoProperties
                                     title = CleanText(title)
 
                                     tmp_prop.Title = CleanText(parts(1))
-
-                                    tmp_prop.Title = tmp_prop.Title.Replace(" ?", "&nbsp;?")
-                                    tmp_prop.Title = tmp_prop.Title.Replace(" !", "&nbsp;!")
-                                    tmp_prop.Title = tmp_prop.Title.Replace(" :", "&nbsp;:")
-                                    tmp_prop.Title = tmp_prop.Title.Replace(" ;", "&nbsp;;")
-
+                                    tmp_prop.ID = parts(0)
                                     tmp_prop.Views = IIf(LCase(parts(2)) = "na", "0", GetThousands(parts(2)))
                                     tmp_prop.DateOfRelease = GetDate(parts(3))
                                     tmp_prop.Creator = CleanText(parts(4))
-                                    tmp_prop.Duration = IIf(IsNumeric(parts(6)), GetDuration(parts(6)), "?:??")
+
+                                    If LCase(parts(6)) = "na" Then
+                                        tmp_prop.Duration = "?:??"
+                                    Else
+                                        tmp_prop.Duration = GetDuration(parts(6))
+                                    End If
+
                                     tmp_prop.Dimensions = IIf(IsNumeric(parts(7)), parts(7), "640") & ":" & IIf(IsNumeric(parts(8)), parts(8), "480")
+                                    tmp_prop.Channel_URL = "/channels.cgi?id=" & CleanText(parts(10))
 
                                     tmp_prop.Description = IIf(String.IsNullOrEmpty(parts(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(parts(9))))
                                     If tmp_prop.Description.Length > 1024 Then tmp_prop.Description = tmp_prop.Description.Substring(0, 1024)
+                                    tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
                                     tmp_prop.Description = tmp_prop.Description.Replace(vbCr, "<BR>")
                                     tmp_prop.Description = tmp_prop.Description.Replace(vbLf, "<BR>")
-                                    tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
                                     tmp_prop.DateAdded = Now
 
                                     SyncLock video_props
@@ -2728,7 +3004,7 @@ Module Program
                                         patternpage &= "     <A HREF=""/watch?v=" & id & """ TARGET=""_parent""><IMG SRC=""/thumbnail?t=" & id & """ WIDTH=120 HEIGHT=68 CLASS=""relatedthumb"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A>" & vbCrLf
                                         patternpage &= "    </TD>" & vbCrLf
                                         patternpage &= "    <TD WIDTH=* VALIGN=TOP>" & vbCrLf
-                                        patternpage &= "     <A HREF=""/watch?v=" & id & """ TARGET=""_parent"">" & EscapeHtml(title) & "</A><BR>Durée: " & tmp_prop.Duration & " &bull; Vues: " & tmp_prop.Views.Replace(" ", "&nbsp;") & "<BR>Par <I>" & EscapeHtml(tmp_prop.Creator) & "</I>.</TD>" & vbCrLf
+                                        patternpage &= "     <A HREF=""/watch?v=" & id & """ TARGET=""_parent"">" & EscapeHtml(title) & "</A><BR>Durée: " & tmp_prop.Duration & " &bull; Vues: " & tmp_prop.Views.Replace(" ", "&nbsp;") & "<BR>Par <A HREF=""" & tmp_prop.Channel_URL & """>" & tmp_prop.Creator & "</A>.</TD>" & vbCrLf
                                         patternpage &= "   </TR>" & vbCrLf
                                     End If
                                 End If
@@ -2815,7 +3091,7 @@ Module Program
             'Index du site
             WriteLog("L'utilisateur demande le formulaire de recherche en mode chanceux.", , client)
             InitValues("Accueil", , wanted_skin, True, used_player)
-            patternpage &= "<P ALIGN=CENTER><BR><B>Faire une recherche en mode chanceux renvoie une unique vidéo basée sur des mot-clefs à rechercher dans la zone ci-dessus.<BR><BR>Cliquez <A HREF=""/about.htm"" STYLE=""color: " & link_color & ";"">ICI</A> pour obtenir plus d'informations sur le fonctionnement.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV><BR><BR>" & footer
+            patternpage &= "<P ALIGN=CENTER><BR><B>Faire une recherche en mode chanceux renvoie une unique vidéo basée sur des mot-clefs à rechercher dans la zone ci-dessus.<BR><BR>Cliquez <A HREF=""/about.htm"">ICI</A> pour obtenir plus d'informations sur le fonctionnement.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV><BR><BR>" & footer
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 200 OK" & vbCrLf &
@@ -2839,6 +3115,10 @@ Module Program
             arg = arg.Remove(0, 13)
             WriteLog("Miniature de la vidéo avec pour identifiant '" & arg & "' demandée... ", , client)
             Dim path As String = "thumbs\" & arg & ".jpg"
+
+            If String.IsNullOrEmpty(arg) OrElse arg.Length = 0 Then
+                path = CurDir() & "\resfiles\nopic.jpg"
+            End If
 
             'https://i.ytimg.com/vi/xxxxxxxxxxx/default.jpg
 
@@ -2887,6 +3167,19 @@ Module Program
             Dim selected_ten As String = String.Empty
             Dim selected_twenty As String = String.Empty
             Dim selected_forty As String = String.Empty
+
+            Dim selected_channel_nine As String = String.Empty
+            Dim selected_channel_eighteen As String = String.Empty
+            Dim selected_channel_twentyseven As String = String.Empty
+
+            Dim selected_enable_trends As String = String.Empty
+            Dim selected_disable_trends As String = String.Empty
+
+            Dim selected_disp_zero As String = String.Empty
+            Dim selected_disp_ten As String = String.Empty
+            Dim selected_disp_twenty As String = String.Empty
+            Dim selected_disp_fifty As String = String.Empty
+            Dim selected_disp_hundred As String = String.Empty
 
             Dim selected_micro As String = String.Empty
             Dim selected_ultrasmall As String = String.Empty
@@ -2966,6 +3259,7 @@ Module Program
             Dim selected_rose As String = String.Empty
             Dim selected_aqua As String = String.Empty
             Dim selected_monochrome As String = String.Empty
+            Dim selected_mint As String = String.Empty
 
             Dim selected_nopanel As String = String.Empty
             Dim selected_panel As String = String.Empty
@@ -2977,6 +3271,14 @@ Module Program
                 Case 10 : selected_ten = " SELECTED"
                 Case 20 : selected_twenty = " SELECTED"
                 Case Else : selected_ten = " SELECTED"
+            End Select
+
+            Select Case disp_comments_per_video
+                Case 0 : selected_disp_zero = " SELECTED"
+                Case 10 : selected_disp_ten = " SELECTED"
+                Case 20 : selected_disp_twenty = " SELECTED"
+                Case 50 : selected_disp_fifty = " SELECTED"
+                Case 100 : selected_disp_hundred = " SELECTED"
             End Select
 
             'Taille de l'élément du lecteur
@@ -3077,8 +3379,16 @@ Module Program
                 Case "dark" : selected_dark = " SELECTED"
                 Case "rose" : selected_rose = " SELECTED"
                 Case "aqua" : selected_aqua = " SELECTED"
+                Case "mint" : selected_mint = " SELECTED"
                 Case "monochrome" : selected_monochrome = " SELECTED"
                 Case Else : selected_cosmic = " SELECTED"
+            End Select
+
+            Select Case disp_vids_per_channel
+                Case 9 : selected_channel_nine = " SELECTED"
+                Case 18 : selected_channel_eighteen = " SELECTED"
+                Case 27 : selected_channel_twentyseven = " SELECTED"
+                Case Else : selected_channel_nine = " SELECTED"
             End Select
 
             If right_panel Then
@@ -3087,8 +3397,14 @@ Module Program
                 selected_nopanel = " SELECTED"
             End If
 
+            If display_trends Then
+                selected_enable_trends = " SELECTED"
+            Else
+                selected_disable_trends = " SELECTED"
+            End If
+
             InitValues("Configuration client", , wanted_skin, , used_player)
-            patternpage &= "<BR><P ALIGN=CENTER><B><FONT SIZE=4>Configuration du client RetroYT :</FONT></B></P><BR>" & vbCrLf & vbCrLf
+            patternpage &= "<BR><CENTER><H1><B>Configuration du client RetroYT :</B></H1></CENTER><BR>" & vbCrLf & vbCrLf
 
             If request.Contains("message=gotreset") Then
                 patternpage &= "<CENTER><P CLASS=""green_toast""><B><FONT COLOR=""#008000"">La configuration a été remise par défaut avec succès (" & Now.ToString & ").</FONT></B></P></CENTER><BR>"
@@ -3098,9 +3414,14 @@ Module Program
 
             patternpage &= "  <FORM METHOD=""POST"" ACTION=""/savecfg.cgi"">" & vbCrLf
             patternpage &= "   <CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=780>" & vbCrLf
+
             patternpage &= "    <TR>" & vbCrLf
-            patternpage &= "	 <TD ALIGN=RIGHT>Nombre de résultats affichés par recherche&nbsp;:&nbsp;</TD>" & vbCrLf
-            patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
+            patternpage &= "     <TD ALIGN=CENTER COLSPAN=2><CENTER><H2>Système de recherche :</H2></CENTER></TD>" & vbCrLf
+            patternpage &= "    </TR>" & vbCrLf
+
+            patternpage &= "    <TR>" & vbCrLf
+            patternpage &= "	 <TD ALIGN=RIGHT HEIGHT=40 WIDTH=380>Nombre de résultats affichés par recherche&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "	 <TD HEIGHT=40 WIDTH=*>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""results"" WIDTH=300>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""1""" & selected_one & ">1 résultat</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""5""" & selected_five & ">5 résultats</OPTION>" & vbCrLf
@@ -3110,9 +3431,23 @@ Module Program
             patternpage &= "	 </TD>" & vbCrLf
             patternpage &= "	</TR>" & vbCrLf & vbCrLf
 
+            patternpage &= "    <TR>" & vbCrLf
+            patternpage &= "	 <TD ALIGN=RIGHT HEIGHT=40 WIDTH=380>Activer les tendances YouTube dans l'index&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "	 <TD HEIGHT=40 WIDTH=*>" & vbCrLf
+            patternpage &= "	  <SELECT NAME=""trends"" WIDTH=300>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""enable""" & selected_enable_trends & ">Activer (Prolonge le temps de chargement)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""disable""" & selected_disable_trends & ">Désactiver [Par défaut]</OPTION>" & vbCrLf
+            patternpage &= "	  </SELECT>" & vbCrLf
+            patternpage &= "	 </TD>" & vbCrLf
+            patternpage &= "	</TR>" & vbCrLf & vbCrLf
+
+            patternpage &= "    <TR>" & vbCrLf
+            patternpage &= "     <TD ALIGN=CENTER COLSPAN=2><BR><CENTER><H2>Lecture des vidéos :</H2></CENTER></TD>" & vbCrLf
+            patternpage &= "    </TR>" & vbCrLf
+
             patternpage &= "	<TR>" & vbCrLf
-            patternpage &= "	 <TD ALIGN=RIGHT>Format vidéo et codec utilisés&nbsp;:&nbsp;</TD>" & vbCrLf
-            patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
+            patternpage &= "	 <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Format vidéo et codec utilisés&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "	 <TD WIDTH=* HEIGHT=40>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""codec"" WIDTH=300>" & vbCrLf
             If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED>Formats Microsoft :</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""avi_mpeg4""" & selected_avi_mpeg4 & ">AVI (MPEG-4, MP3) [Par défaut]</OPTION>" & vbCrLf
@@ -3144,8 +3479,8 @@ Module Program
             patternpage &= "	</TR>" & vbCrLf & vbCrLf
 
             patternpage &= "	<TR>" & vbCrLf
-            patternpage &= "	 <TD ALIGN=RIGHT>Résolution de la vidéo&nbsp;:&nbsp;</TD>" & vbCrLf
-            patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
+            patternpage &= "	 <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Résolution de la vidéo&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "	 <TD WIDTH=* HEIGHT=40>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""resolution"" WIDTH=300>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""auto""" & selected_autosize & ">Automatique [Par défaut]</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""96p""" & selected_96p & ">96p (Minimale)</OPTION>" & vbCrLf
@@ -3161,8 +3496,8 @@ Module Program
             patternpage &= "	</TR>" & vbCrLf & vbCrLf
 
             patternpage &= "	<TR>" & vbCrLf
-            patternpage &= "	 <TD ALIGN=RIGHT>Nombre d'images par seconde&nbsp;:&nbsp;</TD>" & vbCrLf
-            patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
+            patternpage &= "	 <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Nombre d'images par seconde&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "	 <TD WIDTH=* HEIGHT=40>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""framerate"" WIDTH=300>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""auto""" & selected_framerate10 & ">Automatique [Par défaut]</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""10""" & selected_framerate10 & ">10 images</OPTION>" & vbCrLf
@@ -3172,14 +3507,14 @@ Module Program
             patternpage &= "	   <OPTION VALUE=""24""" & selected_framerate24 & ">24 images</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""25""" & selected_framerate25 & ">25 images</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""30""" & selected_framerate30 & ">30 images</OPTION>" & vbCrLf
-            patternpage &= "       <OPTION VALUE=""60""" & selected_framerate60 & ">60 images (Déconseillé sur configurations anciennes)</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""60""" & selected_framerate60 & ">60 images (Pour PC récents)</OPTION>" & vbCrLf
             patternpage &= "	  </SELECT>" & vbCrLf
             patternpage &= "	 </TD>" & vbCrLf
             patternpage &= "	</TR>" & vbCrLf & vbCrLf
 
             patternpage &= "	<TR>" & vbCrLf
-            patternpage &= "	 <TD ALIGN=RIGHT>Intégration multimédia utilisée&nbsp;:&nbsp;</TD>" & vbCrLf
-            patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
+            patternpage &= "	 <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Intégration multimédia utilisée&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "	 <TD WIDTH=* HEIGHT=40>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""player"" WIDTH=300>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""no_integration""" & selected_nointegration & ">(Aucune intégration)</OPTION>" & vbCrLf
             If (Not old_ie) Then patternpage &= "	   <OPTION DISABLED></OPTION>" & vbCrLf
@@ -3207,15 +3542,19 @@ Module Program
             patternpage &= "	 </TD>" & vbCrLf
             patternpage &= "	</TR>" & vbCrLf & vbCrLf
 
+            patternpage &= "    <TR>" & vbCrLf
+            patternpage &= "     <TD ALIGN=CENTER COLSPAN=2><BR><CENTER><H2>Apparence du site :</H2></CENTER></TD>" & vbCrLf
+            patternpage &= "    </TR>" & vbCrLf
+
             patternpage &= "	<TR>" & vbCrLf
-            patternpage &= "	 <TD ALIGN=RIGHT>Taille du lecteur multimédia intégré&nbsp;:&nbsp;</TD>" & vbCrLf
-            patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
+            patternpage &= "	 <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Taille du lecteur multimédia intégré&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "	 <TD WIDTH=* HEIGHT=40>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""size"" WIDTH=300>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""micro""" & selected_micro & ">Micro (160x140)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""ultrasmall""" & selected_ultrasmall & ">Ultra Compact (256x192)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""small""" & selected_small & ">Compact (320x240)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""cs""" & selected_classic_size & ">Classique (480x360) [Par défaut]</OPTION>" & vbCrLf
-            patternpage &= "	   <OPTION VALUE=""middle""" & selected_middle & ">Standard (640x480)</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""middle""" & selected_middle & ">Standard VGA (640x480)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""large""" & selected_large & ">Large (854x480)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""cinema""" & selected_cinema & ">Cinéma standard (1280x720)</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""bigcinema""" & selected_big_cinema & ">Cinéma grand format (2560x1440)</OPTION>" & vbCrLf
@@ -3230,8 +3569,8 @@ Module Program
             patternpage &= "	</TR>" & vbCrLf & vbCrLf
 
             patternpage &= "	<TR>" & vbCrLf
-            patternpage &= "	 <TD ALIGN=RIGHT>Apparence de l'interface Web&nbsp;:&nbsp;</TD>" & vbCrLf & vbCrLf
-            patternpage &= "	 <TD HEIGHT=40>" & vbCrLf
+            patternpage &= "	 <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Thème utilisé pour le site&nbsp;:&nbsp;</TD>" & vbCrLf & vbCrLf
+            patternpage &= "	 <TD WIDTH=* HEIGHT=40>" & vbCrLf
             patternpage &= "	  <SELECT NAME=""skin"" WIDTH=300>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""oldyt""" & selected_classic & ">Classic</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""cosmic""" & selected_cosmic & ">Cosmic Tube [Par défaut]</OPTION>" & vbCrLf
@@ -3239,24 +3578,49 @@ Module Program
             patternpage &= "	   <OPTION VALUE=""dark""" & selected_dark & ">Dark Mode</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""rose""" & selected_rose & ">Rose</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""aqua""" & selected_aqua & ">Aqua</OPTION>" & vbCrLf
+            patternpage &= "	   <OPTION VALUE=""mint""" & selected_mint & ">Mint</OPTION>" & vbCrLf
             patternpage &= "	   <OPTION VALUE=""monochrome""" & selected_monochrome & ">Monochrome</OPTION>" & vbCrLf
             patternpage &= "	  </SELECT>" & vbCrLf
             patternpage &= "	 </TD>" & vbCrLf
             patternpage &= "	</TR>" & vbCrLf
 
             patternpage &= "    <TR>" & vbCrLf
-            patternpage &= "     <TD ALIGN=RIGHT>Volet des suggestions&nbsp;:&nbsp;</TD>" & vbCrLf
-            patternpage &= "     <TD HEIGHT=40>" & vbCrLf
+            patternpage &= "     <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Afficher le volet des suggestions&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "     <TD WIDTH=* HEIGHT=40>" & vbCrLf
             patternpage &= "      <SELECT NAME=""panel"" WIDTH=300>" & vbCrLf
-            patternpage &= "       <OPTION VALUE=""true""" & selected_panel & ">Activé</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""true""" & selected_panel & ">Activé [Par défaut]</OPTION>" & vbCrLf
             patternpage &= "       <OPTION VALUE=""false""" & selected_nopanel & ">Désactivé</OPTION>" & vbCrLf
+            patternpage &= "      </SELECT>" & vbCrLf
+            patternpage &= "     </TD>" & vbCrLf
+            patternpage &= "    </TR>" & vbCrLf
+
+            patternpage &= "    <TR>" & vbCrLf
+            patternpage &= "     <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Affichage des commentaires sous les vidéos&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "     <TD WIDTH=* HEIGHT=40>" & vbCrLf
+            patternpage &= "      <SELECT NAME=""displaycomments"" WIDTH=300>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""0""" & selected_disp_zero & ">Ne pas afficher les commentaires</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""10""" & selected_disp_ten & ">Afficher 10 commentaires</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""20""" & selected_disp_twenty & ">Afficher 20 commentaires [Par défaut]</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""50""" & selected_disp_fifty & ">Afficher 50 commentaires</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""100""" & selected_disp_hundred & ">Afficher 100 commentaires</OPTION>" & vbCrLf
+            patternpage &= "      </SELECT>" & vbCrLf
+            patternpage &= "     </TD>" & vbCrLf
+            patternpage &= "    </TR>" & vbCrLf
+
+            patternpage &= "    <TR>" & vbCrLf
+            patternpage &= "     <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Nombre de vidéos affichées par page dans les canaux&nbsp;:&nbsp;</TD>" & vbCrLf
+            patternpage &= "     <TD WIDTH=* HEIGHT=40>" & vbCrLf
+            patternpage &= "      <SELECT NAME=""vcn"" WIDTH=300>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""9""" & selected_channel_nine & ">9 vidéos</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""18""" & selected_channel_eighteen & ">18 vidéos [Par défaut]</OPTION>" & vbCrLf
+            patternpage &= "       <OPTION VALUE=""27""" & selected_channel_twentyseven & ">27 vidéos</OPTION>" & vbCrLf
             patternpage &= "      </SELECT>" & vbCrLf
             patternpage &= "     </TD>" & vbCrLf
             patternpage &= "    </TR>" & vbCrLf
 
             patternpage &= "   </TABLE></CENTER><BR><BR>" & vbCrLf & vbCrLf
 
-            patternpage &= "   <CENTER><P>Cliquez sur le bouton pour <INPUT TYPE=""SUBMIT"" VALUE="" Enregistrer "" CLASS=""red_button"" /> ou sur le lien <A HREF=""/resetcfg.cgi"" STYLE=""color: " & link_color & ";"">réinitialiser les paramètres</A>.</P></CENTER>" & vbCrLf
+            patternpage &= "   <CENTER><P>Cliquez sur le bouton pour <INPUT TYPE=""SUBMIT"" VALUE="" Enregistrer "" CLASS=""red_button"" /> ou sur le lien <A HREF=""/resetcfg.cgi"">réinitialiser les paramètres</A>.</P></CENTER>" & vbCrLf
             patternpage &= "  </FORM><BR>" & vbCrLf
             patternpage &= "  <NOSCRIPT><P ALIGN=CENTER><B>Javascript semble indisponible sur votre navigateur. Veuillez le réactiver ou changer de navigateur, si vous voulez utiliser certaines options.</B></P></NOSCRIPT><BR><BR>" & vbCrLf
             patternpage &= "  <VIDEO><P ALIGN=CENTER><B>Votre navigateur ne semble pas supporter le HTML5. Il est donc déconseillé d'utiliser<BR>l'intégration Video HTML5 pour lire du contenu multimédia.</B></P></VIDEO>"
@@ -3287,10 +3651,6 @@ Module Program
             rqcontent = rqcontent.Replace(Chr(13), String.Empty)
 
             If Not String.IsNullOrEmpty(rqcontent) Then
-                'client.Close()
-                'rqcontent = "results=10&size=middle&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto"
-                'Exit Sub
-
                 'Pour éviter des injections d'entêtes HTTP
                 If rqcontent.Contains(vbCrLf) Then
                     rqcontent = rqcontent.Substring(0, rqcontent.IndexOf(vbCrLf))
@@ -3356,7 +3716,7 @@ Module Program
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
                 "Connection: close" & vbCrLf &
-                "Set-Cookie: " & cookie_header & "results=10&size=cs&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto&panel=true; Path=/; Expires=" & exp & vbCrLf &
+                "Set-Cookie: " & cookie_header & "results=10&size=cs&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto&panel=true&displaycomments=20&vcn=18&trends=disable; Path=/; Expires=" & exp & vbCrLf &
                 "Location: /config.cgi&message=gotreset" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser
 
@@ -3371,6 +3731,229 @@ Module Program
             WriteLog("Configuration réinitialisée pour le client.", ConsoleColor.Yellow, client)
             client.Close()
 
+        ElseIf request.StartsWith("GET /com.cgi?v=") Then
+            'Lister les commentaires sur une page à part.
+            Dim arg1 As String = request.Split(" ")(1)
+            Dim last_view As String = String.Empty
+            Dim com_offset As Integer = 0
+            Dim has_error As Boolean = False
+            Dim dcpv As Integer = Math.Max(20, disp_comments_per_video)
+
+            Try
+                arg1 = arg1.Remove(0, 11)
+                If String.IsNullOrEmpty(arg1) OrElse arg1.Length = 0 Then
+                    has_error = True
+                Else
+                    arg1 = arg1.Trim
+                    arg1 = arg1.Replace(vbLf, String.Empty)
+                    arg1 = arg1.Replace(vbCr, String.Empty)
+                End If
+
+                If arg1.EndsWith("&") Then
+                    arg1 = arg1.Remove(arg1.Length - 1, 1)
+                ElseIf arg1.Contains("&") Then
+                    Dim tmp_arg As String = arg1
+                    arg1 = arg1.Substring(0, arg1.IndexOf("&"))
+                    com_offset = CInt(CStr(tmp_arg.Substring(tmp_arg.IndexOf("&") + 1, tmp_arg.Length - tmp_arg.IndexOf("&") - 1)).Replace("offset=", String.Empty))
+                End If
+            Catch ex As Exception
+                has_error = True
+            End Try
+
+            If has_error Then
+                WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
+
+                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Il n'y a aucun paramètre indiqué sur la vidéo en cours de lecture.</P>" & vbCrLf)
+
+                Try
+                    stream.Write(baddata, 0, baddata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur d'envoi de la réponse: " & ex.Message, ConsoleColor.Red, client)
+                End Try
+
+                client.Close()
+                Exit Sub
+            End If
+
+            last_view = arg1
+            If com_offset < 0 Then com_offset = 0
+            If com_offset Mod dcpv <> 0 Then
+                com_offset -= com_offset Mod dcpv 'Ramener à un multiple de disp_comments_per_video.
+            End If
+
+            If Not LooksLikeYoutubeID(last_view) Then
+                WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
+
+                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>L'identifiant spécifié de la vidéo semble invalide. Veuillez réessayer avec un bon identifiant vidéo.</P>" & vbCrLf)
+
+                Try
+                    stream.Write(baddata, 0, baddata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur d'envoi de la réponse: " & ex.Message, ConsoleColor.Red, client)
+                End Try
+
+                client.Close()
+                Exit Sub
+            End If
+
+            WriteLog("L'utilisateur demande à afficher les commentaires de la vidéo " & last_view & "...", , client)
+
+            If Not video_props.ContainsKey(last_view) Then
+                WriteLog("Erreur HTTP #500: Erreur interne du serveur.", , client)
+
+                Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Impossible de consulter les commentaires vidéo, car elle n'est pas (ou plus) en cache.</P>" & vbCrLf)
+
+                Try
+                    stream.Write(baddata, 0, baddata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur d'envoi de la réponse: " & ex.Message, ConsoleColor.Red, client)
+                End Try
+
+                client.Close()
+                Exit Sub
+            End If
+
+            If IO.File.Exists(CurDir() & "\comments\" & GetMD5(last_view) & ".json") AndAlso FileLen(CurDir() & "\comments\" & GetMD5(last_view) & ".json") > 6 Then
+                WriteLog("Lecture du fichier JSON contenant les commentaires de la vidéo...")
+                InitValues("Commentaires sur " & video_props(last_view).Title, , wanted_skin, , used_player)
+                Dim output_comments As String = IO.File.ReadAllText(CurDir() & "\comments\" & GetMD5(last_view) & ".json")
+                Dim acc_coms As String = String.Empty
+                Dim cid1, cid2 As Integer
+                Dim total_comments As Integer = 0
+                cid1 = 0
+                cid2 = 0
+
+                Do
+                    cid1 = output_comments.IndexOf("{""id"":", cid2)
+                    If cid1 = -1 Then Exit Do
+                    cid2 = output_comments.IndexOf("}", cid1)
+                    If cid1 >= cid2 Or cid1 = -1 Then Exit Do
+                    total_comments += 1
+
+                    If total_comments >= com_offset AndAlso total_comments < com_offset + dcpv Then
+                        Dim one_comment As String = output_comments.Substring(cid1, cid2 - cid1)
+                        one_comment = one_comment.Replace("\""", "&quot;")
+                        Dim com_author As String = "(Auteur inconnu)"
+                        Dim com_content As String = "(Contenu indisponible)"
+                        Dim com_date As String = "(Date inconnue)"
+                        Dim com_likes As String = "0"
+                        Dim com_channel As String = "about:blank"
+
+                        Dim param1, param2 As Integer
+
+                        'Trouver l'auteur
+                        param1 = one_comment.IndexOf("""author"": ""@")
+                        If param1 >= 0 Then
+                            param2 = one_comment.IndexOf("""", param1 + 12)
+                            com_author = one_comment.Substring(param1 + 11, param2 - param1 - 11)
+                        End If
+
+                        param1 = one_comment.IndexOf("""text"": """)
+                        If param1 >= 0 Then
+                            param2 = one_comment.IndexOf("""", param1 + 9)
+                            com_content = one_comment.Substring(param1 + 9, param2 - param1 - 9)
+                            com_content = UnicodeJson(com_content)
+                        End If
+
+                        param1 = one_comment.IndexOf("""_time_text"": """)
+                        If param1 >= 0 Then
+                            param2 = one_comment.IndexOf("""", param1 + 15)
+                            com_date = one_comment.Substring(param1 + 15, param2 - param1 - 15)
+                            com_date = com_date.Replace(" ago", String.Empty)
+                            com_date = com_date.Replace("years", "ans")
+                            com_date = com_date.Replace("year", "an")
+                            com_date = com_date.Replace("days", "jours")
+                            com_date = com_date.Replace("day", "jour")
+                            com_date = com_date.Replace("months", "mois")
+                            com_date = com_date.Replace("month", "mois")
+                            com_date = com_date.Replace("hours", "heures")
+                            com_date = com_date.Replace("hour", "heure")
+                            com_date = com_date.Replace("weeks", "semaines")
+                            com_date = com_date.Replace("week", "semaine")
+                            com_date = com_date.Replace("(edited)", "(modifié)")
+                            com_date = "il y a " & com_date
+                        End If
+
+                        param1 = one_comment.IndexOf("""like_count"": """)
+                        If param1 > -1 Then
+                            param2 = one_comment.IndexOf(",", param1 + 14)
+                            com_likes = one_comment.Substring(param1 + 14, param2 - param1 - 14)
+                        End If
+
+                        param1 = one_comment.IndexOf("""author_id"": """)
+                        If param1 > -1 Then
+                            param2 = one_comment.IndexOf("""", param1 + 14)
+                            com_channel = "/channel.cgi?id=" & one_comment.Substring(param1 + 14, param2 - param1 - 14)
+                        End If
+
+                        acc_coms &= "<HR WIDTH=100% />" & vbCrLf
+                        acc_coms &= "<BR><P><B>Par <A HREF=""" & com_channel & """ STYLE=""color: " & link_color & """>" & com_author & "</A>, " & com_date & " :</B><BR>" & vbCrLf
+                        acc_coms &= com_content & "<BR>" & vbCrLf
+                        If com_likes <> "0" Then
+                            acc_coms &= "<B><FONT COLOR=GREEN>" & com_likes & " utilisateur(s) ont aimé ce message.</FONT></B>" & vbCrLf
+                        End If
+                        acc_coms &= "<BR>" & vbCrLf & vbCrLf
+                    End If
+                Loop
+
+                patternpage &= "<DIV STYLE=""width: 100%; padding: 24px 24px 24px 24px;""><CENTER><H2>" & total_comments.ToString & " commentaire(s) pour la vidéo <A HREF=""/watch?v=" & last_view & """>" & video_props(last_view).Title & "</A> (Affichage des commentaires N°" & com_offset.ToString & " à " & CStr(Math.Min(total_comments, com_offset + dcpv)) & ") :</H2></CENTER><BR><BR>" & vbCrLf
+                patternpage &= acc_coms & "</DIV>" & vbCrLf
+
+                If total_comments > dcpv Then
+                    patternpage &= "<CENTER><P>Page "
+                    For i As Integer = 0 To (total_comments - 1) Step dcpv
+                        If i <> com_offset Then patternpage &= "<A HREF=""/com.cgi?v=" & last_view & "&offset=" & i.ToString & """>"
+                        patternpage &= CStr(1 + i / dcpv)
+                        If i <> com_offset Then patternpage &= "</A>"
+                        patternpage &= " - "
+                    Next
+                    patternpage = patternpage.Remove(patternpage.Length - 3, 3)
+                    patternpage &= "</P></CENTER><BR>" & vbCrLf
+                End If
+
+                patternpage &= footer & vbCrLf
+
+                WriteLog("Il y a " & total_comments.ToString & " commentaire(s) sélectionné(s) sur cette vidéo.", ConsoleColor.Blue)
+
+                Dim comdata As Byte() = iso.GetBytes(patternpage)
+
+                Try
+                    stream.Write(comdata, 0, comdata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur d'envoi de la réponse: " & ex.Message, ConsoleColor.Red, client)
+                End Try
+
+                client.Close()
+                Exit Sub
+            Else
+                WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
+
+                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>La vidéo n'est pas en cache. Les commentaires ne sont donc pas accessibles.<BR><BR>Veuillez vous rendre sur la <A HREF=""/watch?v=" & last_view & """>page de lecture</A> d'abord.</P>" & vbCrLf)
+
+                Try
+                    stream.Write(baddata, 0, baddata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur d'envoi de la réponse: " & ex.Message, ConsoleColor.Red, client)
+                End Try
+
+                client.Close()
+                Exit Sub
+            End If
+        ElseIf request.StartsWith("GET /com.cgi") Then
+            'Les autres requêtes entraînent une erreur 400 (requête invalide).
+            WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
+
+            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Vous devez spécifier la vidéo sur laquelle consulter les commentaires en paramètre (avec <I>v=id_video</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+
+            Try
+                stream.Write(baddata, 0, baddata.Length)
+            Catch ex As Exception
+                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                client.Close()
+                Exit Sub
+            End Try
+
+            client.Close()
         ElseIf request.StartsWith("GET /v/") Then
             'Récupération directe du fichier vidéo
             Dim arg1 As String = request.Remove(0, 7) 'Retirer l'entête GET /v/
@@ -3518,22 +4101,569 @@ Module Program
                     client.Close()
                 End Try
             End If
+        ElseIf request.StartsWith("GET /channel.cgi?id=") Then
+            'Afficher une chaîne
+
+            Dim arg1 As String = Nothing
+            Dim vid_offset As Integer = 0
+            Dim error_encountered As Boolean = False
+
+            Try
+                arg1 = request.Split(" ")(1)
+                arg1 = arg1.Remove(0, 16)
+            Catch ex As Exception
+                error_encountered = True
+            End Try
+
+            If error_encountered OrElse String.IsNullOrEmpty(arg1) OrElse arg1.Length = 0 Then
+                WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
+
+                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Impossible d'afficher la chaîne demandée, car aucun identifiant de chaîne n'a été spécifié.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+
+                Try
+                    stream.Write(baddata, 0, baddata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                    client.Close()
+                    Exit Sub
+                End Try
+
+                WriteLog("Une chaîne utilisateur a été demandée, mais aucun identifiant n'a été communiqué.", ConsoleColor.Red, client)
+
+                client.Close()
+            Else
+                Dim psi4 As New ProcessStartInfo()
+                psi4.FileName = "yt-dlp.exe"
+
+                If arg1.EndsWith("&") Then
+                    arg1 = arg1.Remove(arg1.Length - 1, 1)
+                End If
+
+                If arg1.Contains("&") Then
+                    Dim tmp_arg As String = arg1
+                    Dim tmp_offset As String = String.Empty
+                    arg1 = tmp_arg.Substring(0, arg1.IndexOf("&"))
+                    tmp_offset = tmp_arg.Remove(0, tmp_arg.IndexOf("&") + 1)
+                    If tmp_offset.StartsWith("offset=") Then
+                        tmp_offset = tmp_offset.Remove(0, 7)
+                        If IsNumeric(tmp_offset) Then
+                            Try
+                                vid_offset = CInt(tmp_offset)
+                            Catch ex As Exception
+                                vid_offset = 0
+                            End Try
+                        End If
+                    End If
+                End If
+
+                WriteLog("Demande d'informations sur la chaîne " & arg1 & "...", ConsoleColor.Blue, client)
+
+                If vid_offset < 0 Then vid_offset = 0 'Ramener à zéro
+
+                Dim add_cookie As String = String.Empty
+
+                If IO.File.Exists("cookies.txt") Then
+                    add_cookie &= " --cookies cookies.txt"
+                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+                End If
+
+                psi4.Arguments = "-J --playlist-items 1 ""https://www.youtube.com/channel/" & arg1 & "/videos/ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                psi4.UseShellExecute = False
+                psi4.RedirectStandardOutput = True
+                psi4.RedirectStandardError = True
+                psi4.CreateNoWindow = True
+                psi4.StandardOutputEncoding = Encoding.UTF8
+                psi4.StandardErrorEncoding = Encoding.UTF8
+
+                Dim p4 As Process = Process.Start(psi4)
+                Dim output4 As String = p4.StandardOutput.ReadToEnd()
+                Dim err4 As String = p4.StandardError.ReadToEnd()
+                p4.WaitForExit()
+
+                Dim channel_name As String = "&lt;Nom inconnu&gt;"
+                Dim channel_desc As String = "&lt;Aucune description disponible&gt;"
+                Dim channel_followers As String = "0"
+                Dim channel_num_vids As Integer = 0
+                Dim channel_banner As String = "about:blank" '"thumbnails": [{"url": " et "
+                Dim channel_upid As String = "@unknown"
+                Dim channel_avatar As String = "about:blank"
+
+                If String.IsNullOrEmpty(output4) OrElse output4.StartsWith("null") Then
+                    Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne</H1>" & vbCrLf & "<P>La chaîne demandée n'existe pas selon les serveurs YouTube, ou ne contient aucune information traitable.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+
+                    Try
+                        stream.Write(baddata, 0, baddata.Length)
+                    Catch ex As Exception
+                        WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                        client.Close()
+                        Exit Sub
+                    End Try
+
+                    client.Close()
+                    Exit Sub
+                End If
+
+                Dim param1, param2 As Integer
+
+                output4 = output4.Replace("\""", "&quot;")
+
+                param1 = output4.IndexOf("""channel"": """)
+                If param1 > -1 Then
+                    param2 = output4.IndexOf("""", param1 + 12)
+                    channel_name = output4.Substring(param1 + 12, param2 - param1 - 12)
+                End If
+
+                param1 = output4.IndexOf("""description"": """)
+                If param1 > -1 Then
+                    param2 = output4.IndexOf("""", param1 + 16)
+                    channel_desc = output4.Substring(param1 + 16, param2 - param1 - 16)
+                    channel_desc = channel_desc.Replace("&quot;", """")
+                    channel_desc = EscapeHtml(channel_desc)
+                End If
+
+                param1 = output4.IndexOf("""channel_follower_count"": ")
+                If param1 > -1 Then
+                    param2 = output4.IndexOf(",", param1 + 26)
+                    channel_followers = output4.Substring(param1 + 26, param2 - param1 - 26)
+                End If
+
+                param1 = output4.IndexOf("""thumbnails"": [{""url"": """)
+                If param1 > -1 Then
+                    param2 = output4.IndexOf("""", param1 + 24)
+                    channel_banner = output4.Substring(param1 + 24, param2 - param1 - 24)
+                    channel_banner = channel_banner.Replace("https://yt3.googleusercontent.com/", String.Empty)
+                End If
+
+                param1 = output4.IndexOf("""uploader_id"": ""@")
+                If param1 > -1 Then
+                    param2 = output4.IndexOf("""", param1 + 17)
+                    channel_upid = output4.Substring(param1 + 17, param2 - param1 - 17)
+                End If
+
+                If output4.Contains("{""url"": """) Then
+                    Dim url1, url2, url3 As Integer
+                    Dim suburl As String = String.Empty
+                    url1 = 0
+                    url2 = 0
+                    url3 = 0
+
+                    Do
+                        url1 = output4.IndexOf("{""url"": """, url2 + 1)
+                        If url1 = -1 Then Exit Do
+                        url2 = output4.IndexOf("}", url1 + 9)
+                        If url2 = -1 Then Exit Do
+
+                        suburl = output4.Substring(url1, url2 - url1)
+                        If suburl.Contains("""id"": ""avatar_uncropped"", ") Then
+                            url3 = suburl.IndexOf("""", 10)
+                            channel_avatar = suburl.Substring(9, url3 - 9)
+                            channel_avatar = channel_avatar.Remove(0, 34)
+                            Exit Do
+                        End If
+                    Loop
+                End If
+
+                'Liste des vidéos de la chaîne
+                Dim psi5 As New ProcessStartInfo()
+                psi5.FileName = "yt-dlp.exe"
+
+                If IO.File.Exists("cookies.txt") Then
+                    add_cookie = " --cookies cookies.txt"
+                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+                End If
+
+                psi5.Arguments = "--flat-playlist --print ""%(id)s<|>"" ""https://www.youtube.com/channel/" & arg1 & "/videos/"" --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                psi5.UseShellExecute = False
+                psi5.RedirectStandardOutput = True
+                psi5.RedirectStandardError = True
+                psi5.CreateNoWindow = True
+                psi5.StandardOutputEncoding = Encoding.UTF8
+                psi5.StandardErrorEncoding = Encoding.UTF8
+
+                Dim p5 As Process = Process.Start(psi5)
+                Dim output5 As String = p5.StandardOutput.ReadToEnd()
+                Dim err5 As String = p5.StandardError.ReadToEnd()
+                p5.WaitForExit()
+
+                If String.IsNullOrEmpty(output5) OrElse output5.Length = 0 OrElse output5.StartsWith("null") Then
+                    Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne</H1>" & vbCrLf & "<P>La chaîne demandée n'existe pas selon les serveurs YouTube, ou ne contient pas d'informations traitables.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+
+                    Try
+                        stream.Write(baddata, 0, baddata.Length)
+                    Catch ex As Exception
+                        WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                        client.Close()
+                        Exit Sub
+                    End Try
+
+                    client.Close()
+                    Exit Sub
+                End If
+
+                Dim vid_identifiers() As String = output5.Split("<|>")
+                channel_num_vids = vid_identifiers.Count
+                InitValues("Chaîne de " & channel_name, , wanted_skin, , used_player)
+
+                patternpage &= "<BR><CENTER><IMG SRC=""banner.jpg?id=" & channel_banner & """ ALT=""Bannière de " & channel_name & """ WIDTH=600 HEIGHT=100 STYLE=""border-radius: 8px;"" /></CENTER><BR><BR>" & vbCrLf
+                patternpage &= "<CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=600>" & vbCrLf
+                patternpage &= " <TR>" & vbCrLf
+                patternpage &= "  <TD WIDTH=92 VALIGN=TOP>" & vbCrLf
+                patternpage &= "   <CENTER><BR><IMG SRC=""avatar.jpg?id=" & channel_avatar & """ ALT=""Avatar de " & channel_name & """ WIDTH=64 HEIGHT=64 STYLE=""border-radius: 32px;"" /></CENTER>" & vbCrLf
+                patternpage &= "  </TD>" & vbCrLf
+                patternpage &= "  <TD WIDTH=*>" & vbCrLf
+                patternpage &= "   <H1>" & UnicodeJson(channel_name) & "</H1>" & vbCrLf
+                patternpage &= "   <P>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; " & GetThousands(channel_num_vids) & " vidéo(s)</P>" & vbCrLf
+                patternpage &= "   <P>" & UnicodeJson(channel_desc) & "</P>" & vbCrLf
+                patternpage &= "  </TD>" & vbCrLf
+                patternpage &= " </TR>" & vbCrLf
+                patternpage &= "</TABLE></CENTER><BR>" & vbCrLf
+
+                If vid_offset > channel_num_vids Then
+                    vid_offset = 0 'Si l'offset dépasse le nombre de vidéos
+                End If
+
+                If vid_offset Mod disp_vids_per_channel <> 0 Then
+                    vid_offset -= vid_offset Mod disp_vids_per_channel 'Ramener à un multiple de channel_num_vids
+                End If
+
+                Dim vc As Integer = 0
+
+                patternpage &= "<CENTER><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=24>" & vbCrLf
+                patternpage &= " <TR>" & vbCrLf
+
+                For i As Integer = vid_offset To vid_offset + disp_vids_per_channel - 1
+                    Dim tmp_prop As New VideoProperties
+
+                    If i < channel_num_vids Then
+                        vid_identifiers(i) = vid_identifiers(i).Replace(vbLf, String.Empty)
+
+                        If vid_identifiers(i).Length = 11 Then
+                            Dim watcharg As String = vid_identifiers(i)
+
+                            SyncLock video_props
+                                If video_props.Count > 1000 Then
+                                    Do Until video_props.Count = 1000
+                                        video_props.Remove(video_props.Keys(0))
+                                    Loop
+                                End If
+
+                                If Not video_props.ContainsKey(watcharg) Then
+                                    If IO.File.Exists("cookies.txt") Then
+                                        add_cookie &= " --cookies cookies.txt"
+                                        WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+                                    End If
+
+                                    Dim psi3 As New ProcessStartInfo()
+                                    psi3.FileName = "yt-dlp.exe"
+                                    psi3.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s"" --no-warnings ""https://www.youtube.com/watch?v=" & watcharg & """ --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+
+                                    psi3.UseShellExecute = False
+                                    psi3.RedirectStandardOutput = True
+                                    psi3.RedirectStandardError = True
+                                    psi3.CreateNoWindow = True
+                                    psi3.StandardOutputEncoding = Encoding.UTF8
+                                    psi3.StandardErrorEncoding = Encoding.UTF8
+
+                                    Dim p3 As Process = Process.Start(psi3)
+                                    Dim output3 As String = p3.StandardOutput.ReadToEnd()
+                                    Dim err3 As String = p3.StandardError.ReadToEnd()
+
+                                    If Not String.IsNullOrEmpty(output3) Then
+                                        Dim output_elements() As String = Nothing
+
+                                        Try
+                                            output_elements = output3.Split("<|>")
+
+                                            For j As Integer = 0 To output_elements.Count - 1
+                                                For k As Integer = 0 To &H1F
+                                                    output_elements(j) = output_elements(j).Replace(Chr(k), String.Empty)
+                                                Next
+                                            Next
+
+                                            output_elements(9) = output_elements(9).Replace(vbCrLf, "<BR>")
+                                            output_elements(9) = output_elements(9).Replace(vbCr, "<BR>")
+                                            output_elements(9) = output_elements(9).Replace(vbLf, "<BR>")
+
+                                            tmp_prop.ID = output_elements(0)
+                                            tmp_prop.Title = CleanText(output_elements(1))
+                                            tmp_prop.Views = IIf(LCase(output_elements(2)) = "na", "0", GetThousands(output_elements(2)))
+                                            tmp_prop.DateOfRelease = GetDate(output_elements(3))
+                                            tmp_prop.Creator = CleanText(output_elements(4))
+                                            tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(output_elements(10))
+
+                                            If LCase(output_elements(6)) = "na" Then
+                                                tmp_prop.Duration = "?:??"
+                                            Else
+                                                tmp_prop.Duration = GetDuration(output_elements(6))
+                                            End If
+
+                                            tmp_prop.Dimensions = IIf(IsNumeric(output_elements(7)), output_elements(7), 640) & ":" & IIf(IsNumeric(output_elements(8)), output_elements(8), 480)
+                                            tmp_prop.Description = CleanText(output_elements(9))
+                                            tmp_prop.DateAdded = Now
+
+                                            video_props.Add(watcharg, tmp_prop)
+                                        Catch ex As Exception
+
+                                        End Try
+                                    Else
+                                        'Aucune vidéo obtenue, je laisse aller le code, ça va juste afficher une vidéo avec "Titre inconnu".
+                                    End If
+
+                                    p3.WaitForExit()
+                                Else
+                                    tmp_prop = video_props(watcharg)
+                                End If
+                            End SyncLock
+
+                            vc += 1
+
+                            patternpage &= "  <TD WIDTH=160 VALIGN=TOP>" & vbCrLf
+                            patternpage &= "   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/thumbnail?t=" & tmp_prop.ID & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>" & vbCrLf
+                            patternpage &= "   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A> <B>(</B><A HREF=""/stream?v=" & tmp_prop.ID & """>Flux&nbsp;direct</A><B>)</B> &bull; Durée:&nbsp;" & tmp_prop.Duration & " &bull; Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>" & vbCrLf
+                            patternpage &= "  </TD>" & vbCrLf
+                            If (vc Mod 3 = 0) Then patternpage &= " </TR>" & vbCrLf & vbCrLf & "  <TR>" & vbCrLf
+                        Else
+                            vc += 1
+                            patternpage &= "  <TD WIDTH=160 VALIGN=TOP>" & vbCrLf
+                            patternpage &= "   <!-- Data error -->" & vbCrLf
+                            patternpage &= "  </TD>" & vbCrLf
+                            If (vc Mod 3 = 0) Then patternpage &= " </TR>" & vbCrLf & vbCrLf & "  <TR>" & vbCrLf
+                        End If
+                    End If
+                Next
+
+                patternpage &= "</TABLE></CENTER><BR><BR>" & vbCrLf
+                patternpage &= "<CENTER><P>Page " & vbCrLf
+
+                Dim max_page As Integer = CInt(channel_num_vids / disp_vids_per_channel)
+                Dim current_page As Integer = vid_offset / disp_vids_per_channel
+
+                For i As Integer = 0 To max_page
+                    If i <> current_page Then patternpage &= "<A HREF=""/channel.cgi?id=" & arg1 & "&offset=" & CStr(i * disp_vids_per_channel) & """>"
+                    patternpage &= CStr(i + 1)
+                    If i <> current_page Then patternpage &= "</A>"
+                    If i < max_page Then patternpage &= " - "
+                Next
+
+                patternpage &= "</P></CENTER><BR><BR>"
+
+                patternpage &= footer & vbCrLf
+
+                Dim index_resp As String = "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                                           "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                                           "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
+                                           "Connection: close" & vbCrLf &
+                                           "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
+
+                Dim index_data As Byte() = iso.GetBytes(index_resp)
+
+                Try
+                    stream.Write(index_data, 0, index_data.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                End Try
+
+                client.Close()
+            End If
+        ElseIf request.StartsWith("GET /banner.jpg?id=") Then
+            Dim arg1 As String = Nothing
+            Dim has_errors As Boolean = False
+
+            Try
+                arg1 = request.Split(" ")(1)
+            Catch ex As Exception
+                has_errors = True
+            End Try
+
+            If has_errors Then
+                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>La requête envoyée est vide ou malformée.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+
+                Try
+                    stream.Write(baddata, 0, baddata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                    client.Close()
+                    Exit Sub
+                End Try
+
+                client.Close()
+                Exit Sub
+            End If
+
+            arg1 = arg1.Remove(0, 15)
+            'https://yt3.googleusercontent.com/
+
+            Dim path As String = "banners\" & GetMD5(arg1) & ".jpg"
+
+            If String.IsNullOrEmpty(arg1) OrElse arg1.Length = 0 Then
+                path = CurDir() & "\resfiles\nopic.jpg"
+            End If
+
+            If Not IO.File.Exists(path) Then
+                Dim url As String = "https://yt3.googleusercontent.com/" & arg1
+
+                Try
+                    Dim wc As New Net.WebClient()
+                    wc.DownloadFile(url, path)
+                    WriteLog("La bannière avec pour identifiant '" & arg1 & "' a été mise en cache.", ConsoleColor.Green)
+                Catch ex As Exception
+                    path = CurDir() & "\resfiles\nopic.jpg"
+                    WriteLog("Erreur: Pas de miniature trouvée ! Envoi d'une miniature par défaut...", ConsoleColor.Red)
+                End Try
+            End If
+
+            Dim bytes = IO.File.ReadAllBytes(path)
+
+            Dim header As String =
+                "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                "Content-Type: image/jpeg" & vbCrLf &
+                "Connection: close" & vbCrLf &
+                "Accept-Ranges: bytes" & vbCrLf &
+                "Content-Length: " & bytes.Length & vbCrLf & vbCrLf
+
+            Try
+                stream.Write(iso.GetBytes(header), 0, iso.GetBytes(header).Length)
+                stream.Write(bytes, 0, bytes.Length)
+            Catch ex As Exception
+                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+            End Try
+
+            client.Close()
+        ElseIf request.StartsWith("GET /avatar.jpg?id=") Then
+            Dim arg1 As String = Nothing
+            Dim has_errors As Boolean = False
+
+            Try
+                arg1 = request.Split(" ")(1)
+            Catch ex As Exception
+                has_errors = True
+            End Try
+
+            If has_errors Then
+                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>La requête envoyée est vide ou malformée.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+
+                Try
+                    stream.Write(baddata, 0, baddata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                    client.Close()
+                    Exit Sub
+                End Try
+
+                client.Close()
+                Exit Sub
+            End If
+
+            arg1 = arg1.Remove(0, 15)
+            'https://yt3.googleusercontent.com/ytc/
+
+            Dim path As String = "avatars\" & GetMD5(arg1) & ".jpg"
+
+            If String.IsNullOrEmpty(arg1) OrElse arg1.Length = 0 Then
+                path = CurDir() & "\resfiles\nopic.jpg"
+            End If
+
+            If Not IO.File.Exists(path) Then
+                Dim url As String = "https://yt3.googleusercontent.com/" & arg1
+
+                Try
+                    Dim wc As New Net.WebClient()
+                    wc.DownloadFile(url, path)
+                    WriteLog("L'avatar avec pour identifiant '" & arg1 & "' a été mis en cache.", ConsoleColor.Green)
+                Catch ex As Exception
+                    path = CurDir() & "\resfiles\nopic.jpg"
+                    WriteLog("Erreur: Pas de miniature trouvée ! Envoi d'une miniature par défaut...", ConsoleColor.Red)
+                End Try
+            End If
+
+            Dim bytes = IO.File.ReadAllBytes(path)
+
+            Dim header As String =
+                "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                "Content-Type: image/jpeg" & vbCrLf &
+                "Connection: close" & vbCrLf &
+                "Accept-Ranges: bytes" & vbCrLf &
+                "Content-Length: " & bytes.Length & vbCrLf & vbCrLf
+
+            Try
+                stream.Write(iso.GetBytes(header), 0, iso.GetBytes(header).Length)
+                stream.Write(bytes, 0, bytes.Length)
+            Catch ex As Exception
+                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+            End Try
+
+            client.Close()
+        ElseIf request.StartsWith("GET /cache.cgi") Then
+            InitValues("Vidéos en cache", , wanted_skin, , used_player)
+
+            If GetClientIP(client) = "127.0.0.1" Or GetClientIP(client).StartsWith("192.168.1") Or GetClientIP(client).StartsWith("169.254") Then 'IP en localhost, LAN et APIPA
+                If video_props.Count = 0 Then
+                    patternpage &= "<CENTER><H1>Le cache mémoire est vide! Aucune vidéo n'est dedans pour l'instant.</H1></CENTER><BR>" & vbCrLf
+                Else
+                    patternpage &= "<CENTER><H1>Liste des vidéos actuellement en cache mémoire (Il y en a " & video_props.Count.ToString & ") :</H1></CENTER><BR>" & vbCrLf
+                    patternpage &= "<BR><CENTER><TABLE BORDER=1 ALIGN=CENTER CELLPADDING=4>" & vbCrLf
+                    Dim j As String() = video_props.Keys.ToArray
+                    For i As Integer = 0 To j.Count - 1
+                        Dim found_video As VideoProperties = video_props(j(i))
+                        Dim t_title As String = found_video.Title
+                        If t_title.Length > 256 Then t_title = t_title.Substring(0, 256) & "..."
+                        patternpage &= " <TR>" & vbCrLf
+                        patternpage &= "  <TD><A HREF=""/watch?v=" & found_video.ID & """>" & found_video.ID & "</A></TD><TD>" & t_title & "</TD><TD>" & found_video.DateAdded & "</TD>" & vbCrLf
+                        patternpage &= " </TR>" & vbCrLf
+                    Next
+                    patternpage &= "</TABLE></CENTER><BR><BR>" & vbCrLf
+                End If
+
+                patternpage &= footer & vbCrLf
+
+                Dim index_resp As String =
+                "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
+                "Connection: close" & vbCrLf &
+                "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
+
+                Dim index_data As Byte() = iso.GetBytes(index_resp)
+
+                Try
+                    stream.Write(index_data, 0, index_data.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                End Try
+
+                client.Close()
+            Else
+                'Les autres requêtes entraînent une erreur 400 (requête invalide).
+                WriteLog("Erreur HTTP #403: Accès refusé.", , client)
+
+                Dim baddata As Byte() = GetHTTPBytes(403, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 403 - Accès refusé</H1>" & vbCrLf & "<P>Vous n'avez pas accès à cette page, seul l'administrateur peut y accéder.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+
+                Try
+                    stream.Write(baddata, 0, baddata.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                    client.Close()
+                    Exit Sub
+                End Try
+
+                client.Close()
+            End If
         ElseIf request.StartsWith("GET /about.htm") Then
             'Afficher le "à propos" du proxy
             InitValues("À propos de RetroYT", , wanted_skin, , used_player)
             WriteLog("Page des informations sur le logiciel envoyée.", , client)
 
-            patternpage &= "<BR><BR><CENTER><DIV STYLE=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;""><B>RetroYT</B> est un proxy multimédia pour YouTube développé en Visual Basic .NET 2022 par Monokeros. La version actuelle, la Bêta 5.5, a été publiée le 26 mai 2026. Ce projet est distribué gratuitement (sous la licence «&nbsp;freeware&nbsp;»), sans aucune garantie explicite ou implicite. L'auteur ne pourra être tenu responsable d'éventuels dommages matériels, logiciels, des éventuelles pertes de données, ou dysfonctionnements résultant de son utilisation, y compris dans un cadre normal.<BR>" & vbCrLf
+            patternpage &= "<BR><BR><CENTER><DIV STYLE=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;""><B>RetroYT</B> est un proxy multimédia pour YouTube développé en Visual Basic .NET 2022 par Monokeros. La version actuelle, la Bêta 6.0, a été publiée le 2 juin 2026. Ce projet est distribué gratuitement (sous la licence «&nbsp;freeware&nbsp;»), sans aucune garantie explicite ou implicite. L'auteur ne pourra être tenu responsable d'éventuels dommages matériels, logiciels, des éventuelles pertes de données, ou dysfonctionnements résultant de son utilisation, y compris dans un cadre normal.<BR>" & vbCrLf
             patternpage &= "Le projet vise principalement à restaurer la compatibilité de YouTube avec des systèmes d'exploitation, navigateurs web et lecteurs multimédia anciens ou obsolètes, à travers le relais de connexions, formatage vers un code HTML, et l'intégration de formats vidéo historiques, lisible par les navigateurs de toute époque." & vbCrLf
             patternpage &= "<BR><BR><BR>" & vbCrLf
 
             patternpage &= "<DIV STYLE=""display: block; border-radius: 8px; margin-left: 225px; border: 1px solid black; padding: 8px 8px 8px 8px; width: 40%;""><BR><CENTER><BIG><BIG><B>Sommaire: </B></BIG></BIG></CENTER><BR>" & vbCrLf
-            patternpage &= "<A HREF=""#introduction"" STYLE=""color: " & link_color & ";"">I. Introduction</A><BR>" & vbCrLf
-            patternpage &= "<A HREF=""#parameters"" STYLE=""color: " & link_color & ";"">II. Paramètres</A><BR>" & vbCrLf
-            patternpage &= "<A HREF=""#precautions"" STYLE=""color: " & link_color & ";"">III. Précautions</A><BR>" & vbCrLf
-            patternpage &= "<A HREF=""#configuration"" STYLE=""color: " & link_color & ";"">IV. Configuration</A><BR>" & vbCrLf
-            patternpage &= "<A HREF=""#useget"" STYLE=""color: " & link_color & ";"">V. Utilisation du paramètre GET</A><BR>" & vbCrLf
-            patternpage &= "<A HREF=""#credits"" STYLE=""color: " & link_color & ";"">VI. Remerciements</A><BR>&nbsp;</DIV><BR><BR>" & vbCrLf & vbCrLf
+            patternpage &= "<A HREF=""#introduction"">I. Introduction</A><BR>" & vbCrLf
+            patternpage &= "<A HREF=""#parameters"">II. Paramètres</A><BR>" & vbCrLf
+            patternpage &= "<A HREF=""#precautions"">III. Précautions</A><BR>" & vbCrLf
+            patternpage &= "<A HREF=""#configuration"">IV. Configuration</A><BR>" & vbCrLf
+            patternpage &= "<A HREF=""#useget"">V. Utilisation du paramètre GET</A><BR>" & vbCrLf
+            patternpage &= "<A HREF=""#credits"">VI. Remerciements</A><BR>&nbsp;</DIV><BR><BR>" & vbCrLf & vbCrLf
 
             patternpage &= "<CENTER><H2><A NAME=""introduction"">I. Introduction</A></H2></CENTER><BR><BR>" & vbCrLf
             patternpage &= "Le nom «&nbsp;RetroYT&nbsp;» provient du terme «&nbsp;rétro&nbsp;», désignant de manière générale quelque chose d'ancien, de classique ou «&nbsp;à l'ancienne&nbsp;». Le logiciel repose sur un serveur Web codé directement dans l'application (dit «&nbsp;hardcodé&nbsp;»), servant d'intermédiaire entre YouTube et le navigateur client utilisé par l'utilisateur. L'objectif principal du projet est de restaurer un accès fonctionnel à YouTube sur des navigateurs et systèmes d'exploitation devenus trop anciens pour prendre en charge la version moderne du site. Bien que RetroYT puisse également être utilisé depuis un navigateur récent comme un proxy classique, pour fournir une version allégée du site, ce n'est pas sa vocation première. De nombreux proxies YouTube modernes existent déjà et offrent généralement de meilleures performances et une compatibilité plus étendue avec les standards Web actuels.<BR><B>RetroYT</B> vise avant tout à permettre la recherche et la lecture de vidéos YouTube depuis des environnements anciens ou obsolètes, tels que Windows 3.11, Windows 95, Windows 98, Windows NT 4.0, Windows 2000, certaines anciennes versions de MacOS, ainsi que divers systèmes UNIX/Linux historiques. La solution a également été testée sous Windows XP et Windows 11 avec succès. &Eacute;tant donné l'identité rétrocompatible de ce projet, il est donc parfaitement normal de retrouver, au sein de ce projet, du code HTML volontairement ancien, des méthodes d'intégration multimédia historiques, ou encore l'utilisation de technologies aujourd'hui abandonnées comme ActiveX, RealPlayer, des anciennes versions de QuickTime, Flash Player, ou les plugins NPAPI. L'ensemble du projet cherche à reproduire, autant que possible, une expérience cohérente avec les capacités techniques du Web des années 1990 et du début des années 2000, tout en offrant une expérience de navigation proche des services Internet actuels.<BR><BR>" & vbCrLf
@@ -3560,19 +4690,24 @@ Module Program
             patternpage &= " <LI><B>Dark Mode :</B> Affichage clair sur fond sombre ;</LI>" & vbCrLf
             patternpage &= " <LI><B>Rose :</B> Thème aux couleurs violacées, rappelant certaines interfaces Web des années 1990 ;</LI>" & vbCrLf
             patternpage &= " <LI><B>Aqua :</B> Thème aux couleurs bleues, rappelant l'eau ;</LI>" & vbCrLf
+            patternpage &= " <LI><B>Mint :</B> Thème aux couleurs vertes, rappelant la nature ;</LI>" & vbCrLf
             patternpage &= " <LI><B>Monochrome :</B> Thème aux couleurs monochromes, pour ceux qui ont des difficultés visuelles, ou qui préfèrent les interfaces sobres.</LI>"
             patternpage &= "</UL>" & vbCrLf & vbCrLf
 
             patternpage &= "Ces options permettent d'adapter RetroYT aussi bien à des machines très anciennes qu'à des systèmes plus récents, tout en conservant une esthétique cohérente avec les différentes époques du Web. Il est intéressant de noter qu'on peut lire aussi des flux vidéo depuis un lecteur externe, sans passer par l'interface Web. Il suffit pour cela de naviguer sur <I>http://adresse_serveur/stream?v=id_video</I> pour lire directement dans un lecteur externe comme VLC. Vous pouvez aussi chercher et lire la première vidéo trouvée de façon immédiate en naviguant sur <I>http://adresse_serveur/lucky?q=motclef</I>. Par défaut, le format permutera automatiquement sur MP4 si vous utilisez VLC. Notez bien que vous pouvez utiliser les paramètres GET documentés dans la <A HREF=""useget"">partie V</A> de cette documentation.<BR><BR>" & vbCrLf & vbCrLf
 
+            patternpage &= "Il est également possible de naviguer dans les chaînes YouTube, et d'explorer leur contenu. Les URLs pointant vers les chaînes ressemblent à http://serveur/channel.cgi?id=UCxxxx où UCxxxx est l'identifiant unique de la chaîne. Vous pouvez consulter les vidéos qui sont affichées sous forme de pages, par groupe de 9, 18 ou 27 selon les paramètres du client. L'affichage est paramétré sur 18 vidéos par défaut, mais je conseille de mettre sur 9 vidéos pour les très anciennes configurations. L'affichage de 27 vidéos peut prendre un certain temps à être chargé. Il y a aussi un volet de suggestions à droite de la vidéo en cours de lecture, et une liste de commentaires en dessous, comme sous le vrai YouTube. Vous pouvez consulter tous les commentaires en cliquant sur le lien intitulé""Afficher tous les commentaires"" sous la section éponyme. Le lien pointe vers une URI ressemblant à http://serveur/com.cgi?id=xxxxxxxxxxx, qui sera ouverte dans un nouvel onglet/fenêtre. Vous pourrez également naviguer entre les pages de commentaires, qui sont affichés par groupes de 10, 20, 50 ou 100 commentaires." & vbCrLf
+
             patternpage &= "<BR><CENTER><H2><A NAME=""precautions"">III. Précautions</A></H2></CENTER><BR><BR>" & vbCrLf
             patternpage &= "<B>RetroYT</B> est distribué sous licence freeware/open source et ne doit pas être revendu sans l'autorisation explicite de son auteur. Afin de conserver une compatibilité maximale avec les anciens navigateurs Web et systèmes d'exploitation, le proxy ne met volontairement pas en œuvre certaines technologies modernes de sécurisation des communications, notamment SSL/TLS côté client. Les échanges entre RetroYT et YouTube utilisent bien des connexions sécurisées modernes, mais les communications entre le client et le proxy restent, quant à elles, entièrement non chiffrées. En effet, nombre d'anciens navigateurs ne prennent pas en charge SSL/TLS, surtout dans leurs dernières versions. Le HTTP sans chiffrement est une solution universelle pour se connecter au serveur.<BR>Pour cette raison, RetroYT est principalement destiné à une utilisation au sein d'un réseau local (LAN), sur une machine personnelle ou dans un environnement contrôlé. Il est fortement déconseillé d'exposer directement le proxy sur Internet ou de l'utiliser sur un réseau public non sécurisé, sauf si vous utilisez des solutions complémentaires de protection telles qu'un VPN ou un tunnel sécurisé.<BR><BR>"
-            patternpage &= "RetroYT utilise également un système de cache local afin d'améliorer les performances et limiter les téléchargements répétés. Quatre dossiers principaux sont utilisés&nbsp;:" & vbCrLf & vbCrLf
+            patternpage &= "RetroYT utilise également un système de cache local afin d'améliorer les performances et limiter les téléchargements répétés. Sept dossiers principaux sont utilisés&nbsp;:" & vbCrLf & vbCrLf
             patternpage &= "<UL>" & vbCrLf
             patternpage &= " <LI>Le dossier <I>thumbs</I> : Stockage des miniatures YouTube (Qualité moyenne, alias MQ) envoyées au client à la demande ;</LI>" & vbCrLf
             patternpage &= " <LI>Le dossier <I>srccache</I> : Stockage des vidéos sources et mises en cache pour être converties ;</LI>" & vbCrLf
             patternpage &= " <LI>Le dossier <I>vidcache</I> : Stockage des vidéos converties et mises en cache pour être envoyées au client ;</LI>" & vbCrLf
-            patternpage &= " <LI>Le dossier <I>prclocks</I> : Stockage des fichiers qui permet de mémoriser les téléchargements ou conversions en cours d'exécution.</LI>" & vbCrLf
+            patternpage &= " <LI>Le dossier <I>prclocks</I> : Stockage des fichiers qui permet de mémoriser les téléchargements ou conversions en cours d'exécution ;</LI>" & vbCrLf
+            patternpage &= " <LI>Le dossier <I>comments</I> : Stockage des commentaires YouTube trouvés pour pouvoir les lire (si toutefois l'option est activée).</LI>" & vbCrLf
+            patternpage &= " <LI>Les dossiers <I>avatars</I> et <I>banners</I> : Cache pour stocker les images de bannières et d'avatars trouvées.</LI>" & vbCrLf
             patternpage &= "</UL>" & vbCrLf & vbCrLf
 
             patternpage &= "Ces dossiers peuvent être vidés manuellement si l'espace disque disponible devient insuffisant. Normalement, le logiciel gère lui-même la taille du cache et/ou le nombre de fichiers. Le dossier <I>srvlogs</I> contient tous les fichiers de rapport de connexion et des actions du serveur, avec heure et date. Bien que ces fichiers soient facultatifs et aisément supprimables, en revanche, certains fichiers et répertoires sont indispensables au fonctionnement du logiciel et ne doivent pas être supprimés&nbsp;:" & vbCrLf & vbCrLf
@@ -3642,10 +4777,12 @@ Module Program
             patternpage &= " <TR><TD>small</TD><TD>Taille 320x240 pixels (Pour les écrans VGA de base)</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>middle</TD><TD>Taille 640x480 pixels (Taille par défaut)</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>large</TD><TD>Taille 854x480 pixels (Format large minimal)</TD></TR>" & vbCrLf
-            patternpage &= " <TR><TD>cinema</TD><TD>Taille 1280x720 pixels (Format large standard)</TD></TR>" & vbCrLf
+            patternpage &= " <TR><TD>cinema</TD><TD>Taille 1280x720 pixels (Format large cinéma standard)</TD></TR>" & vbCrLf
+            patternpage &= " <TR><TD>bigcinema</TD><TD>Taille 2560x1440 pixels (Format large cinéma de grande taille)</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>autoheight</TD><TD>Taille du lecteur basée sur la taille de la vidéo</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>fullscreen</TD><TD>Taille du lecteur sur toute la fenêtre (avec HTML)</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>fulljs</TD><TD>Taille du lecteur sur toute la zone visible (avec Javascript)</TD></TR>" & vbCrLf
+            patternpage &= " <TR><TD>cs</TD><TD>La taille du lecteur classique YouTube en 480x360 pixels</TD></TR>" & vbCrLf
             patternpage &= "</TABLE><BR><BR>" & vbCrLf & vbCrLf
 
             patternpage &= "<CENTER><B>Le format vidéo utilisé pour la lecture a pour entête <I>codec</I>, et est accompagné d'un des paramètres suivants&nbsp;:</B></CENTER><BR><BR>" & vbCrLf
@@ -3669,12 +4806,12 @@ Module Program
 
             patternpage &= "<CENTER><B>Le nombre d'images est paramétré avec l'entête <I>framerate</I> suivi du nombre d'images voulues UNIQUEMENT parmi cette liste&nbsp;:</B></CENTER><BR><BR>" & vbCrLf
             patternpage &= "<TABLE BORDER=1 CELLPADDING=4 ALIGN=CENTER>" & vbCrLf
-            patternpage &= " <TR><TD>auto</TD><TD>Meilleur nombre d'images par seconde pour le format vidéo voulu.</TD></TR>" & vbCrLf
-            patternpage &= " <TR><TD>10</TD><TD>10 images par seconde (Pour vieux ordinateurs)</TD></TR>" & vbCrLf
+            patternpage &= " <TR><TD>auto</TD><TD>Meilleur nombre d'images par seconde pour le format vidéo voulu [Par défaut].</TD></TR>" & vbCrLf
+            patternpage &= " <TR><TD>10</TD><TD>10 images par seconde (Pour les très vieux ordinateurs)</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>12</TD><TD>12 images par seconde</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>15</TD><TD>15 images par seconde (Bon rapport qualité/quantité pour les vieux ordinateurs)</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>20</TD><TD>20 images par seconde</TD></TR>" & vbCrLf
-            patternpage &= " <TR><TD>24</TD><TD>24 images par seconde [Par défaut]</TD></TR>" & vbCrLf
+            patternpage &= " <TR><TD>24</TD><TD>24 images par seconde (Standard)</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>25</TD><TD>25 images par seconde</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>30</TD><TD>30 images par seconde</TD></TR>" & vbCrLf
             patternpage &= " <TR><TD>60</TD><TD>60 images par seconde (Vivement déconseillé sur les anciens PC)</TD></TR>" & vbCrLf
@@ -3705,8 +4842,8 @@ Module Program
 
             patternpage &= "<BR><CENTER><H2><A NAME=""credits"">VI. Remerciements</A></H2></CENTER><BR><BR>" & vbCrLf
             patternpage &= "YouTube est une propriété de Google. Il s'agit d'une plateforme de diffusion de vidéos en direct, ou en différé. Ce projet de proxy n'est pas affilié à Google, ni à YouTube." & vbCrLf
-            patternpage &= "Ce logiciel a été développé sous Microsoft Visual Basic .NET 2022. Il fait usage des librairies et binaires ffmpeg, et du projet yt-dlp, que l'utilisateur doit intégrer manuellement au dossier (ils ne sont pas livrés par défaut pour éviter des conflits d'intérêt avec leurs auteurs respectifs, et pour des raisons d'espace utilisé). En revanche, SWFObject est inclus au projet directement, car sous licence MIT. Il est donc libre de le redistribuer, et permet la lecture des vidéos au format Macromedia Flash lorsque l'utilisateur active cette fonctionnalité. Merci à ceux qui l'ont programmé.<BR>Merci aussi à ChatGPT pour ses astuces de programmation. Sans lui, ce projet n'aurait peut-être jamais vu le jour. Je remercie également LeJarb pour le code d'intégration de Real Player, et son optimisation de l'usage des codecs (en s'aidant de Léo AI). Je le remercie aussi pour ses divers feedbacks, et sa participation active dans l'amélioration du projet. Je remercie aussi Val pour ses tests du logiciel sur des configurations réelles. Merci également à vous, l'utilisateur, pour avoir utilisé RetroYT, en espérant qu'il fonctionnera parfaitement sur votre configuration, et qu'il vous procurera entière satisfaction dans l'usage du service YouTube depuis d'anciens systèmes. Voici la page de débug du projet: <A HREF=""/debug.cgi"" STYLE=""color: " & link_color & ";"">Cliquez ici</A>.<BR><BR><I>L'auteur.</I><BR><BR>" & vbCrLf & vbCrLf
-            patternpage &= "<A HREF=""/"" STYLE=""color: " & link_color & ";"">Cliquez ici pour retourner à l'index</A><BR><BR>" & vbCrLf
+            patternpage &= "Ce logiciel a été développé sous Microsoft Visual Basic .NET 2022. Il fait usage des librairies et binaires ffmpeg, et du projet yt-dlp, que l'utilisateur doit intégrer manuellement au dossier (ils ne sont pas livrés par défaut pour éviter des conflits d'intérêt avec leurs auteurs respectifs, et pour des raisons d'espace utilisé). En revanche, SWFObject est inclus au projet directement, car sous licence MIT. Il est donc libre de le redistribuer, et permet la lecture des vidéos au format Macromedia Flash lorsque l'utilisateur active cette fonctionnalité. Merci à ceux qui l'ont programmé.<BR>Merci aussi à ChatGPT pour ses astuces de programmation. Sans lui, ce projet n'aurait peut-être jamais vu le jour. Je remercie également LeJarb pour le code d'intégration de Real Player, et son optimisation de l'usage des codecs (en s'aidant de Léo AI). Je le remercie aussi pour ses divers feedbacks, et sa participation active dans l'amélioration du projet. Je remercie aussi Val pour ses tests du logiciel sur des configurations réelles. Merci également à vous, l'utilisateur, pour avoir utilisé RetroYT, en espérant qu'il fonctionnera parfaitement sur votre configuration, et qu'il vous procurera entière satisfaction dans l'usage du service YouTube depuis d'anciens systèmes. Voici la page de débug du projet: <A HREF=""/debug.cgi"">Cliquez ici</A>. Une page pour consulter le cache (uniquement disponible en local) est également disponible ici: <A HREF=""/cache.cgi"">Cliquez ici</A>.<BR><BR><I>L'auteur.</I><BR><BR>" & vbCrLf & vbCrLf
+            patternpage &= "<A HREF=""/"">Cliquez ici pour retourner à l'index</A><BR><BR>" & vbCrLf
             patternpage &= "</DIV></CENTER><DIV CLASS=bodysep></DIV>" & footer
 
             Dim index_resp As String =
@@ -3740,36 +4877,200 @@ Module Program
                 request = request.Replace(Chr(i), String.Empty)
             Next
 
-            Dim arg As String = Split(request)(1)
-            arg = arg.Remove(0, 1)
+            Dim arg_o As String = Split(request)(1)
+            arg_o = arg_o.Remove(0, 1)
 
             Dim fs As System.IO.FileStream = Nothing
             Dim resBuffer(8191) As Byte
             Dim resread As Integer = 0
 
-            If arg.Length = 0 Then
+            If arg_o.Length = 0 Then
                 'Index du site
                 WriteLog("L'utilisateur demande l'index du site. Renvoi vers la page d'accueil.", , client)
                 InitValues("Accueil", , wanted_skin, , used_player)
-                patternpage &= "<HR WIDTH=880 ALIGN=CENTER /><BR>" & vbCrLf
-                patternpage &= "<P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez <A HREF=""/about.htm"" STYLE=""color: " & link_color & ";"">ICI</A> pour obtenir plus d'informations sur le fonctionnement.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV><BR><BR>" & footer
 
-                Dim index_resp As String =
-                "HTTP/" & http_ver & " 200 OK" & vbCrLf &
-                "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
-                "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
-                "Connection: close" & vbCrLf &
-                "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
+                If Not display_trends Then
+                    patternpage &= " <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez sur <A HREF=""/about.htm"">ce lien</A> pour obtenir plus d'informations sur le fonctionnement de RetroYT.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>" & vbCrLf & vbCrLf
+                    patternpage &= "<BR><BR>" & footer
 
-                Dim index_data As Byte() = iso.GetBytes(index_resp)
+                    'Envoi du résultat à l'utilisateur via une réponse HTTP favorable.
+                    Dim req_resp As String =
+                        "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                        "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                        "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
+                        "Connection: close" & vbCrLf &
+                        "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
 
-                Try
-                    stream.Write(index_data, 0, index_data.Length)
-                Catch ex As Exception
-                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
-                End Try
+                    'Conversion en octets, suivant le format ISO-8859-1.
+                    Dim req_data As Byte() = iso.GetBytes(req_resp)
 
-                client.Close()
+                    Try
+                        'Ecriture dans le flux octal en direction du client.
+                        stream.Write(req_data, 0, req_data.Length)
+                    Catch ex As Exception
+                        WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                    End Try
+
+                    client.Close()
+                    Exit Sub
+                Else
+                    If IsNetworkAvailable() Then
+                        WriteLog("Affichage des tendances activé. Recherche de nouveautés en cours...", ConsoleColor.Blue, client)
+                        Dim arg As String = Split(request)(1)
+
+                        'Les caractères systèmes sont retirés par sécurité
+                        For i As Integer = 0 To &H1F
+                            request = request.Replace(Chr(i), String.Empty)
+                        Next
+
+                        'Récupérer les 10 vidéos en rapport avec le mot-clef spécifié
+                        'Lancement de yt-dlp
+                        Dim psi As New ProcessStartInfo()
+                        psi.FileName = "yt-dlp.exe"
+
+                        Dim add_cookie As String = String.Empty
+
+                        If IO.File.Exists("cookies.txt") Then
+                            add_cookie &= " --cookies cookies.txt"
+                            WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur.", ConsoleColor.Magenta)
+                        End If
+
+                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<||>"" ""ytsearch" & disp_vids_per_channel.ToString & ":actualités"" --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+
+                        psi.UseShellExecute = False
+                        psi.RedirectStandardOutput = True
+                        psi.RedirectStandardError = True
+                        psi.CreateNoWindow = True
+                        psi.StandardOutputEncoding = Encoding.UTF8
+                        psi.StandardErrorEncoding = Encoding.UTF8
+
+                        Dim p As Process = Process.Start(psi)
+                        Dim output As String = p.StandardOutput.ReadToEnd() 'Récupération des résultats
+                        Dim err As String = p.StandardError.ReadToEnd()
+
+                        p.WaitForExit()
+
+                        'Récupération des lignes
+                        If String.IsNullOrEmpty(output) Then
+                            patternpage &= " <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez sur <A HREF=""/about.htm"">ce lien</A> pour obtenir plus d'informations sur le fonctionnement de RetroYT.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>" & vbCrLf & vbCrLf
+                        Else
+                            output = output.Remove(output.Length - 4, 4)
+                            Dim lines As String() = output.Split("<||>", StringSplitOptions.RemoveEmptyEntries)
+
+                            If lines.Count = 0 Then
+                                'S'il n'y a aucune ligne retournée, on affiche l'ancien message.
+                                patternpage &= " <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez sur <A HREF=""/about.htm"">ce lien</A> pour obtenir plus d'informations sur le fonctionnement de RetroYT.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>" & vbCrLf & vbCrLf
+                            Else
+                                'Sinon, on affiche les résultats dans la page Web.
+                                patternpage &= " <P ALIGN=CENTER><BR><B><FONT SIZE=4>Actualités de YouTube :</FONT></B></P><BR><BR>" & vbCrLf & vbCrLf
+                                patternpage &= "  <CENTER><TABLE BORDER=0 CELLPADDING=8 WIDTH=600 ALIGN=CENTER>" & vbCrLf
+
+                                Dim vc As Integer = 0
+
+                                For Each line In lines
+
+                                    Dim parts As String() = line.Split(New String() {"<|>"}, StringSplitOptions.None)
+
+                                    For i As Integer = 0 To parts.Length - 1
+                                        For j As Integer = 0 To &H1F
+                                            parts(i) = parts(i).Replace(Chr(j), String.Empty)
+                                        Next
+                                    Next
+
+                                    If parts.Length = 11 Then
+                                        Dim id As String = parts(0)
+                                        Dim title As String = parts(1)
+                                        Dim tmp_prop As New VideoProperties
+                                        title = CleanText(title)
+
+                                        tmp_prop.Title = CleanText(parts(1))
+
+                                        tmp_prop.ID = parts(0)
+                                        tmp_prop.Views = IIf(LCase(parts(2)) = "na", "0", GetThousands(parts(2)))
+                                        tmp_prop.DateOfRelease = GetDate(parts(3))
+                                        tmp_prop.Creator = CleanText(parts(4))
+                                        tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(parts(10))
+
+                                        If LCase(parts(6)) = "na" Then
+                                            tmp_prop.Duration = "?:??"
+                                        Else
+                                            tmp_prop.Duration = GetDuration(parts(6))
+                                        End If
+
+                                        tmp_prop.Dimensions = IIf(IsNumeric(parts(7)), parts(7), "640") & ":" & IIf(IsNumeric(parts(8)), parts(8), "480")
+
+                                        tmp_prop.Description = IIf(String.IsNullOrEmpty(parts(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(parts(9))))
+                                        If tmp_prop.Description.Length > 1024 Then tmp_prop.Description = tmp_prop.Description.Substring(0, 1024)
+                                        tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
+                                        tmp_prop.Description = tmp_prop.Description.Replace(vbCr, "<BR>")
+                                        tmp_prop.Description = tmp_prop.Description.Replace(vbLf, "<BR>")
+                                        tmp_prop.DateAdded = Now
+
+                                        SyncLock video_props
+                                            If Not video_props.ContainsKey(id) Then
+                                                Try
+                                                    If video_props.Count > 1000 Then
+                                                        Do Until video_props.Count = 1000
+                                                            video_props.Remove(video_props.Keys(0))
+                                                        Loop
+                                                    End If
+
+                                                    video_props.Add(id, tmp_prop)
+                                                Catch ex As Exception
+
+                                                End Try
+                                            End If
+                                        End SyncLock
+
+                                        vc += 1
+
+                                        'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
+                                        patternpage &= "  <TD WIDTH=160 VALIGN=TOP>" & vbCrLf
+                                        patternpage &= "   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/thumbnail?t=" & tmp_prop.ID & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>" & vbCrLf
+                                        patternpage &= "   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A> <B>(</B><A HREF=""/stream?v=" & tmp_prop.ID & """>Flux&nbsp;direct</A><B>)</B> &bull; Durée:&nbsp;" & tmp_prop.Duration & " &bull; Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>" & vbCrLf
+                                        patternpage &= "  </TD>" & vbCrLf
+                                        If (vc Mod 3 = 0) Then patternpage &= " </TR>" & vbCrLf & vbCrLf & "  <TR>" & vbCrLf
+                                    End If
+                                Next
+
+                                patternpage &= "  </TABLE></CENTER>"
+                            End If
+                        End If
+
+                        patternpage &= "<BR><BR>" & footer
+
+                        'Envoi du résultat à l'utilisateur via une réponse HTTP favorable.
+                        Dim req_resp As String =
+                            "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                            "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                            "Content-Length: " & iso.GetBytes(patternpage).Length.ToString & vbCrLf &
+                            "Connection: close" & vbCrLf &
+                            "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage
+
+                        'Conversion en octets, suivant le format ISO-8859-1.
+                        Dim req_data As Byte() = iso.GetBytes(req_resp)
+
+                        Try
+                            'Ecriture dans le flux octal en direction du client.
+                            stream.Write(req_data, 0, req_data.Length)
+                        Catch ex As Exception
+                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                        End Try
+
+                        client.Close()
+                    Else
+                        Dim notfound_data As Byte() = GetHTTPBytes(500, "<H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le serveur proxy n'est pas connecté à Internet, ainsi, la requête ne peut pas être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+
+                        Try
+                            stream.Write(notfound_data, 0, notfound_data.Length)
+                        Catch ex As Exception
+                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                        End Try
+
+                        client.Close()
+                    End If
+                End If
+
             Else
                 'Ressource hardcodée ou hébergée
                 'WriteLog("Fichier demandé par le client: " & arg, , client)
@@ -3777,22 +5078,22 @@ Module Program
                 Dim sent_res As String = "HTTP/" & http_ver & " 200 OK" & vbCrLf
                 Dim sent_data As Byte()
 
-                If arg.Contains("?") Then
-                    arg = arg.Substring(0, arg.IndexOf("?"))
+                If arg_o.Contains("?") Then
+                    arg_o = arg_o.Substring(0, arg_o.IndexOf("?"))
                 End If
 
-                If arg.Contains("/..") Then arg = arg.Replace("/..", String.Empty)
-                If arg.Contains("../") Then arg = arg.Replace("../", String.Empty)
-                If arg.Contains("/.") Then arg = arg.Replace("/.", String.Empty)
-                If arg.Contains("./") Then arg = arg.Replace("./", String.Empty)
+                If arg_o.Contains("/..") Then arg_o = arg_o.Replace("/..", String.Empty)
+                If arg_o.Contains("../") Then arg_o = arg_o.Replace("../", String.Empty)
+                If arg_o.Contains("/.") Then arg_o = arg_o.Replace("/.", String.Empty)
+                If arg_o.Contains("./") Then arg_o = arg_o.Replace("./", String.Empty)
 
-                If arg.Contains("\..") Then arg = arg.Replace("\..", String.Empty)
-                If arg.Contains("..\") Then arg = arg.Replace("..\", String.Empty)
-                If arg.Contains("\.") Then arg = arg.Replace("\.", String.Empty)
-                If arg.Contains(".\") Then arg = arg.Replace(".\", String.Empty)
+                If arg_o.Contains("\..") Then arg_o = arg_o.Replace("\..", String.Empty)
+                If arg_o.Contains("..\") Then arg_o = arg_o.Replace("..\", String.Empty)
+                If arg_o.Contains("\.") Then arg_o = arg_o.Replace("\.", String.Empty)
+                If arg_o.Contains(".\") Then arg_o = arg_o.Replace(".\", String.Empty)
 
-                Select Case LCase(arg)
-                    Case "yt_logo2.gif", "yt_logo.gif", "yt_modrn.gif", "yt_dark.gif", "yt_rose.gif", "yt_aqua.gif", "yt_mono.gif", "cosmic.gif"
+                Select Case LCase(arg_o)
+                    Case "yt_logo2.gif", "yt_logo.gif", "yt_modrn.gif", "yt_dark.gif", "yt_rose.gif", "yt_aqua.gif", "yt_mono.gif", "yt_mint.gif", "cosmic.gif"
                         'Les logos RetroYT, qui font penser à ceux de YouTube, sont mis au format GIF pour garantir une compatibilité maximale avec les navigateurs anciens.
                         'Aussi cosmic.gif.
 
@@ -3801,7 +5102,7 @@ Module Program
                             sent_res &= "Connection: close" & vbCrLf
                             sent_res &= "Accept-Ranges: bytes" & vbCrLf
                             sent_res &= "Cache-Control: max-age=86400" & vbCrLf
-                            sent_res &= "Content-Length: " & FileLen(CurDir() & "\resfiles\" & arg).ToString & vbCrLf & vbCrLf
+                            sent_res &= "Content-Length: " & FileLen(CurDir() & "\resfiles\" & arg_o).ToString & vbCrLf & vbCrLf
                             sent_data = iso.GetBytes(sent_res)
 
                             stream.Write(sent_data, 0, sent_data.Length)
@@ -3811,7 +5112,7 @@ Module Program
                             Exit Sub
                         End Try
 
-                        fs = New System.IO.FileStream(CurDir() & "\resfiles\" & arg, IO.FileMode.Open, IO.FileAccess.Read)
+                        fs = New System.IO.FileStream(CurDir() & "\resfiles\" & arg_o, IO.FileMode.Open, IO.FileAccess.Read)
 
                         Do
                             resread = fs.Read(resBuffer, 0, resBuffer.Length)
@@ -3830,11 +5131,11 @@ Module Program
                         fs.Close()
                         client.Close()
                         'WriteLog("Ressource '" & arg & "' trouvée et envoyée! (Code HTTP 200)")
-                    Case "btn_grad.png", "hot_grad.png", "btn_pink.png", "hot_pink.png", "hot_aqua.png", "btn_aqua.png"
+                    Case "btn_grad.png", "hot_grad.png", "btn_pink.png", "hot_pink.png", "hot_aqua.png", "btn_aqua.png", "btn_mint.png", "hot_mint.png"
                         sent_res &= "Content-Type: image/png" & vbCrLf
                         sent_res &= "Connection: close" & vbCrLf
                         sent_res &= "Cache-Control: max-age=86400" & vbCrLf
-                        sent_res &= "Content-Length: " & FileLen(CurDir() & "\resfiles\" & arg).ToString & vbCrLf & vbCrLf
+                        sent_res &= "Content-Length: " & FileLen(CurDir() & "\resfiles\" & arg_o).ToString & vbCrLf & vbCrLf
                         sent_data = iso.GetBytes(sent_res)
 
                         Try
@@ -3845,7 +5146,7 @@ Module Program
                             Exit Sub
                         End Try
 
-                        fs = New System.IO.FileStream(CurDir() & "\resfiles\" & arg, IO.FileMode.Open, IO.FileAccess.Read)
+                        fs = New System.IO.FileStream(CurDir() & "\resfiles\" & arg_o, IO.FileMode.Open, IO.FileAccess.Read)
 
                         Do
                             resread = fs.Read(resBuffer, 0, resBuffer.Length)
@@ -3984,6 +5285,9 @@ Module Program
                             Case "aqua"
                                 sent_css &= " background-color: #ecffff;" & vbCrLf
                                 sent_css &= " color: #000040;" & vbCrLf
+                            Case "mint"
+                                sent_css &= " background-color: #e8ffe8;" & vbCrLf
+                                sent_css &= " color: #002000;" & vbCrLf
                             Case Else
                                 sent_css &= " background-color: #ffffff;" & vbCrLf
                                 sent_css &= " color: #000000;" & vbCrLf
@@ -4053,11 +5357,22 @@ Module Program
 
                         sent_css &= "a {" & vbCrLf
 
-                        If wanted_skin = "dark" Then
-                            sent_css &= " color: white;" & vbCrLf
-                        Else
-                            sent_css &= " color: black;" & vbCrLf
-                        End If
+                        Select Case wanted_skin
+                            Case "dark"
+                                sent_css &= " color: #c2272f;" & vbCrLf
+                            Case "cosmic"
+                                sent_css &= " color: #1034be;" & vbCrLf
+                            Case "rose"
+                                sent_css &= " color: #a0046b;" & vbCrLf
+                            Case "aqua"
+                                sent_css &= " color: #1f38a0;" & vbCrLf
+                            Case "monochrome"
+                                sent_css &= " color: #606060;" & vbCrLf
+                            Case "mint"
+                                sent_css &= " color: #358832;" & vbCrLf
+                            Case Else
+                                sent_css &= " color: #1034be;" & vbCrLf
+                        End Select
 
                         sent_css &= " font-weight: bold;" & vbCrLf
                         If wanted_skin <> "monochrome" Then sent_css &= " text-decoration: none;" & vbCrLf
@@ -4092,6 +5407,9 @@ Module Program
                             Case "monochrome"
                                 sent_css &= " background-color: black;" & vbCrLf
                                 sent_css &= " border: 1px solid black;" & vbCrLf
+                            Case "mint"
+                                sent_css &= " background-image: url('btn_mint.png');" & vbCrLf
+                                sent_css &= " background-color: #1fa027;" & vbCrLf
                             Case Else
                                 sent_css &= " background-color: #e01425;" & vbCrLf
                                 sent_css &= " background-image: url('btn_grad.png');" & vbCrLf
@@ -4120,6 +5438,9 @@ Module Program
                             Case "monochrome"
                                 sent_css &= " background-color: white;" & vbCrLf
                                 sent_css &= " color: black;" & vbCrLf
+                            Case "mint"
+                                sent_css &= " background-image: url('hot_mint.png');" & vbCrLf
+                                sent_css &= " background-color: #26b630;" & vbCrLf
                             Case Else
                                 sent_css &= " background-image: url('hot_grad.png');" & vbCrLf
                                 sent_css &= " background-color: #f82a0d;" & vbCrLf
@@ -4373,13 +5694,13 @@ Module Program
                         WriteLog("Lecteur Flash requis par l'utilisateur. Envoi immédiat.", , client)
                     Case Else
                         'En cas de ressource introuvable, ou inutilisée par le serveur
-                        If arg.Length > 40 Then
-                            arg = arg.Substring(0, 40) & "..."
+                        If arg_o.Length > 40 Then
+                            arg_o = arg_o.Substring(0, 40) & "..."
                         End If
 
-                        WriteLog("Ressource demandée introuvable: " & arg, , client)
+                        WriteLog("Ressource demandée introuvable: " & arg_o, , client)
 
-                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Le fichier '<I>/" & arg & "</I>' n'a pas été trouvé sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
+                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Le fichier '<I>/" & arg_o & "</I>' n'a pas été trouvé sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
 
                         Try
                             stream.Write(notfound_data, 0, notfound_data.Length)
