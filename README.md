@@ -1,8 +1,8 @@
 RetroYT est un projet de proxy YouTube pour les anciens navigateurs et systèmes. Il a été développé afin de permettre à des anciennes configurations de pouvoir utiliser ce service en ligne.
-En effet, l'an passé, j'ai constaté que YouTube ne fonctionnait plus sur Firefox 52.0, sous mon ordinateur portable fonctionnant sous Windows 2000.
-J'ai connu Browservice au début des années 2020. Il permet à d'anciens navigateurs d'accéder au Web moderne, selon ce principe: il envoie en temps réel un rendu chromium à jour sous la forme de frames au format JPEG. Des éléments cliquables invisibles sont disposés pour rendre les liens accessibles. Je tiens à dire qu'il m'a beaucoup inspiré pour ce projet. Hélas, Browservice peut faire fonctionner YouTube, et donc fonctionner sous n'importe quel navigateur à peu près à jour, mais le son n'était pas reçu par le client.
+En effet, au courant de l'année 2025, j'ai constaté que YouTube ne fonctionnait plus sur Firefox 52.0, que j'exécute sous mon ordinateur portable fonctionnant sous Windows 2000.
+Parallèlement, j'ai connu Browservice au début des années 2020. Il permet à d'anciens navigateurs d'accéder au Web moderne, selon ce principe: il envoie en temps réel un rendu Chromium à jour sous la forme de frames au format JPEG. Des éléments cliquables invisibles sont disposés pour rendre les liens accessibles, et rendant l'interaction serveur/client possible. Je tiens à dire qu'il m'a beaucoup inspiré pour ce projet. Hélas, Browservice peut faire fonctionner YouTube, et donc fonctionner sous n'importe quel navigateur à peu près à jour, mais le son n'était pas reçu par le client. Tout était lu côté serveur.
 
-Je me disais donc, constatant ces lacunes, qu'il était temps que je lance mon propre projet, qui combine l'apparence des services en ligne actuels. Le tout en adaptant le contenu aux anciennes configurations, avec l'ergonomie des services YouTube, afin de rendre l'expérience accessible à d'anciens navigateurs qui ne sont plus pris en charge officiellement, ou permettre à des navigateurs qui n'étaient jamais fonctionnels avec de le devenir.
+Je me disais donc, constatant ces lacunes, qu'il était temps que je lance mon propre projet, qui combine l'apparence des services en ligne actuels. Le tout en adaptant le contenu aux anciennes configurations, avec l'ergonomie des services YouTube, afin de rendre l'expérience accessible à d'anciens navigateurs qui ne sont plus pris en charge officiellement. Voire de permettre à des navigateurs qui n'étaient jamais fonctionnels de le devenir.
 RetroYT fait usage du Microsoft .NET Framework 6.0, de FFMPEG, de SWFObject et de YT-DLP.
 Il utilise l'encodage ISO-8859-1 pour formater les pages Web, pour garantir une compatibilité maximale avec tous les anciens navigateurs. Pour les communications entre YouTube et le proxy, en revanche, l'UTF-8 est utilisé.
 Program.vb contient l'ensemble du code source utilisé dans ce projet.
@@ -67,7 +67,7 @@ La conversion puis l'envoi de la vidéo vers le client peuvent prendre du temps,
 Néanmoins, j'ai pu regarder des vidéos YouTube depuis un système Windows NT 4.0, avec Windows Media Player 6.4 d'installé, sur Internet Explorer 6.0.
 Windows Media Player 6.0 et moins ne prennent pas en charge les liens vers les URL, et Internet Explorer 2.0 et moins ne prennent pas en charge l'intégration d'objets multimédia au sein des pages Web.
 
-On peut aussi changer l'apparence du site avec un système de thèmes (Classic, Cosmic Tube, Modern, Dark Mode, Rose, Aqua et Monochrome).
+On peut aussi changer l'apparence du site avec un système de thèmes (Classic, Cosmic Tube, Modern, Dark Mode, Rose, Aqua, Mint et Monochrome).
 La taille automatique du lecteur est disponible, elle fait usage du Javascript, mais peut ne pas fonctionner de façon certaine sous de très anciennes versions d'IE.
 Je conseille donc de laisser la taille du lecteur en 640x480 pour la plupart des cas.
 
@@ -84,12 +84,18 @@ En pratique, la configuration minimale conseillée pour la lecture dans le navig
 
 Il est possible de naviguer sur le site avec Internet Explorer 1.0 et 2.0 mais l'intégration OLE n'est pas disponible, donc le lecteur n'apparaîtra à priori pas dans la page Web.
 J'ai déjà eu des feedbacks sur le fait que Flash Player 7 fonctionne, et qu'on peut lire aussi des vidéos de façon intégrée sous Windows 3.11, mais il s'agit de cas exceptionnels peu documentés.
-Pareil pour le projet Arachne, il semble que son usage est possible, et que la lecture soit disponible sur un lecteur externe, mais je n'ai eu qu'un seul feedback là-dessus.
-Lire sous de vieilles versions de MacOS est faisable. Lire sous BeOS, OS/2 Warp, et Linux est faisable également, selon des témoignages et mes propres expériences.
+Pareil pour le projet Arachne, il semble que son usage est possible, et que la lecture soit disponible sur un lecteur MS-DOS externe, mais je n'ai eu qu'un seul feedback là-dessus.
+Lire sous de vieilles versions de MacOS est faisable. Pareil sous BeOS, OS/2 Warp, et Linux. Cela est faisable également, selon des témoignages et mes propres expériences.
 
 La version 3.x ajoute à nouveau des fonctions de streaming direct via VLC, par exemple (http://serveur/stream?v=identifiant) pour lire depuis VLC sans interface Web. Il existe aussi une fonction de recherche immédiate, avec lecture de la première vidéo trouvée (http://serveur/lucky?q=motclef). Cela permet de lire une vidéo YouTube depuis un lecteur VLC sans connaître l'identifiant, ni faire usage de portail Web, mais en choisissant une vidéo avec un mot-clef précis.
 
+La version 5.x ajoute le volet de suggestions, à droite des vidéos (entre autres).
+
+La version 6.0 ajoute la navigation sur les chaînes, l'affichage des commentaires, et un simulacre de flux principal sur la page d'index. Il est désactivé par défaut, car il lance une recherche qui peut rendre le chargement plus long.
+
 Une page de débug est disponible en naviguant sur http://serveur/debug.cgi
+
+Une page pour consulter les vidéos en cache est disponible sur http://serveur/cache.cgi mais seules les IP locales peuvent y accéder, pour des raisons de confidentialité.
 
 Ce logiciel est livré sans garantie.
 
