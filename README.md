@@ -47,6 +47,7 @@ On peut utiliser les technologies suivantes pour intégrer les vidéos:
 * Lecteur Flash Player (via embarcation multimédia)
 * Objet multimédia générique (Très compatible Linux et navigateurs Mozilla)
 * Intégration via la balise video de HTML5, pour les navigateurs sortis après 2008 qui le prennent en charge de façon officielle. Cette balise est universelle passé cette année.
+* Intégration via la balise video de HTML5, adaptée pour les navigateurs sous Android 2.x, 3.x, 4.x et les consoles Nintendo et SONY du style Wii, WiiU, 3DS, etc. (Code fait par LeJarb en s'aidant de Léo AI)
 
 Même si toutes ces résolutions ne sont pas disponibles dans tous les formats, la liste des résolutions disponibles est la suivante:
 96p, 120p, 144p, 240p, 360p, 480p, 720p, 1080p
