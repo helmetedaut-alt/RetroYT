@@ -71,6 +71,7 @@ Windows Media Player 6.0 et moins ne prennent pas en charge les liens vers les U
 On peut aussi changer l'apparence du site avec un système de thèmes (Classic, Cosmic Tube, Modern, Dark Mode, Rose, Aqua, Mint et Monochrome).
 La taille automatique du lecteur est disponible, elle fait usage du Javascript, mais peut ne pas fonctionner de façon certaine sous de très anciennes versions d'IE.
 Je conseille donc de laisser la taille du lecteur en 640x480 pour la plupart des cas.
+Trois nouvelles tailles de lecteurs intégrés dans les pages Web ont été ajoutées dans la Bêta 7.0: 800x600, 1024x768, et 1600x1200.
 
 En pratique, la configuration minimale conseillée pour la lecture dans le navigateur est la suivante:
 * Ecran VGA en 800x600 en 16-bits de couleurs
@@ -97,6 +98,10 @@ La version 6.0 ajoute la navigation sur les chaînes, l'affichage des commentair
 Une page de débug est disponible en naviguant sur http://serveur/debug.cgi
 
 Une page pour consulter les vidéos en cache est disponible sur http://serveur/cache.cgi mais seules les IP locales peuvent y accéder, pour des raisons de confidentialité.
+
+Pour naviguer sur une playlist, vous pouvez naviguer d'abord sur une chaîne avec channel.cgi?id=UCxxxxx, puis parmi les trois sections (vidéos, shorts, et playlists), veuillez cliquer sur playlists.
+
+Ceci mènera vers playlist.cgi?id=PLxxxxxx. Vous pouvez également ajouter manuellement l'identifiant au bout de l'URL.
 
 Ce logiciel est livré sans garantie.
 
