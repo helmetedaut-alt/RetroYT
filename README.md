@@ -19,7 +19,9 @@ Une connexion Internet est nécessaire pour récupérer les vidéos YouTube. FFM
  * AVI (YUV, PCM) est très très lourd, et peut ne pas être lu sous tous les lecteurs. Uniquement implémenté à titre expérimental. NE PAS TENTER DE LIRE DES VIDEOS DE PLUS DE QUELQUES MINUTES.
  * AVI (Codec vidéo MJPEG, audio PCM) est universel et très facile à encoder/décoder, mais peut produire des vidéos assez lourdes.
  * MP4 (Codec vidéo H.264, audio AAC), pour les navigateurs déjà compatibles HTML5 mais incompatibles avec le YouTube moderne. Format très répandu, mais ne fonctionnera probablement pas sous d'anciens systèmes.
- * MPEG-1 avec le codec audio MP2, un format très universel, bien que très ancien.
+ * MP4 Legacy (Codec vidéo H.264, audio AAC), le même mais encore plus compatible avec les anciens systèmes, y compris Android dans ses premières versions.
+ * MPEG-1 (Récent) avec le codec audio MP2, un format très universel, bien que très ancien.
+ * MPEG-1 100% compatible, même codec mais avec des paramètres qui produiront des fichiers certes plus lourd, mais plus compatibles que le profil ci-dessus.
  * WMV nouveau (Codec vidéo WMV2, codec audio WMAv2) est très compatible avec Windows 98SE et plus, et plus léger que le format AVI MSVideo1, plus adapté à la lecture en local.
  * WMV ancien (Codec vidéo WMV1, codec audio WMAv1), compatible à partir de Windows 95
  * Apple QuickTime (Extension MOV, codec vidéo Cinepak, audio PCM) <- Le Cinepak met un temps fou à être encodé, mais est très compatible avec les anciens systèmes.
@@ -94,6 +96,8 @@ La version 3.x ajoute à nouveau des fonctions de streaming direct via VLC, par 
 La version 5.x ajoute le volet de suggestions, à droite des vidéos (entre autres).
 
 La version 6.0 ajoute la navigation sur les chaînes, l'affichage des commentaires, et un simulacre de flux principal sur la page d'index. Il est désactivé par défaut, car il lance une recherche qui peut rendre le chargement plus long.
+
+La version 8.0 apporte des corrections majeures, une mise à jour de l'interface serveur et client, et la prise en charge des émojis.
 
 Une page de débug est disponible en naviguant sur http://serveur/debug.cgi
 
