@@ -1,7 +1,4 @@
-Imports System.ComponentModel
-Imports System.ComponentModel.Design.Serialization
 Imports System.Data
-Imports System.Diagnostics.Metrics
 Imports System.Drawing
 Imports System.IO
 Imports System.Net
@@ -372,7 +369,7 @@ Module Program
             total_page &= " <FORM METHOD=""GET"" ACTION=""/search"">" & vbCrLf
         End If
 
-        total_page &= " <CENTER><BR><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=4>" & vbCrLf
+        total_page &= " <CENTER><BR><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=4 CELLSPACING=0>" & vbCrLf
         total_page &= "  <TR>" & vbCrLf
         'patternpage &= "   <TD WIDTH=90>&nbsp;</TD>" & vbCrLf
         total_page &= "   <TD VALIGN=CENTER HEIGHT=80><A HREF=""/""><IMG SRC=""" & used_logo & """ BORDER=0 ALT=""Logo RetroYT"" HEIGHT=44 /></A></TD>" & vbCrLf
@@ -2855,7 +2852,7 @@ Module Program
                                         patternpage.AppendLine(" <P ALIGN=CENTER><B>Aucun contenu relatif à cette vidéo n'a été trouvé !</B></P>")
                                     Else
                                         'Sinon, on affiche les résultats dans la page Web.
-                                        patternpage.AppendLine("  <TABLE BORDER=0 CELLPADDING=8 WIDTH=400 ALIGN=CENTER>")
+                                        patternpage.AppendLine("  <TABLE BORDER=0 CELLPADDING=8 CELLSPACING=0 WIDTH=400 ALIGN=CENTER>")
 
                                         WriteLog("La recherche relative du mot-clef '" & req & "' a donné " & lines.Count.ToString & " résultat(s).")
 
@@ -2921,7 +2918,7 @@ Module Program
 
                                                 'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
                                                 If parts(0) <> last_view Then
-                                                    patternpage.AppendLine("   <TR>")
+                                                    patternpage.AppendLine("   <TR CLASS=""survol"">")
                                                     patternpage.AppendLine("    <TD WIDTH=160 HEIGHT=100>")
                                                     patternpage.AppendLine("     <A HREF=""/watch?v=" & id & """ TARGET=""_parent""><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop2.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop2.Duration.Replace(":", "_") & """ WIDTH=160 HEIGHT=120 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A>")
                                                     patternpage.AppendLine("    </TD>")
@@ -3188,14 +3185,14 @@ Module Program
                                 Exit Sub
                             Else
                                 If lines.Count = 1 Then
-                                    patternpage.AppendLine(" <BR><BR><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Le meilleur résultat pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P><BR><BR>")
+                                    patternpage.AppendLine(" <BR><BR><CENTER><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Le meilleur résultat pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P></CENTER><BR><BR>")
                                     patternpage.AppendLine()
                                 Else
-                                    patternpage.AppendLine(" <BR><BR><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Les " & lines.Count.ToString & " meilleurs résultats pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P><BR><BR>")
+                                    patternpage.AppendLine(" <BR><BR><CENTER><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Les " & lines.Count.ToString & " meilleurs résultats pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P></CENTER><BR><BR>")
                                     patternpage.AppendLine()
                                 End If
 
-                                patternpage.AppendLine("  <CENTER><TABLE BORDER=0 CELLPADDING=8 WIDTH=600 ALIGN=CENTER>")
+                                patternpage.AppendLine("  <CENTER><TABLE BORDER=0 CELLPADDING=8 CELLSPACING=0 WIDTH=600 ALIGN=CENTER>")
 
                                 WriteLog("La recherche du mot-clef '" & req & "' a donné " & lines.Count.ToString & " résultat(s).")
 
@@ -3260,7 +3257,7 @@ Module Program
                                         End SyncLock
 
                                         'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
-                                        patternpage.AppendLine("   <TR>")
+                                        patternpage.AppendLine("   <TR CLASS=""survol"">")
                                         patternpage.AppendLine("    <TD WIDTH=160 HEIGHT=100>")
                                         patternpage.AppendLine("     <A HREF=""/watch?v=" & id & "&amp;lastsearch=" & Uri.EscapeDataString(req.Replace(" ", "+")) & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A>")
                                         patternpage.AppendLine("    </TD>")
@@ -4384,15 +4381,15 @@ Module Program
                         patternpage.AppendLine("<FORM METHOD=""GET"" ACTION=""/com.cgi"">")
 
                         If com_offset <> 0 Then
-                            patternpage.Append("<LABEL>&larr;&nbsp;<A HREF=""/com.cgi?v=" & last_view & "&amp;page=" & CStr(CInt(com_offset)) & """>Page précédente</A></LABEL>&nbsp;|&nbsp;")
+                            patternpage.Append("<LABEL><A HREF=""/com.cgi?v=" & last_view & "&amp;page=" & CStr(CInt(com_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;")
                         Else
-                            patternpage.Append("<LABEL>&larr;&nbsp;Page précédente</LABEL>&nbsp;|&nbsp;")
+                            patternpage.Append("<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;")
                         End If
 
                         If com_offset <> max_page - 1 Then
-                            patternpage.Append("<LABEL><A HREF=""/com.cgi?v=" & arg1 & "&amp;page=" & CStr(CInt(com_offset + 2)) & """>Page suivante</A> &rarr;</LABEL>&nbsp;|&nbsp;")
+                            patternpage.Append("<LABEL><A HREF=""/com.cgi?v=" & arg1 & "&amp;page=" & CStr(CInt(com_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;")
                         Else
-                            patternpage.AppendLine("<LABEL>Page suivante &rarr;</LABEL>&nbsp;|&nbsp;")
+                            patternpage.AppendLine("<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;")
                         End If
 
                         patternpage.AppendLine("<LABEL>Page " & CInt(com_offset + 1).ToString & " sur " & max_page.ToString & "&nbsp;|&nbsp;Aller à la page: </LABEL>")
@@ -4823,9 +4820,27 @@ Module Program
                 p5.WaitForExit(600000)
 
                 If String.IsNullOrEmpty(output5) OrElse output5.Length = 0 OrElse output5.StartsWith("null") Then
-                    patternpage.AppendLine(InitValues("Chaîne de " & channel_name, , wanted_skin, , used_player))
+
+                    Dim final_channel_name2 As String = UnicodeJson(channel_name)
+                    Dim first_channel_char2 As String = "x"
+
+                    If final_channel_name2.Length > 0 Then
+                        first_channel_char2 = final_channel_name2.Substring(0, 1).ToLower
+                        Select Case first_channel_char2
+                            Case "a", "e", "i", "o", "u", "y"
+                                final_channel_name2 = "Chaîne d'" & final_channel_name2
+                            Case "é", "è", "ë", "ê", "ä", "à", "ô", "ö", "ò", "ÿ", "ü", "û", "ù", "å", "ã", "ì", "í", "î", "ï", "õ", "ø", "ú", "ý"
+                                final_channel_name2 = "Chaîne d'" & final_channel_name2
+                            Case "h"
+                                final_channel_name2 = "Chaîne d'" & final_channel_name2
+                            Case Else
+                                final_channel_name2 = "Chaîne de " & final_channel_name2
+                        End Select
+                    End If
+
+                    patternpage.AppendLine(InitValues(final_channel_name2, , wanted_skin, , used_player))
                     If channel_banner <> "about:blank" And output4.Contains("""id"": ""banner_uncropped""") Then patternpage.AppendLine("<BR><CENTER><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_banner) & "&amp;type=banner"" ALT=""Bannière de " & channel_name & """ WIDTH=600 HEIGHT=100 STYLE=""border-radius: 8px;"" /></CENTER><BR>")
-                    patternpage.AppendLine("<H1 CLASS=""black_label"">Chaîne de " & UnicodeJson(channel_name) & "</H1>")
+                    patternpage.AppendLine("<CENTER><H1 CLASS=""black_label"">" & final_channel_name2 & "</H1></CENTER>")
                     patternpage.AppendLine("<BR><CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=600>")
                     patternpage.AppendLine(" <TR>")
                     patternpage.AppendLine("  <TD WIDTH=92 VALIGN=TOP>")
@@ -4884,10 +4899,28 @@ Module Program
 
                 Dim vid_identifiers() As String = output5.Split("<|>")
                 channel_num_vids = vid_identifiers.Count
-                patternpage.AppendLine(InitValues("Chaîne de " & channel_name, , wanted_skin, , used_player))
+
+                Dim final_channel_name As String = UnicodeJson(channel_name)
+                Dim first_channel_char As String = "x"
+
+                If final_channel_name.Length > 0 Then
+                    first_channel_char = final_channel_name.Substring(0, 1).ToLower
+                    Select Case first_channel_char
+                        Case "a", "e", "i", "o", "u", "y"
+                            final_channel_name = "Chaîne d'" & final_channel_name
+                        Case "é", "è", "ë", "ê", "ä", "à", "ô", "ö", "ò", "ÿ", "ü", "û", "ù", "å", "ã", "ì", "í", "î", "ï", "õ", "ø", "ú", "ý"
+                            final_channel_name = "Chaîne d'" & final_channel_name
+                        Case "h"
+                            final_channel_name = "Chaîne d'" & final_channel_name
+                        Case Else
+                            final_channel_name = "Chaîne de " & final_channel_name
+                    End Select
+                End If
+
+                patternpage.AppendLine(InitValues(final_channel_name, , wanted_skin, , used_player))
 
                 If channel_banner <> "about:blank" And output4.Contains("""id"": ""banner_uncropped""") Then patternpage.AppendLine("<BR><CENTER><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_banner) & "&amp;type=banner"" ALT=""Bannière de " & channel_name & """ WIDTH=600 HEIGHT=100 STYLE=""border-radius: 8px;"" /></CENTER><BR>")
-                patternpage.AppendLine("<H1 CLASS=""black_label"">Chaîne de " & UnicodeJson(channel_name) & "</H1>")
+                patternpage.AppendLine("<CENTER><H1 CLASS=""black_label"">" & final_channel_name & "</H1></CENTER>")
                 patternpage.AppendLine("<BR><CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=600>")
                 patternpage.AppendLine(" <TR>")
                 patternpage.AppendLine("  <TD WIDTH=92 VALIGN=TOP>")
@@ -4911,7 +4944,7 @@ Module Program
                     Else
                         Dim actually_found As Boolean = False
 
-                        compiledpage &= "<CENTER><TABLE BORDER=0 WIDTH=400 CELLSPACING=16>" & vbCrLf
+                        compiledpage &= "<CENTER><TABLE BORDER=0 WIDTH=400 CELLPADDING=8 CELLSPACING=0>" & vbCrLf
                         For Each fe As String In found_elements
                             Dim found_playlist_title As String = "(Sans titre)"
                             Dim found_playlist_thumbnail As String = "about:blank"
@@ -4942,7 +4975,7 @@ Module Program
                                 f_counter += 1
 
                                 If f_counter >= vid_offset * disp_vids_per_channel And f_counter < vid_offset * disp_vids_per_channel + disp_vids_per_channel Then
-                                    compiledpage &= " <TR>" & vbCrLf
+                                    compiledpage &= " <TR CLASS=""survol"">" & vbCrLf
                                     compiledpage &= "  <TD VALIGN=TOP WIDTH=160>" & vbCrLf
                                     compiledpage &= "   <A HREF=""/playlist.cgi?id=" & found_playlist_id & """ TARGET=""_new"">" & vbCrLf
                                     compiledpage &= "    <IMG SRC=""playhead.gif"" ALT=""Playlist"" /><BR>" & vbCrLf
@@ -4975,15 +5008,15 @@ Module Program
                             compiledpage &= "<FORM METHOD=""GET"" ACTION=""/channel.cgi"">" & vbCrLf
 
                             If vid_offset <> 0 Then
-                                compiledpage &= "<LABEL>&larr;&nbsp;<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset)) & """>Page précédente</A></LABEL>&nbsp;|&nbsp;"
+                                compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;"
                             Else
-                                compiledpage &= "<LABEL>&larr;&nbsp;Page précédente</LABEL>&nbsp;|&nbsp;"
+                                compiledpage &= "<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;"
                             End If
 
                             If vid_offset <> max_page - 1 Then
-                                compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante</A> &rarr;</LABEL>&nbsp;|&nbsp;"
+                                compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;"
                             Else
-                                compiledpage &= "<LABEL>Page suivante &rarr;</LABEL>&nbsp;|&nbsp;"
+                                compiledpage &= "<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;"
                             End If
 
                             compiledpage &= "<LABEL>Page " & CInt(vid_offset + 1).ToString & " sur " & max_page.ToString & "&nbsp;|&nbsp;Aller à la page: </LABEL>" & vbCrLf
@@ -5003,7 +5036,7 @@ Module Program
 
                     Dim vc As Integer = 0
 
-                    compiledpage &= "<CENTER><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=24>" & vbCrLf
+                    compiledpage &= "<CENTER><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=24 CELLSPACING=0>" & vbCrLf
                     compiledpage &= " <TR>" & vbCrLf
 
                     For i As Integer = vid_offset * disp_vids_per_channel To vid_offset * disp_vids_per_channel + disp_vids_per_channel - 1
@@ -5098,23 +5131,31 @@ Module Program
 
                                 vc += 1
 
-                                compiledpage &= "  <TD WIDTH=160 VALIGN=TOP>" & vbCrLf
+                                compiledpage &= "  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">" & vbCrLf
 
                                 'If vid_section = "shorts" Then
                                 '    patternpage &= "   <CENTER><A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&type=short"" ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=100 HEIGHT=180 CLASS=""thumbshort"" /></A></CENTER><BR>" & vbCrLf
-                                'Else 'Les miniatures des shorts ne sont pas implémentées. YouTube renvoie des miniatures horizontales, croppées, avec un filigrane (ce qui est déjà opérationnel).
-                                compiledpage &= "   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>" & vbCrLf
+                                'Else 'Les miniatures des shorts ne sont pas actuellement implémentées. YouTube renvoie des miniatures horizontales, croppées, avec un filigrane (ce qui est déjà opérationnel).
                                 'End If
 
-                                compiledpage &= "   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>"
-                                If display_stream_button Then compiledpage &= " <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>"
-                                compiledpage &= "<BR>" & vbCrLf
-                                compiledpage &= "Date:&nbsp;" & tmp_prop.DateOfRelease & "<BR>Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>" & vbCrLf
-                                compiledpage &= "  </TD>" & vbCrLf
+                                If String.IsNullOrEmpty(tmp_prop.ID) OrElse tmp_prop.ID.Length = 0 Then
+                                    compiledpage &= "   <IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /><BR>" & vbCrLf
+                                    compiledpage &= "   <P>" & tmp_prop.Title & "<BR>" & vbCrLf
+                                    compiledpage &= "Date:&nbsp;" & tmp_prop.DateOfRelease & "<BR>Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>" & vbCrLf
+                                    compiledpage &= "  </TD>" & vbCrLf
+                                Else
+                                    compiledpage &= "   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>" & vbCrLf
+                                    compiledpage &= "   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>"
+                                    If display_stream_button Then compiledpage &= " <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>"
+                                    compiledpage &= "<BR>" & vbCrLf
+                                    compiledpage &= "Date:&nbsp;" & tmp_prop.DateOfRelease & "<BR>Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>" & vbCrLf
+                                    compiledpage &= "  </TD>" & vbCrLf
+                                End If
+
                                 If (vc Mod 3 = 0) Then compiledpage &= " </TR>" & vbCrLf & vbCrLf & "  <TR>" & vbCrLf
                             Else
                                 vc += 1
-                                compiledpage &= "  <TD WIDTH=160 VALIGN=TOP>" & vbCrLf
+                                compiledpage &= "  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">" & vbCrLf
                                 compiledpage &= "   <!-- Data error: VID_ID.Length=" & vid_identifiers.Length.ToString & " -->" & vbCrLf
                                 compiledpage &= "  </TD>" & vbCrLf
                                 If (vc Mod 3 = 0) Then compiledpage &= " </TR>" & vbCrLf & vbCrLf & "  <TR>" & vbCrLf
@@ -5132,15 +5173,15 @@ Module Program
                         compiledpage &= "<FORM METHOD=""GET"" ACTION=""/channel.cgi"">" & vbCrLf
 
                         If vid_offset <> 0 Then
-                            compiledpage &= "<LABEL>&larr;&nbsp;<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset)) & """>Page précédente</A></LABEL>&nbsp;|&nbsp;"
+                            compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;"
                         Else
-                            compiledpage &= "<LABEL>&larr;&nbsp;Page précédente</LABEL>&nbsp;|&nbsp;"
+                            compiledpage &= "<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;"
                         End If
 
                         If vid_offset <> max_page - 1 Then
-                            compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante</A> &rarr;</LABEL>&nbsp;|&nbsp;"
+                            compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;"
                         Else
-                            compiledpage &= "<LABEL>Page suivante &rarr;</LABEL>&nbsp;|&nbsp;"
+                            compiledpage &= "<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;"
                         End If
 
                         compiledpage &= "<LABEL>Page " & CInt(vid_offset + 1).ToString & " sur " & max_page.ToString & "&nbsp;|&nbsp;Aller à la page: </LABEL>" & vbCrLf
@@ -5396,8 +5437,8 @@ Module Program
                 playlist_num_vids = vid_identifiers.Count
                 patternpage.AppendLine(InitValues("Liste de lecture '" & playlist_name & "'", , wanted_skin, , used_player))
 
-                patternpage.AppendLine("<BR><CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=600 CELLPADDING=16>")
-                patternpage.AppendLine(" <TR>")
+                patternpage.AppendLine("<BR><CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=600 CELLPADDING=16 CELLSPACING=0>")
+                patternpage.AppendLine(" <TR CLASS=""survol"">")
                 patternpage.AppendLine("  <TD WIDTH=92 VALIGN=TOP><BR>")
                 patternpage.AppendLine("   <IMG SRC=""/playhead.gif"" ALT=""Liste de lecture"" /><BR>")
                 patternpage.AppendLine("   <IMG SRC=""/getpic.cgi?url=" & playlist_thumbnail & "&amp;type=thumbnail"" ALT=""Playlist de " & channel_title & """ WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" STYLE=""border: 1px solid black; border-radius: 0px; position: relative; top: -2px;"" />")
@@ -5415,7 +5456,7 @@ Module Program
 
                 Dim vc As Integer = 0
 
-                patternpage.AppendLine("<CENTER><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=24>")
+                patternpage.AppendLine("<CENTER><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=24 CELLSPACING=0>")
                 patternpage.AppendLine(" <TR>")
 
                 For i As Integer = vid_offset * disp_vids_per_channel To vid_offset * disp_vids_per_channel + disp_vids_per_channel - 1
@@ -5510,7 +5551,7 @@ Module Program
 
                             vc += 1
 
-                            patternpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP>")
+                            patternpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">")
                             patternpage.AppendLine("   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>")
                             patternpage.Append("   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>")
                             If display_stream_button Then patternpage.AppendLine(" <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>")
@@ -5637,11 +5678,15 @@ Module Program
                     End Try
                 End If
 
-                If current_offset > video_props.Count - 50 Then
-                    current_offset = video_props.Count - 50
+                If current_offset < 0 Then
+                    current_offset = 0
                 End If
 
-                If current_offset < 0 Then
+                If current_offset Mod 50 <> 0 Then 'Si l'utilisateur trafique l'offset pour naviguer sur 54 par exemple, ça va ramener à 50.
+                    current_offset -= current_offset Mod 50
+                End If
+
+                If current_offset >= video_props.Count Then
                     current_offset = 0
                 End If
 
@@ -5651,7 +5696,7 @@ Module Program
                     WriteLog("Cache des vidéos demandé. Il n'y a actuellement aucune vidéo en cache.", ConsoleColor.Blue, client)
                 Else
                     patternpage.AppendLine("<CENTER><H1>Il y a actuellement " & video_props.Count.ToString & " vidéo(s) en cache mémoire :</H1></CENTER><BR>")
-                    patternpage.AppendLine("<BR><CENTER><TABLE BORDER=1 ALIGN=CENTER CELLPADDING=4>")
+                    patternpage.AppendLine("<BR><CENTER><TABLE BORDER=1 ALIGN=CENTER CELLPADDING=4 CELLSPACING=0>")
 
                     Dim j As String() = video_props.Keys.ToArray
                     Dim max_page As Integer = Math.Ceiling(video_props.Count / 50)
@@ -5889,12 +5934,12 @@ Module Program
             patternpage.AppendLine(InitValues("Utiliser les paramètres GET", , wanted_skin, , used_player))
             WriteLog("Page des informations sur le paramétrage de GET demandée.", , client)
 
-            patternpage.AppendLine("<BR><CENTER><H1 CLASS=""black_label"">Comment utiliser les paramètres GET</H1><BR></CENTER>")
+            patternpage.AppendLine("<BR><CENTER><H1 CLASS=""black_label"">Comment utiliser les paramètres GET</H1></CENTER><BR>")
             patternpage.AppendLine("<CENTER><DIV STYLE=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;"">")
             patternpage.AppendLine("Si les cookies ne fonctionnent pas sur votre navigateur, et/ou que vous ne pouvez pas enregistrer les paramètres, ceux par défaut seront appliqués. Par conséquent, certaines fonctionnalités seront incompatibles avec votre configuration, et vous ne pourrez normalement pas lire les vidéos. Heureusement, RetroYT inclut une fonctionnalité pour remédier à cet éventuel manque. Pour modifier la configuration de la lecture sans passer par les cookies (et la sauvegarde du paramétrage qui utilise une requête POST), vous pouvez ajouter des paramètres GET dans l'URL qui suit le modèle: <I>/watch?v=xxxxxxxxxxx</I>. Ce sont les mêmes attributs que ceux utilisés dans la requête POST ou dans le cookie lui-même. Vous pouvez changer le type de lecteur utilisé, la taille du lecteur, le format vidéo utilisé, le nombre d'images par seconde et la résolution, tout cela via l'URL.<BR><BR><BR>")
 
             patternpage.AppendLine("<CENTER><B>Le lecteur utilisé dans la page de visualisation se change via l'entête <I>player</I> avec pour paramètre un des éléments suivants&nbsp;:</B><BR><BR>")
-            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 ALIGN=CENTER WIDTH=500>")
+            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 ALIGN=CENTER WIDTH=500>")
             patternpage.AppendLine(" <TR><TD>no_integration</TD><TD>Aucune intégration multimédia</TD></TR>")
             patternpage.AppendLine(" <TR><TD>legacy_wmp</TD><TD>Usage du lecteur Windows Media Player 6.4</TD></TR>")
             patternpage.AppendLine(" <TR><TD>wmp</TD><TD>Usage du lecteur Windows Media Player 7.0</TD></TR>")
@@ -5916,7 +5961,7 @@ Module Program
             patternpage.AppendLine()
 
             patternpage.AppendLine("<CENTER><B>La taille du lecteur multimédia intégré dans la page de visualisation se règle avec l'entête <I>size</I>, suivi par un des paramètres suivants&nbsp;:</B><BR><BR>")
-            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 ALIGN=CENTER>")
+            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 ALIGN=CENTER>")
             patternpage.AppendLine(" <TR><TD>auto</TD><TD>Taille du lecteur gérée par Javascript (Qui doit être disponible et activé)</TD></TR>")
             patternpage.AppendLine(" <TR><TD>micro</TD><TD>Taille du lecteur 160x120 pixels (Pour les écrans de portables)</TD></TR>")
             patternpage.AppendLine(" <TR><TD>ultrasmall</TD><TD>Taille du lecteur 256x192 pixels</TD></TR>")
@@ -5935,7 +5980,7 @@ Module Program
             patternpage.AppendLine()
 
             patternpage.AppendLine("<CENTER><B>Le format vidéo utilisé pour la lecture a pour entête <I>codec</I>, qui est accompagnée d'un des paramètres suivants&nbsp;:</B><BR><BR>")
-            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 ALIGN=CENTER>")
+            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 ALIGN=CENTER>")
             patternpage.AppendLine(" <TR><TD>mpeg1</TD><TD>Choix du format MPEG, 100% compatible.</TD></TR>")
             patternpage.AppendLine(" <TR><TD>recent_mpeg1</TD><TD>Choix du format MPEG, codec vidéo MPEG-1, codec audio MP2. Format plus léger que le premier en MPEG-1, mais toujours très rétrocompatible.</TD></TR>")
             patternpage.AppendLine(" <TR><TD>avi_mpeg4</TD><TD>Choix du format AVI (Microsoft), codec vidéo MPEG-4, codec audio MP3. Conseillé sous Windows 98SE.</TD></TR>")
@@ -5959,7 +6004,7 @@ Module Program
             patternpage.AppendLine()
 
             patternpage.AppendLine("<CENTER><B>Le nombre d'images est paramétré avec l'entête <I>framerate</I> suivi du nombre d'images voulues UNIQUEMENT parmi cette liste&nbsp;:</B><BR><BR>")
-            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 ALIGN=CENTER>")
+            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 ALIGN=CENTER>")
             patternpage.AppendLine(" <TR><TD>auto</TD><TD>Meilleur nombre d'images par seconde pour le format vidéo voulu [Par défaut].</TD></TR>")
             patternpage.AppendLine(" <TR><TD>10</TD><TD>10 images par seconde (Pour les très vieux ordinateurs)</TD></TR>")
             patternpage.AppendLine(" <TR><TD>12</TD><TD>12 images par seconde</TD></TR>")
@@ -5973,7 +6018,7 @@ Module Program
             patternpage.AppendLine()
 
             patternpage.AppendLine("<CENTER><B>La résolution de la vidéo, intitulée <I>resolution</I>, peut être choisie parmi les paramètres suivants&nbsp;:</B><BR><BR>")
-            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 ALIGN=CENTER>")
+            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 ALIGN=CENTER>")
             patternpage.AppendLine(" <TR><TD>auto</TD><TD>Meilleure résolution choisie par le serveur, pour chaque format voulu</TD></TR>")
             patternpage.AppendLine(" <TR><TD>96p</TD><TD>Résolution minimale, surtout utile pour le format 3GP</TD></TR>")
             patternpage.AppendLine(" <TR><TD>120p</TD><TD>Résolution très faible</TD></TR>")
@@ -6225,9 +6270,9 @@ Module Program
                                 patternpage.AppendLine()
                             Else
                                 'Sinon, on affiche les résultats dans la page Web.
-                                patternpage.AppendLine(" <BR><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Actualités de YouTube :</FONT></B></P><BR><BR>")
+                                patternpage.AppendLine(" <BR><CENTER><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Actualités de YouTube :</FONT></B></P></CENTER><BR><BR>")
                                 patternpage.AppendLine()
-                                patternpage.AppendLine("  <CENTER><TABLE BORDER=0 CELLPADDING=8 WIDTH=600 ALIGN=CENTER>")
+                                patternpage.AppendLine("  <CENTER><TABLE BORDER=0 CELLPADDING=8 CELLSPACING=0 WIDTH=600 ALIGN=CENTER>")
 
                                 Dim vc As Integer = 0
 
@@ -6296,7 +6341,7 @@ Module Program
                                         vc += 1
 
                                         'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
-                                        patternpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP>")
+                                        patternpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">")
                                         patternpage.AppendLine("   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>")
                                         patternpage.Append("   <A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>")
                                         If display_stream_button Then patternpage.AppendLine(" <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>")
@@ -6691,6 +6736,12 @@ Module Program
                         sent_css &= " width: 584px;" & vbCrLf
                         sent_css &= " line-height: 24px;" & vbCrLf
                         sent_css &= " }" & vbCrLf & vbCrLf
+
+                        sent_css &= ".survol:hover {" & vbCrLf
+                        sent_css &= " background-color: rgb(192, 225, 255);" & vbCrLf
+                        sent_css &= " background-color: rgba(192, 225, 255, 0.5);" & vbCrLf
+                        sent_css &= " !background-color: rgb(192, 225, 255);" & vbCrLf
+                        sent_css &= "}" & vbCrLf & vbCrLf
 
                         sent_res &= "Content-Type: text/css" & vbCrLf
                         sent_res &= "Connection: close" & vbCrLf
