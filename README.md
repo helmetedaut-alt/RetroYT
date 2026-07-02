@@ -97,9 +97,11 @@ La version 5.x ajoute le volet de suggestions, à droite des vidéos (entre autr
 
 La version 6.0 ajoute la navigation sur les chaînes, l'affichage des commentaires, et un simulacre de flux principal sur la page d'index. Il est désactivé par défaut, car il lance une recherche qui peut rendre le chargement plus long.
 
-La version 8.0 apporte des corrections majeures, une mise à jour de l'interface serveur et client, et la prise en charge des émojis.
+La version 8.0 apporte des corrections majeures, une mise à jour de l'interface serveur et client, et la prise en charge partielle des émojis.
 
-Une page de débug est disponible en naviguant sur http://serveur/debug.cgi
+La version 9.0 apporte les volets droits pour les listes de lecture, implémente les Shorts (avec un volet droit aussi, naviguer sur /short est désormais possible) et quelques boutons de navigation, ainsi que des corrections de bugs et d'affichage. Il y a aussi la section "lives" qui a été ajoutée. Dans le code, certaines fonctions ont été factorisées pour être plus optimisées. Dans les paramètres, on peut choisir la taille du lecteur vertical. En revanche, certains codecs sont indisponibles pour lire des vidéos verticales (comme MSVideo1, Cinepak, et le MPEG-1 dit "100% compatible"). Pour les très anciennes configurations, l'usage de MPEG-1 (dans sa version "récente") ou de RM sont conseillés, à condition d'installer les codecs et logiciels nécessaires (comme Real Player 5.0 sous Windows 3.11).
+
+Une page de débug est disponible en naviguant sur http://serveur/debug.cgi.
 
 Une page pour consulter les vidéos en cache est disponible sur http://serveur/cache.cgi mais seules les IP locales peuvent y accéder, pour des raisons de confidentialité.
 
