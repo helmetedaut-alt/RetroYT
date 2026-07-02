@@ -9,7 +9,7 @@ Imports System.Text.RegularExpressions
 
 Module Program
 
-    'Projet RetroYT 8.0 codé par Monokeros en 2026
+    'Projet RetroYT 9.0 codé par Monokeros en 2026
     'Tous droits réservés. Licence freeware/open source.
 
     Public port As Integer = 80 'Port à écouter pour créer le serveur
@@ -27,11 +27,28 @@ Module Program
     Public ip_list As New Dictionary(Of String, Decimal) 'Liste des adresses IP connectés, et du nombre de requêtes par IP.
     Public log_lock As New Object
     Public up_since As Date = Nothing
-    Public main_stream As String = String.Empty
+    'Public main_stream As String = String.Empty
+    Public index_streams As New Dictionary(Of VideoCategories, String) 'Liste des vidéos contenues
+    Public playlist_list As New Dictionary(Of String, String)
+
+    Public Enum VideoCategories
+        Musique
+        Sports
+        Gaming
+        Education
+        Films
+        TVSeries
+        Nouvelles
+        Divertissement
+        Maximum
+    End Enum
+
+    Public Const max_wait As Integer = 1200000 '20 minutes
 
     Public list_used_player() As String = {"no_integration", "legacy_wmp", "wmp", "embed", "video", "realplayer", "activex_realplayer", "embed_vlc", "vlc", "alt_vlc", "quicktime", "embed_quicktime", "flash", "embed_flash", "activex_flash", "object", "alt_video"}
     Public list_skin() As String = {"oldyt", "cosmic", "dark", "modern", "rose", "aqua", "monochrome", "mint", "sunshine"}
-    Public list_playersize() As String = {"auto", "micro", "middle", "ultrasmall", "small", "large", "cinema", "bigcinema", "autoheight", "fullscreen", "fulljs", "gold1", "gold2", "cs", "vertical1", "vertical2", "eh", "ot", "otsh"}
+    Public list_playersize() As String = {"auto", "micro", "middle", "ultrasmall", "small", "large", "cinema", "bigcinema", "autoheight", "fullscreen", "fulljs", "gold1", "gold2", "cs", "vertical1", "vertical2", "eh", "ot", "otsh", "vertical3"}
+    Public list_vsize() As String = {"vert1", "vert2", "vert3", "vert0"}
     Public list_usedcodec() As String = {"mpeg1", "avi_mpeg4", "avi_msvideo1", "avi_mjpeg", "mp4", "rm", "wmv2", "mov_cinepak", "mov_svq1", "3gp", "avi_yuv", "flv", "wmv1", "mov_mpeg4", "avi_cinepak", "mov_rpza", "mov_mjpeg", "xvid", "recent_mpeg1", "legacy_mp4"}
     Public list_framerate() As String = {"auto", "10", "12", "15", "20", "24", "25", "30", "60"}
     Public list_resolution() As String = {"auto", "96p", "120p", "144p", "240p", "360p", "480p", "720p", "1080p"}
@@ -41,22 +58,25 @@ Module Program
 
     Public list_used_player_string() As String = {"Aucune intégration", "Windows Media Player 6.4 (ActiveX)", "Windows Media Player 7.0 ou plus (ActiveX)", "Intégration générique (Embarquée)", "Intégration vidéo HTML5", "Real Player (Embarqué)", "Real Player (ActiveX)", "Lecteur VLC (Embarqué)", "Lecteur VLC (ActiveX)", "Lecteur VLC (ActiveX avec un CLSID alternatif)", "Apple QuickTime (ActiveX)", "Apple QuickTime (Embarqué)", "Flash Player (Javascript)", "Flash Player (Embarqué)", "Flash Player (ActiveX)", "Intégration générique (Object)", "Vidéo HTML5 (Adaptée pour Android, Nintendo, PlayStation)"}
     Public list_skin_string() As String = {"Apparence classique", "Cosmic Tube", "Mode sombre", "Apparence moderne", "Thème rose", "Thème aquatique", "Apparence monochrome", "Thème menthe", "Thème doré"}
-    Public list_playersize_string() As String = {"Automatique (Avec Javascript)", "Taille micro au format 4:3 (160x120)", "Taille standard VGA au format 4:3 (640x480)", "Taille ultra compacte en format 4:3 (256x144)", "Taille compacte QVGA au format 4:3 (320x240)", "Taille petit cinéma au format 16:9 (854x480)", "Taille cinéma standard au format 16:9 (1280x720)", "Taille grand cinéma au format 16:9 (2560x1440)", "Automatique (En fonction du ratio de la vidéo)", "Plein écran (Proportionnellement à la taille du rendu via HTML)", "Plein écran (Avec Javascript)", "Taille standard 16:10 (1280x800)", "Taille grand 16:10 (1440x900)", "Taille classique de YouTube au format 4:3 (480x360)", "Taille verticale en 3:4 (360x480)", "Taille verticale 9:16 (720x1280)", "Taille moyenne en 4:3 (800x600)", "Grande taille en 4:3 (1024x768)", "Très grande taille en 4:3 (1600x1200)"}
+    Public list_playersize_string() As String = {"Automatique (Avec Javascript)", "Taille micro au format 4:3 (160x120)", "Taille standard VGA au format 4:3 (640x480)", "Taille ultra compacte en format 4:3 (256x144)", "Taille compacte QVGA au format 4:3 (320x240)", "Taille petit cinéma au format 16:9 (854x480)", "Taille cinéma standard au format 16:9 (1280x720)", "Taille grand cinéma au format 16:9 (2560x1440)", "Automatique (En fonction du ratio de la vidéo)", "Plein écran (Proportionnellement à la taille du rendu via HTML)", "Plein écran (Avec Javascript)", "Taille standard 16:10 (1280x800)", "Taille grand 16:10 (1440x900)", "Taille classique du lecteur YouTube au format 4:3 (480x360)", "Taille verticale classique en 9:16 (270x480)", "Taille verticale moyenne 9:16 (360x640)", "Taille moyenne en 4:3 (800x600)", "Grande taille en 4:3 (1024x768)", "Très grande taille en 4:3 (1600x1200)", "Taille verticale grande 9:16 (720x1280)"}
+    Public list_vsize_string() As String = {"Petite taille verticale", "Moyenne taille verticale", "Grande taille verticale", "Micro taille verticale"}
 
     Public http_status_labels(1024) As String
 
     'Pied de page générique à certaines pages.
-    Public footer As String = "<HR WIDTH=99% ALIGN=CENTER /><BR>" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT Bêta 8.0</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"" STYLE=""color: " & link_color & """>Plus d'informations sur RetroYT</A>.<BR><A HREF=""config.cgi"">Paramètres du client</A> - <A HREF=""debug.cgi"">Débogage</A> - <A HREF=""cache.cgi"">Cache des vidéos</A> - <A HREF=""/lucky"">Mode chanceux</A></P>" & vbCrLf &
-    "<!-- Préchargement des images utilisées par les différents skins -->" & vbCrLf & "<IMG SRC=""btn_mint.png"" alt=""Button Mint Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_mint.png"" alt=""Button Mint Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_gold.png"" alt=""Button Gold Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_gold.png"" alt=""Button Gold Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf & "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
+    Public footer As String = "<P ALIGN=CENTER STYLE=""display: block; background-color: black; color: white; border-radius: 4px; padding: 4px 4px 4px 4px; margin-left: auto; margin-right: auto; text-align: center; width: 580px;""><B>RetroYT Bêta 9.0</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.</P><P ALIGN=CENTER><A HREF=""/feed"" STYLE=""color: " & link_color & """>Index</A> - <A HREF=""/about.htm"" STYLE=""color: " & link_color & """>Informations</A> - <A HREF=""config.cgi"">Paramètres</A> - <A HREF=""debug.cgi"">Débogage</A> - <A HREF=""cache.cgi"">Cache des vidéos</A> - <A HREF=""/lucky"">Mode chanceux</A></P>" & vbCrLf &
+    "<!-- Préchargement des images utilisées par les différents skins -->" & vbCrLf & "<IMG SRC=""btn_mint.png"" alt=""Button Mint Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_mint.png"" alt=""Button Mint Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_gold.png"" alt=""Button Gold Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_gold.png"" alt=""Button Gold Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf & "<BR><BR></BODY>" & vbCrLf & "</HTML>" & vbCrLf
 
     Public Const cookie_header As String = "retroyt="
     Public vt As RequestVideoType = RequestVideoType.WatchVideo
+    Public shortdic As New Dictionary(Of String, ShortRelative)
 
     Public Enum RequestVideoType
-        WatchVideo 'Regarder une vidéo directement, intégrée dans une page HTML
-        StreamVideo 'Regarder une vidéo directement, envoyée sous forme de flux
-        LuckyVideo 'Chercher un tag, et retourner la première vidéo trouvée
+        WatchVideo 'Regarder une vidéo directement, intégrée dans une page HTML.
+        StreamVideo 'Regarder une vidéo directement, envoyée sous forme de flux.
+        LuckyVideo 'Chercher un tag, et retourner la première vidéo trouvée.
         SearchVideo 'Chercher une vidéo et retourner une liste formatée en une page Web interprétable par un navigateur.
+        ShortVideo 'Les vidéos courtes qui sont apparues sur YouTube vers la fin des années 2010.
     End Enum
 
     Public Class VideoProperties
@@ -67,12 +87,17 @@ Module Program
         Public Creator As String = "(Créateur inconnu)"
         Public Channel_URL As String = "about:blank"
         Public DateOfRelease As String = "1 jan. 1970"
-        Public Duration As String = "?:??"
+        Public Duration As Integer = -1
         Public Views As String = "0"
         Public DateAdded As Date = New Date(1970, 1, 1)
         Public Thumbnail As String = "about:blank"
         Public Like_Count As String = "na"
         Public Dislike_Count As String = "na"
+    End Class
+
+    Public Class ShortRelative
+        Public UpShort As String = String.Empty
+        Public DownShort As String = String.Empty
     End Class
 
     Public Class YoutubeComments
@@ -82,6 +107,13 @@ Module Program
         Public timestamp As Integer
         Public author_url As String
         Public author_thumbnail As String
+    End Class
+
+    Public Class OutputResponse
+        Public OutputData As String = String.Empty
+        Public ErrorData As String = String.Empty
+        Public HasErrors As Boolean = False
+        Public ExceptionMessage As String = "Aucun message spécifié."
     End Class
 
     Function IsNetworkAvailable() As Boolean
@@ -110,8 +142,131 @@ Module Program
         Return "http://" & last_host & "/"
     End Function
 
-    Function UnicodeJson(ByVal t As String) As String
+    Function LaunchProcess(ByVal file_args As String, Optional ByVal file_name As String = "yt-dlp.exe", Optional lock_file As String = Nothing, Optional last_view As String = Nothing, Optional ByVal wait_delay As Integer = max_wait) As OutputResponse
+        Dim op As New OutputResponse
+        Dim psi As New ProcessStartInfo()
+        Dim add_cookie As String = String.Empty
+        psi.FileName = file_name
+        psi.Arguments = file_args.Trim
 
+        If psi.FileName = "yt-dlp.exe" Then
+            If IO.File.Exists("cookies.txt") Then
+                add_cookie &= " --cookies cookies.txt"
+                WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+            End If
+            psi.Arguments &= " --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 OPR/131.0.0.0""" & add_cookie
+            psi.RedirectStandardOutput = True
+            psi.RedirectStandardError = True
+            psi.StandardOutputEncoding = Encoding.UTF8
+            psi.StandardErrorEncoding = Encoding.UTF8
+        End If
+
+        psi.UseShellExecute = False
+        psi.CreateNoWindow = True
+
+        Try
+            Dim p As Process = Process.Start(psi)
+
+            If String.IsNullOrEmpty(lock_file) = False Then
+                IO.File.WriteAllText(lock_file, p.Id.ToString & vbCrLf & GetMD5(last_view))
+            End If
+
+            If psi.FileName = "yt-dlp.exe" Then
+                op.OutputData = p.StandardOutput.ReadToEnd()
+                op.ErrorData = p.StandardError.ReadToEnd()
+            End If
+
+            p.WaitForExit(wait_delay)
+
+            If Not String.IsNullOrEmpty(lock_file) Then
+                IO.File.Delete(lock_file)
+            End If
+        Catch ex As Exception
+            op.HasErrors = True
+            op.ExceptionMessage = ex.Message
+        End Try
+
+        Return op
+    End Function
+
+    Function GetVideo(ByVal watcharg As String) As VideoProperties
+        SyncLock video_props
+            Dim tmp_prop As New VideoProperties
+
+            If video_props.Count > 1000 Then
+                Do Until video_props.Count = 1000
+                    video_props.Remove(video_props.Keys(0))
+                Loop
+            End If
+
+            If Not video_props.ContainsKey(watcharg) Then
+                Dim add_cookie As String = String.Empty
+                If IO.File.Exists("cookies.txt") Then
+                    add_cookie &= " --cookies cookies.txt"
+                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
+                End If
+
+                Dim get_video_info As OutputResponse = LaunchProcess("--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s"" ""https://www.youtube.com/watch?v=" & watcharg & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 OPR/131.0.0.0""" & add_cookie)
+                Dim output As String = get_video_info.OutputData
+                output = output.Replace(vbLf, String.Empty)
+                output = output.Replace(vbCr, String.Empty)
+                If output.EndsWith("<|>") Then output = output.Remove(output.Length - 3, 3)
+
+                Dim err As String = get_video_info.ErrorData
+                Dim output_elements() As String = Nothing
+
+                Try
+                    output_elements = output.Split("<|>")
+
+                    For i As Integer = 0 To output_elements.Count - 1
+                        For j As Integer = 0 To &H1F
+                            output_elements(i) = output_elements(i).Replace(Chr(j), String.Empty)
+                        Next
+                    Next
+
+                    output_elements(9) = output_elements(9).Replace(vbCrLf, "<BR>")
+                    output_elements(9) = output_elements(9).Replace(vbCr, "<BR>")
+                    output_elements(9) = output_elements(9).Replace(vbLf, "<BR>")
+
+                    tmp_prop.ID = output_elements(0)
+                    tmp_prop.Title = CleanText(output_elements(1))
+                    tmp_prop.Views = IIf(LCase(output_elements(2)) = "na", "0", GetThousands(output_elements(2)))
+                    tmp_prop.DateOfRelease = GetDate(output_elements(3))
+                    tmp_prop.Creator = CleanText(output_elements(4))
+                    tmp_prop.Thumbnail = output_elements(5)
+                    tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(output_elements(10) & "&amp;section=videos")
+                    tmp_prop.Like_Count = output_elements(11)
+                    tmp_prop.Dislike_Count = output_elements(12)
+
+                    If LCase(output_elements(6)) = "na" Then
+                        tmp_prop.Duration = -1
+                    Else
+                        'tmp_prop.Duration = GetDuration(output_elements(6))
+                        tmp_prop.Duration = CInt(output_elements(6))
+                    End If
+
+                    tmp_prop.Description = IIf(String.IsNullOrEmpty(output_elements(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(output_elements(9))))
+                    If tmp_prop.Description.Length > 2048 Then tmp_prop.Description = tmp_prop.Description.Substring(0, 2048) & "..."
+                    tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
+                    tmp_prop.Description = tmp_prop.Description.Replace(vbCr, "<BR>")
+                    tmp_prop.Description = tmp_prop.Description.Replace(vbLf, "<BR>")
+
+                    tmp_prop.Dimensions = IIf(IsNumeric(output_elements(7)), output_elements(7), 640) & ":" & IIf(IsNumeric(output_elements(8)), output_elements(8), 480)
+                    tmp_prop.DateAdded = Now
+
+                    video_props.Add(watcharg, tmp_prop)
+                Catch ex As Exception
+
+                End Try
+            Else
+                tmp_prop = video_props(watcharg)
+            End If
+
+            Return tmp_prop
+        End SyncLock
+    End Function
+
+    Function UnicodeJson(ByVal t As String) As String
         'Faire l'échappement avant, histoire que le code HTML des émojis ne saute pas.
         t = EscapeHtml(t)
 
@@ -135,9 +290,13 @@ Module Program
             Loop
         End If
 
-        'Prise en charge des émojis -> smileys ASCII
+        'Certains caractères spéciaux
         t = t.Replace("\u0153", "oe")
         t = t.Replace("\u2019", "'")
+        t = t.Replace("\u201c", """")
+        t = t.Replace("\u201d", """")
+
+        'Prise en charge des émojis -> smileys ASCII
         t = t.Replace("\ud83d\ude00", "<IMG SRC=""/e_smile1.gif"" ALT="":-)"" />")
         t = t.Replace("\ud83d\ude01", "<IMG SRC=""/e_smile2.gif"" ALT="":-D"" />")
         t = t.Replace("\ud83d\ude02", "<IMG SRC=""/e_laugh2.gif"" ALT="":')"" />")
@@ -287,7 +446,7 @@ Module Program
         Return t
     End Function
 
-    Function InitValues(Optional ByVal t As String = Nothing, Optional ByVal k As String = Nothing, Optional ByVal wanted_skin As String = "cosmic", Optional ByVal lucky As Boolean = False, Optional ByVal uplayer As String = "na", Optional ByVal disp_search As Boolean = True) As String
+    Function InitValues(Optional ByVal t As String = Nothing, Optional ByVal k As String = Nothing, Optional ByVal wanted_skin As String = "cosmic", Optional ByVal lucky As Boolean = False, Optional ByVal uplayer As String = "na", Optional ByVal disp_search As Boolean = True, Optional ByVal large_footer As Boolean = False) As String
         System.Threading.Thread.Sleep(100)
         'Cette fonction génère une entête et un corps de page HTML de base à retourner au client.
         Dim total_page As String = String.Empty
@@ -372,7 +531,7 @@ Module Program
         total_page &= " <CENTER><BR><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=4 CELLSPACING=0>" & vbCrLf
         total_page &= "  <TR>" & vbCrLf
         'patternpage &= "   <TD WIDTH=90>&nbsp;</TD>" & vbCrLf
-        total_page &= "   <TD VALIGN=CENTER HEIGHT=80><A HREF=""/""><IMG SRC=""" & used_logo & """ BORDER=0 ALT=""Logo RetroYT"" HEIGHT=44 /></A></TD>" & vbCrLf
+        total_page &= "   <TD VALIGN=CENTER HEIGHT=80><A HREF=""/feed""><IMG SRC=""" & used_logo & """ BORDER=0 ALT=""Logo RetroYT"" HEIGHT=44 /></A></TD>" & vbCrLf
 
         If wanted_skin = "modern" Then
             total_page &= "   <TD VALIGN=CENTER HEIGHT=80><INPUT NAME=""q"" VALUE=""" & k & """ STYLE=""width: 300px;"" WIDTH=300 SIZE=54 MAXLENGTH=256 /></TD>" & vbCrLf
@@ -389,12 +548,16 @@ Module Program
         total_page &= "  </TR>" & vbCrLf
         total_page &= " </TABLE><BR></CENTER>" & vbCrLf
         total_page &= " </FORM>" & vbCrLf
-        total_page &= " <HR WIDTH=99% ALIGN=CENTER /><BR>" & vbCrLf & vbCrLf
 
-        footer = "<HR WIDTH=99% ALIGN=CENTER /><BR>" & vbCrLf & "<P ALIGN=CENTER><B>RetroYT Bêta 8.0</B> - Copyright &copy; 2026, tous droits réservés. YouTube est une propriété de Google.<BR>"
-        footer &= "Ce projet n'est pas affilié avec cette entreprise. <A HREF=""/about.htm"">Plus d'informations sur RetroYT</A>.<BR><A HREF=""config.cgi"">Paramètres du client</A> - <A HREF=""debug.cgi"">Débogage</A> - <A HREF=""cache.cgi"">Cache des vidéos</A> - <A HREF=""/lucky"">Mode chanceux</A></P>" & vbCrLf
+        If large_footer Then
+            footer = "<P ALIGN=CENTER STYLE=""display: block; background-color: black; color: white; border-radius: 4px; padding: 8px 4px 8px 4px; margin-left: auto; margin-right: auto; text-align: center; width: 780px;""><B>RetroYT Bêta 9.0</B> Copyright &copy; 2026 Tous droits réservés.</P>"
+        Else
+            footer = "<P ALIGN=CENTER STYLE=""display: block; background-color: black; color: white; border-radius: 4px; padding: 8px 4px 8px 4px; margin-left: auto; margin-right: auto; text-align: center; width: 580px;""><B>RetroYT Bêta 9.0</B> Copyright &copy; 2026 Tous droits réservés.</P>"
+        End If
+
+        footer &= "<P ALIGN=CENTER><A HREF=""/feed"" STYLE=""color: " & link_color & """>Index</A> - <A HREF=""/about.htm"">Informations</A> - <A HREF=""config.cgi"">Paramètres</A> - <A HREF=""debug.cgi"">Débogage</A> - <A HREF=""cache.cgi"">Cache des vidéos</A> - <A HREF=""/lucky"">Mode chanceux</A></P>" & vbCrLf
         footer &= "<!-- Préchargement des images utilisées par les différents skins -->" & vbCrLf & "<IMG SRC=""btn_aqua.png"" alt=""Button Aqua Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_aqua.png"" alt=""Button Aqua Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_grad.png"" alt=""Button Red Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_grad.png"" alt=""Button Red Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_pink.png"" alt=""Button Pink Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_pink.png"" alt=""Button Pink Hot"" WIDTH=1 HEIGHT=1 /><IMG SRC=""btn_gold.png"" alt=""Button Gold Cold"" WIDTH=1 HEIGHT=1 /><IMG SRC=""hot_gold.png"" alt=""Button Gold Hot"" WIDTH=1 HEIGHT=1 />" & vbCrLf
-        footer &= "</BODY>" & vbCrLf & "</HTML>" & vbCrLf
+        footer &= "<BR><BR></BODY>" & vbCrLf & "</HTML>" & vbCrLf
         Return total_page
     End Function
 
@@ -671,7 +834,12 @@ Module Program
         text = text.Replace("’", "'")
         text = text.Replace("+", " ")
         text = text.Replace("|", "-")
-        text = Uri.UnescapeDataString(text)
+
+        Try
+            text = Uri.UnescapeDataString(text)
+        Catch ex As Exception
+            'Aucun décodage des échappements HTML
+        End Try
 
         'Remove non Latin-1
         Dim sb As New Text.StringBuilder()
@@ -680,6 +848,7 @@ Module Program
                 sb.Append(c)
             End If
         Next
+
         text = sb.ToString()
 
         'Normaliser les espaces
@@ -689,11 +858,7 @@ Module Program
 
         text = text.Trim()
 
-        If String.IsNullOrEmpty(text) Then
-            text = "(Sans titre)"
-        End If
-
-        If text.Length = 0 Then
+        If String.IsNullOrEmpty(text) OrElse text.Length = 0 Then
             text = "(Sans titre)"
         End If
 
@@ -744,17 +909,87 @@ Module Program
     End Function
 
     Function EscapeHtml(ByVal h As String) As String
+        'Conversion des caractères cyrilliques
+        h = h.Replace("а", "a")
+        h = h.Replace("б", "b")
+        h = h.Replace("в", "v")
+        h = h.Replace("г", "g")
+        h = h.Replace("д", "d")
+        h = h.Replace("е", "e")
+        h = h.Replace("ё", "ë")
+        h = h.Replace("ж", "zh")
+        h = h.Replace("з", "z")
+        h = h.Replace("и", "i")
+        h = h.Replace("й", "j")
+        h = h.Replace("к", "k")
+        h = h.Replace("л", "l")
+        h = h.Replace("м", "m")
+        h = h.Replace("н", "n")
+        h = h.Replace("о", "o")
+        h = h.Replace("п", "p")
+        h = h.Replace("р", "r")
+        h = h.Replace("с", "s")
+        h = h.Replace("т", "t")
+        h = h.Replace("у", "u")
+        h = h.Replace("ф", "f")
+        h = h.Replace("х", "kh")
+        h = h.Replace("ц", "ts")
+        h = h.Replace("ч", "ch")
+        h = h.Replace("ш", "sh")
+        h = h.Replace("щ", "shch")
+        h = h.Replace("ъ", """")
+        h = h.Replace("ы", "y")
+        h = h.Replace("ь", "'")
+        h = h.Replace("э", "ye")
+        h = h.Replace("ю", "yu")
+        h = h.Replace("я", "ya")
+
+        h = h.Replace("А", "A")
+        h = h.Replace("Б", "B")
+        h = h.Replace("В", "V")
+        h = h.Replace("Г", "G")
+        h = h.Replace("Д", "D")
+        h = h.Replace("Е", "E")
+        h = h.Replace("Ё", "Ë")
+        h = h.Replace("Ж", "ZH")
+        h = h.Replace("З", "Z")
+        h = h.Replace("И", "I")
+        h = h.Replace("Й", "J")
+        h = h.Replace("К", "K")
+        h = h.Replace("Л", "L")
+        h = h.Replace("М", "M")
+        h = h.Replace("Н", "N")
+        h = h.Replace("О", "O")
+        h = h.Replace("П", "P")
+        h = h.Replace("Р", "R")
+        h = h.Replace("С", "S")
+        h = h.Replace("Т", "T")
+        h = h.Replace("У", "U")
+        h = h.Replace("Ф", "F")
+        h = h.Replace("Х", "KH")
+        h = h.Replace("Ц", "TS")
+        h = h.Replace("Ч", "CH")
+        h = h.Replace("Ш", "SH")
+        h = h.Replace("Щ", "SHCH")
+        h = h.Replace("Ъ", """")
+        h = h.Replace("Ы", "Y")
+        h = h.Replace("Ь", "'")
+        h = h.Replace("Э", "E")
+        h = h.Replace("Ю", "YU")
+        h = h.Replace("Я", "YA")
+
         'Les caractères inutiles ou qui peuvent menacer la sécurité du visualisateur.
         h = h.Replace("<", "&lt;")
         h = h.Replace(">", "&gt;")
         h = h.Replace("""", "&quot;")
+
         Return h
     End Function
 
     Function LooksLikeYoutubeID(id As String) As Boolean
         'Si l'ID communiqué est digne de YouTube, ou un truc pipé.
         If id.Length <> 11 Then Return False
-        Return System.Text.RegularExpressions.Regex.IsMatch(id, "^[a-zA-Z0-9_-]+$")
+        Return Regex.IsMatch(id, "^[a-zA-Z0-9_-]+$")
     End Function
 
     Sub WriteLog(ByVal line As String, Optional ByVal clr As ConsoleColor = ConsoleColor.Gray, Optional ByVal c As TcpClient = Nothing)
@@ -858,15 +1093,14 @@ Module Program
         'L'application démarre ici!
         Console.Title = "RetroYT"
 
+        Console.Clear()
         Console.WriteLine()
         Console.WriteLine()
         Console.BackgroundColor = ConsoleColor.Gray
         Console.ForegroundColor = ConsoleColor.Black
         Console.WriteLine(Space(Console.BufferWidth))
-        Console.Write("  RetroYT Bêta 8.0 - Copyright (c) 2026 Monokeros - Tous droits réservés.")
+        Console.Write("  RetroYT Bêta 9.0 - Copyright (c) 2026 Monokeros - Tous droits réservés.")
         Console.WriteLine(Space(Console.BufferWidth - 73))
-        'Console.Write("  ")
-        'Console.WriteLine(Space(Console.BufferWidth - 53))
         Console.WriteLine(Space(Console.BufferWidth))
         Console.WriteLine()
         Console.WriteLine()
@@ -898,31 +1132,83 @@ Module Program
             WriteLog("Application démarrée avec pour argument: " & Environment.GetCommandLineArgs(1))
             Dim portstring As String = Environment.GetCommandLineArgs(1)
 
-            If portstring = "cross" Then
-                'WriteSymbol()
-            Else
-                If IsNumeric(portstring) Then
-                    Try
-                        Dim tmp_port As Integer = CInt(portstring)
+            If IsNumeric(portstring) Then
+                Try
+                    Dim tmp_port As Integer = CInt(portstring)
 
-                        If tmp_port < 1 Or tmp_port > 65535 Then
-                            WriteLog("Le numéro de port spécifié en paramètre est invalide. Il doit être compris entre 1 et 65535.")
-                        Else
-                            port = tmp_port
-                        End If
-                    Catch ex As Exception
-                        WriteLog("Numéro de port illégal. Il doit être compris entre 1 et 65535.")
-                        Console.ReadKey()
-                        End
-                    End Try
-                Else
-                    WriteLog("Impossible de changer le numéro de port, car le paramètre '" & portstring & "' n'est pas un entier valide.")
-                End If
+                    If tmp_port < 1 Or tmp_port > 65535 Then
+                        WriteLog("Le numéro de port spécifié en paramètre est invalide. Il doit être compris entre 1 et 65535.")
+                    Else
+                        port = tmp_port
+                    End If
+                Catch ex As Exception
+                    WriteLog("Numéro de port illégal. Il doit être compris entre 1 et 65535.")
+                    Console.ReadKey()
+                    End
+                End Try
+            Else
+                WriteLog("Impossible de changer le numéro de port, car le paramètre '" & portstring & "' n'est pas un entier valide.")
             End If
         Else
             WriteLog("Aucun numéro de port spécifié en ligne de commande. Démarrage sur le port par défaut (80).")
             WriteLog("Pour changer le numéro, lancez RetroYT avec le numéro de port en paramètre immédiat.")
         End If
+
+        'Création des dossiers nécessaires à l'exécution du programme
+        If Not IO.Directory.Exists(CurDir() & "\data") Then IO.Directory.CreateDirectory(CurDir() & "\data")
+        If Not IO.Directory.Exists(CurDir() & "\thumbs") Then IO.Directory.CreateDirectory(CurDir() & "\thumbs")
+        If Not IO.Directory.Exists(CurDir() & "\vidcache") Then IO.Directory.CreateDirectory(CurDir() & "\vidcache")
+        If Not IO.Directory.Exists(CurDir() & "\srccache") Then IO.Directory.CreateDirectory(CurDir() & "\srccache")
+        If Not IO.Directory.Exists(CurDir() & "\srvlogs") Then IO.Directory.CreateDirectory(CurDir() & "\srvlogs")
+        If Not IO.Directory.Exists(CurDir() & "\prclocks") Then IO.Directory.CreateDirectory(CurDir() & "\prclocks")
+        If Not IO.Directory.Exists(CurDir() & "\comments") Then IO.Directory.CreateDirectory(CurDir() & "\comments")
+        If Not IO.Directory.Exists(CurDir() & "\tmp_pic") Then IO.Directory.CreateDirectory(CurDir() & "\tmp_pic")
+
+        'Nettoyer les fichiers en cours de décodage
+        CleanupLock()
+        CleanupDownload()
+        UpdateCache()
+
+        WriteLog("Base de données de vidéos en cours de construction, veuillez patienter... Cela peut prendre quelques minutes.")
+
+        Dim fm As Integer = 0
+
+        'Formation d'une base de données de vidéos pour l'index principal
+        While Not IsNetworkAvailable()
+            fm += 1
+            If fm >= 2 Then Console.CursorTop -= 3
+            WriteLog("Réseau Internet indisponible. Veuillez le rétablir afin de pouvoir continuer à utiliser RetroYT.          ")
+            System.Threading.Thread.Sleep(10000)
+        End While
+
+        For i As Integer = 0 To VideoCategories.Maximum - 1
+            Dim asked_tag As String = "actualités"
+            Select Case CType(i, VideoCategories)
+                Case VideoCategories.Divertissement
+                    asked_tag = "divertissement"
+                Case VideoCategories.Education
+                    asked_tag = "éducation"
+                Case VideoCategories.Films
+                    asked_tag = "films"
+                Case VideoCategories.Gaming
+                    asked_tag = "gaming"
+                Case VideoCategories.Musique
+                    asked_tag = "musique"
+                Case VideoCategories.Nouvelles
+                    asked_tag = "nouvelles"
+                Case VideoCategories.Sports
+                    asked_tag = "sports"
+                Case VideoCategories.TVSeries
+                    asked_tag = "podcasts"
+            End Select
+
+            Dim op_main_stream As OutputResponse = LaunchProcess("--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s<||>"" ""ytsearch9:" & asked_tag & """")
+            Dim output As String = op_main_stream.OutputData 'Récupération des résultats
+            output = output.Replace(vbLf, String.Empty)
+            output = output.Replace(vbCr, String.Empty)
+            If output.EndsWith("<||>") Then output = output.Remove(output.Length - 4, 4)
+            index_streams.Add(CType(i, VideoCategories), output) 'Ajout de vidéos en cache
+        Next
 
         'Démarrage du serveur
         Dim listener As New TcpListener(IPAddress.Any, port)
@@ -934,40 +1220,6 @@ Module Program
             Console.ReadKey()
             End
         End Try
-
-        'Création des dossiers nécessaires à l'exécution du programme
-        If Not IO.Directory.Exists(CurDir() & "\thumbs") Then
-            IO.Directory.CreateDirectory(CurDir() & "\thumbs")
-        End If
-
-        If Not IO.Directory.Exists(CurDir() & "\vidcache") Then
-            IO.Directory.CreateDirectory(CurDir() & "\vidcache")
-        End If
-
-        If Not IO.Directory.Exists(CurDir() & "\srccache") Then
-            IO.Directory.CreateDirectory(CurDir() & "\srccache")
-        End If
-
-        If Not IO.Directory.Exists(CurDir() & "\srvlogs") Then
-            IO.Directory.CreateDirectory(CurDir() & "\srvlogs")
-        End If
-
-        If Not IO.Directory.Exists(CurDir() & "\prclocks") Then
-            IO.Directory.CreateDirectory(CurDir() & "\prclocks")
-        End If
-
-        If Not IO.Directory.Exists(CurDir() & "\comments") Then
-            IO.Directory.CreateDirectory(CurDir() & "\comments")
-        End If
-
-        If Not IO.Directory.Exists(CurDir() & "\tmp_pic") Then
-            IO.Directory.CreateDirectory(CurDir() & "\tmp_pic")
-        End If
-
-        'Nettoyer les fichiers en cours de décodage
-        CleanupLock()
-        CleanupDownload()
-        UpdateCache()
 
         WriteLog("Serveur lancé sur le port " & port.ToString & " avec succès! En attente de connexions entrantes...")
         up_since = Now
@@ -981,7 +1233,7 @@ Module Program
         sw.Start()
 
         While True
-            Dim client = listener.AcceptTcpClient()
+            Dim client As TcpClient = listener.AcceptTcpClient()
             Dim t As New Threading.Thread(Sub() HandleClient(client))
             t.Start()
 
@@ -990,9 +1242,9 @@ Module Program
                     If ip_list.Count > 0 Then
                         For Each p As String In ip_list.Keys.ToList()
                             If ip_list(p) > 300 Then
-                                ip_list(p) = -1 'IP bannie, si sous une minute, elle dépasse 200 requêtes HTTP.
+                                ip_list(p) = -1 'L'IP est bannie, si en une minute, le client dépasse 300 requêtes HTTP.
                             Else
-                                ip_list(p) = 0
+                                ip_list(p) = 0 'Réinitialisation du compteur
                             End If
                         Next
                     End If
@@ -1023,12 +1275,39 @@ Module Program
             End If
         End While
 
-        Return Encoding.GetEncoding("iso-8859-1").GetString(bytes.ToArray())
+        Return iso.GetString(bytes.ToArray())
+    End Function
+
+    Function ConvertTo43(ByVal w As Integer, ByVal h As Integer) As Size
+        If w <= 0 Then Return New Size(0, 0)
+        If h <= 0 Then Return New Size(0, 0)
+
+        Do Until w / h <= 4 / 3
+            w -= 1
+        Loop
+        'w = (h * 4) / 3
+        If w Mod 2 = 1 Then w += 1
+
+        Return New Size(w, h)
+    End Function
+
+    Function ConvertTo169(ByVal w As Integer, ByVal h As Integer) As Size
+        If w <= 0 Then Return New Size(0, 0)
+        If h <= 0 Then Return New Size(0, 0)
+
+        Do Until w / h >= 16 / 9
+            w += 1
+        Loop
+        'w = (h * 16) / 9
+        If w Mod 2 = 1 Then w += 1
+
+        Return New Size(w, h)
     End Function
 
     Sub HandleClient(client As TcpClient)
         'Variables
         Dim player_size As String = "cs" 'Paramètres par défaut
+        Dim player_vsize As String = "vert1"
         Dim used_codec As String = "avi_mpeg4"
         Dim used_player As String = "embed"
         Dim used_resolution As String = "auto"
@@ -1093,7 +1372,7 @@ Module Program
         End SyncLock
 
         If String.IsNullOrEmpty(request) Then
-            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête vide</H1>" & vbCrLf & "<P>La requête HTTP est vide, et ne peut donc être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête vide</H1>" & vbCrLf & "<P>La requête HTTP est vide, et ne peut donc être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
             Try
                 If Not using_vlc Then stream.Write(baddata, 0, baddata.Length)
@@ -1170,6 +1449,12 @@ Module Program
                                     Case "size"
                                         If list_playersize.Contains(p2) Then
                                             player_size = p2
+                                        Else
+                                            bad_cookie = True
+                                        End If
+                                    Case "vsize"
+                                        If list_vsize.Contains(p2) Then
+                                            player_vsize = p2
                                         Else
                                             bad_cookie = True
                                         End If
@@ -1312,7 +1597,7 @@ Module Program
                             If cntnu.Contains(",") Then cntnu = cntnu.Substring(0, cntnu.IndexOf(","))
 
                             If cntnu = "-" Then
-                                Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                 Try
                                     stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -1328,7 +1613,7 @@ Module Program
                                 Dim echec As Boolean = False
 
                                 If String.IsNullOrEmpty(cntnu) Then
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -1355,7 +1640,7 @@ Module Program
 
                                         If echec Then
                                             'Lever une erreur
-                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                             Try
                                                 stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -1393,7 +1678,7 @@ Module Program
 
                                 If echec Then
                                     'Lever une erreur
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car l'offset demandé dans le fichier est invalide.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -1413,7 +1698,7 @@ Module Program
 
                                     If Not IsNumeric(param1) Or Not IsNumeric(param2) Then
                                         'Lever une erreur
-                                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                         Try
                                             stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -1445,7 +1730,7 @@ Module Program
                                         End Try
 
                                         If echec Then
-                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                            Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                             Try
                                                 stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -1459,7 +1744,7 @@ Module Program
                                     End If
                                 Else
                                     'Lever une erreur
-                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                    Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                     Try
                                         stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -1477,7 +1762,7 @@ Module Program
         Next
 
         If bad_cookie Then
-            Dim result_page As String = "<H1>Erreur 400 - Requête erronée</H1><P>Le cookie du client était invalide, donc il a été réinitialisé vers les paramètres par défaut.<BR><BR>Veuillez retourner à l'<A HREF=""/"">index</A> du site.</P>" & vbCrLf
+            Dim result_page As String = "<H1>Erreur 400 - Requête erronée</H1><P>Le cookie du client était invalide, donc il a été réinitialisé vers les paramètres par défaut.<BR><BR>Veuillez retourner à l'<A HREF=""/feed"">index</A> du site.</P>" & vbCrLf
 
             Dim exp As String = DateTime.UtcNow.AddYears(1).ToString("ddd, dd MMM yyyy HH:mm:ss 'GMT'", Globalization.CultureInfo.InvariantCulture)
 
@@ -1485,7 +1770,7 @@ Module Program
                 "HTTP/" & http_ver & " 400 Bad Request" & vbCrLf &
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
-                "Set-Cookie: " & cookie_header & "results=10&size=cs&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto&panel=true&displaycomments=20&vcn=18&trends=enable&displaystream=enable&hidelongvids=yes; Path=/; Expires=" & exp & vbCrLf &
+                "Set-Cookie: " & cookie_header & "results=10&size=middle&codec=recent_mpeg1&player=embed&skin=cosmic&resolution=auto&framerate=auto&panel=true&displaycomments=20&vcn=18&trends=enable&displaystream=enable&hidelongvids=yes&vsize=vert1; Path=/; Expires=" & exp & vbCrLf &
                 "Connection: close" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page
 
@@ -1508,7 +1793,7 @@ Module Program
                 Dim uri_arg As String = Split(request)(1)
                 If uri_arg.Length > 512 Then
                     WriteLog("Erreur HTTP #414: URI trop longue.", , client)
-                    Dim toolongdata As Byte() = GetHTTPBytes(414, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 414 - URI trop longue</H1>" & vbCrLf & "<P>La requête ne peut pas être traitée, car l'URL spécifiée est trop longue.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                    Dim toolongdata As Byte() = GetHTTPBytes(414, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 414 - URI trop longue</H1>" & vbCrLf & "<P>La requête ne peut pas être traitée, car l'URL spécifiée est trop longue.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                     Try
                         stream.Write(toolongdata, 0, toolongdata.Length)
@@ -1524,7 +1809,7 @@ Module Program
 
         If request.Length > 8192 Then
             WriteLog("Erreur HTTP #413: Contenu trop grand envoyé au serveur.", , client)
-            Dim toomuchdata As Byte() = GetHTTPBytes(414, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 413 - Contenu trop grand</H1>" & vbCrLf & "<P>Trop de données communiquées au serveur. Veuillez envoyer moins d'informations.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+            Dim toomuchdata As Byte() = GetHTTPBytes(414, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 413 - Contenu trop grand</H1>" & vbCrLf & "<P>Trop de données communiquées au serveur. Veuillez envoyer moins d'informations.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
             Try
                 stream.Write(toomuchdata, 0, toomuchdata.Length)
@@ -1538,7 +1823,7 @@ Module Program
             'Requête vide
             WriteLog("Erreur HTTP #400: Requête vide envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>La requête HTTP était vide, et ne peut être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>La requête HTTP était vide, et ne peut être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
@@ -1548,7 +1833,7 @@ Module Program
 
             client.Close()
             Exit Sub
-        ElseIf request.StartsWith("GET /watch?v=") Or request.StartsWith("GET /stream?v=") Then
+        ElseIf request.StartsWith("GET /watch?v=") Or request.StartsWith("GET /stream?v=") Or request.StartsWith("GET /short?v=") Then
             'Demande de lecture d'une vidéo par le client
             Dim watcharg As String = Split(request)(1)
             Dim req As String = String.Empty
@@ -1556,12 +1841,31 @@ Module Program
             If request.StartsWith("GET /watch?v=") Then
                 watcharg = watcharg.Remove(0, 9)
                 vt = RequestVideoType.WatchVideo
+            ElseIf request.StartsWith("GET /short?v=") Then
+                watcharg = watcharg.Remove(0, 9)
+                vt = RequestVideoType.ShortVideo
+
+                If used_codec = "avi_msvideo1" Or used_codec = "avi_cinepak" Or used_codec = "mov_cinepak" Or used_codec = "mpeg1" Then
+                    Dim baddata As Byte() = GetHTTPBytes(503, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 503 - Service indisponible</H1>" & vbCrLf & "<P>La lecture des vidéos dites ""short"", qui sont au format vertical, est indisponible avec le codec vidéo <I>'" & used_codec & "'</I>.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/config.cgi"">ici</A> pour naviguer sur le panneau de configuration, et changer de codec vidéo.</P>" & vbCrLf)
+
+                    Try
+                        stream.Write(baddata, 0, baddata.Length)
+                    Catch ex As Exception
+                        WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                    End Try
+
+                    client.Close()
+                    Exit Sub
+                End If
+
             Else
                 watcharg = watcharg.Remove(0, 10)
                 vt = RequestVideoType.StreamVideo
             End If
 
             UpdateCache()
+
+            Dim current_list As String = String.Empty
 
             If using_vlc Then
                 used_codec = "mp4"
@@ -1590,7 +1894,7 @@ Module Program
                                 Next
 
                                 single_params(0) = LCase(single_params(0))
-                                single_params(1) = LCase(single_params(1))
+                                'single_params(1) = LCase(single_params(1))
 
                                 If single_params(0).Length < 100 AndAlso single_params(1).Length < 100 Then
                                     Select Case single_params(0)
@@ -1604,9 +1908,15 @@ Module Program
                                             If list_used_player.Contains(single_params(1)) Then used_player = single_params(1)
                                         Case "size"
                                             If list_playersize.Contains(single_params(1)) Then player_size = single_params(1)
+                                        Case "vsize"
+                                            If list_vsize.Contains(single_params(1)) Then player_vsize = single_params(1)
                                         Case "lastsearch"
                                             req = Uri.UnescapeDataString(single_params(1))
                                             req = CleanText(req)
+                                        Case "list"
+                                            If single_params(1).StartsWith("PL") Or single_params(1).StartsWith("UC") Then
+                                                current_list = single_params(1)
+                                            End If
                                     End Select
                                 End If
                             End If
@@ -1685,8 +1995,8 @@ Module Program
 
             If used_codec = "3gp" Then
                 '96p, 120p et 144p uniquement
-                If num_used_resolution > 144 Then
-                    num_used_resolution = 144
+                If num_used_resolution > 240 Then
+                    num_used_resolution = 240
                 End If
                 If num_frame_rate = 60 Then num_frame_rate = 30
             End If
@@ -1702,7 +2012,7 @@ Module Program
             Dim output_filename As String = Nothing 'Nom du fichier généré, sans le chemin
             Dim tmp_filename As String = String.Empty
 
-            'Pour un navigateur fait maison
+            'Pour garantir la compatibilité avec un navigateur fait maison
             If is_mdx Then
                 used_codec = "wmv2"
                 used_player = "embed"
@@ -1754,100 +2064,18 @@ Module Program
                 Dim last_view As String = String.Empty
                 last_view = watcharg
 
-                WriteLog("Vidéo demandée: https://www.youtube.com/watch?v=" & last_view & " (Maximum 1080p60)", ConsoleColor.Green, client)
+                If vt = RequestVideoType.ShortVideo Then
+                    WriteLog("Vidéo demandée: https://www.youtube.com/shorts/" & last_view & " (Maximum 1080p60)", ConsoleColor.Green, client)
+                Else
+                    WriteLog("Vidéo demandée: https://www.youtube.com/watch?v=" & last_view & " (Maximum 1080p60)", ConsoleColor.Green, client)
+                End If
 
                 If IsNetworkAvailable() Then
-                    'Mise en cache
                     'Mise en cache du titre (et de l'ID)
-                    Dim tmp_prop As New VideoProperties
-                    Dim dur As Decimal = 0
+                    Dim tmp_prop As VideoProperties = GetVideo(watcharg)
 
-                    SyncLock video_props
-                        If video_props.Count > 1000 Then
-                            Do Until video_props.Count = 1000
-                                video_props.Remove(video_props.Keys(0))
-                            Loop
-                        End If
-
-                        If Not video_props.ContainsKey(watcharg) Then
-                            Dim add_cookie As String = String.Empty
-                            If IO.File.Exists("cookies.txt") Then
-                                add_cookie &= " --cookies cookies.txt"
-                                WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                            End If
-
-                            Dim psi3 As New ProcessStartInfo()
-                            psi3.FileName = "yt-dlp.exe"
-                            psi3.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s"" --no-warnings ""https://www.youtube.com/watch?v=" & watcharg & """ --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-
-                            psi3.UseShellExecute = False
-                            psi3.RedirectStandardOutput = True
-                            psi3.RedirectStandardError = True
-                            psi3.CreateNoWindow = True
-                            psi3.StandardOutputEncoding = Encoding.UTF8
-                            psi3.StandardErrorEncoding = Encoding.UTF8
-
-                            Dim p3 As Process = Process.Start(psi3)
-                            Dim output3 As String = p3.StandardOutput.ReadToEnd()
-                            output3 = output3.Replace(vbLf, String.Empty)
-                            output3 = output3.Replace(vbCr, String.Empty)
-                            If output3.EndsWith("<|>") Then output3 = output3.Remove(output3.Length - 3, 3)
-                            Dim err3 As String = p3.StandardError.ReadToEnd()
-
-                            Dim output_elements() As String = Nothing
-
-                            Try
-                                output_elements = output3.Split("<|>")
-
-                                For i As Integer = 0 To output_elements.Count - 1
-                                    For j As Integer = 0 To &H1F
-                                        output_elements(i) = output_elements(i).Replace(Chr(j), String.Empty)
-                                    Next
-                                Next
-
-                                If IO.File.Exists("cookies.txt") Then
-                                    add_cookie &= " --cookies cookies.txt"
-                                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                                End If
-
-                                output_elements(9) = output_elements(9).Replace(vbCrLf, "<BR>")
-                                output_elements(9) = output_elements(9).Replace(vbCr, "<BR>")
-                                output_elements(9) = output_elements(9).Replace(vbLf, "<BR>")
-
-                                tmp_prop.ID = output_elements(0)
-                                tmp_prop.Title = CleanText(output_elements(1))
-                                tmp_prop.Views = IIf(LCase(output_elements(2)) = "na", "0", GetThousands(output_elements(2)))
-                                tmp_prop.DateOfRelease = GetDate(output_elements(3))
-                                tmp_prop.Creator = CleanText(output_elements(4))
-                                tmp_prop.Thumbnail = output_elements(5)
-                                tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(output_elements(10) & "&amp;section=videos")
-                                tmp_prop.Like_Count = output_elements(11)
-                                tmp_prop.Dislike_Count = output_elements(12)
-
-                                If LCase(output_elements(6)) = "na" Then
-                                    tmp_prop.Duration = "?:??"
-                                Else
-                                    tmp_prop.Duration = GetDuration(output_elements(6))
-                                    dur = CInt(output_elements(6))
-                                End If
-
-                                tmp_prop.Dimensions = IIf(IsNumeric(output_elements(7)), output_elements(7), 640) & ":" & IIf(IsNumeric(output_elements(8)), output_elements(8), 480)
-                                tmp_prop.Description = CleanText(output_elements(9))
-                                tmp_prop.DateAdded = Now
-
-                                video_props.Add(watcharg, tmp_prop)
-                            Catch ex As Exception
-
-                            End Try
-
-                            p3.WaitForExit()
-                        Else
-                            tmp_prop = video_props(watcharg)
-                        End If
-                    End SyncLock
-
-                    If (dur > 10080) OrElse (dur > 3600 And forbid_long_vids) Then
-                        Dim baddata As Byte() = GetHTTPBytes(503, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 503 - Service indisponible</H1>" & vbCrLf & "<P>La vidéo est trop longue pour être traitée par le serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                    If (tmp_prop.Duration > 10080) OrElse (tmp_prop.Duration > 3600 And forbid_long_vids) Then
+                        Dim baddata As Byte() = GetHTTPBytes(503, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 503 - Service indisponible</H1>" & vbCrLf & "<P>La vidéo est trop longue pour être traitée par le serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                         Try
                             stream.Write(baddata, 0, baddata.Length)
@@ -1883,7 +2111,7 @@ Module Program
                         Next
 
                         If freeSpace >= 0 And freeSpace <= 134217728 Then
-                            Dim baddata As Byte() = GetHTTPBytes(507, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 507 - Espace disque insuffisant</H1>" & vbCrLf & "<P>Il n'y a plus assez d'espace sur le périphérique de stockage du serveur pour mettre en cache la vidéo demandée.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                            Dim baddata As Byte() = GetHTTPBytes(507, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 507 - Espace disque insuffisant</H1>" & vbCrLf & "<P>Il n'y a plus assez d'espace sur le périphérique de stockage du serveur pour mettre en cache la vidéo demandée.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                             Try
                                 stream.Write(baddata, 0, baddata.Length)
@@ -1894,9 +2122,6 @@ Module Program
                             client.Close()
                             Exit Sub
                         Else
-                            Dim psi As New ProcessStartInfo()
-                            psi.FileName = "yt-dlp.exe"
-
                             'Formatage du nom de fichier de destination vers un nom insensible à la casse (usage de l'algorithme MD5) -> ID YouTube vers hash MD5 + extension .dat, qui contiendra MP4 H.264, WebM VP8, VP9, AV1, etc.
                             destfile = CurDir() & "\srccache\" & GetMD5(last_view)
 
@@ -1905,7 +2130,7 @@ Module Program
                                 Dim lock_file_download As String = CurDir() & "\prclocks\download_" & GetMD5(last_view) & ".lock"
 
                                 If IO.File.Exists(lock_file_download) Then
-                                    Dim ise_data As Byte() = GetHTTPBytes(409, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 409 - Demande en conflit</H1>" & vbCrLf & "<P>La vidéo demandée est déjà en cours de téléchargement par le serveur. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                    Dim ise_data As Byte() = GetHTTPBytes(409, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 409 - Demande en conflit</H1>" & vbCrLf & "<P>La vidéo demandée est déjà en cours de téléchargement par le serveur. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                     Try
                                         stream.Write(ise_data, 0, ise_data.Length)
@@ -1916,21 +2141,10 @@ Module Program
                                     client.Close()
                                     Exit Sub
                                 Else
-                                    Dim add_cookie As String = String.Empty
                                     'La vidéo est téléchargée en forçant le 1080p
-                                    If IO.File.Exists("cookies.txt") Then
-                                        add_cookie &= " --cookies cookies.txt"
-                                        WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                                    End If
-
-                                    psi.Arguments = "-f ""bv*[height<=1080][fps<=60]+ba/b[height<=1080][fps<=60]"" --no-part --no-continue -o """ & destfile & """ ""https://www.youtube.com/watch?v=" & last_view & """ --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-                                    psi.UseShellExecute = False
-                                    psi.CreateNoWindow = True
-                                    psi.RedirectStandardOutput = True
-                                    psi.RedirectStandardError = True
 
                                     If number_of_dls >= 10 Then
-                                        Dim ise_data As Byte() = GetHTTPBytes(429, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 429 - Trop de requêtes en cours</H1>" & vbCrLf & "<P>Il y a déjà 10 vidéos en cours de téléchargement. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                        Dim ise_data As Byte() = GetHTTPBytes(429, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 429 - Trop de requêtes en cours</H1>" & vbCrLf & "<P>Il y a déjà 10 vidéos en cours de téléchargement. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                         Try
                                             stream.Write(ise_data, 0, ise_data.Length)
@@ -1943,30 +2157,33 @@ Module Program
                                     End If
 
                                     'Démarrage du processus de téléchargement, et contrôle du processus via un fichier de verrouillage (en cas de fermeture ou plantage)
-                                    Dim p As Process = Process.Start(psi)
                                     Dim has_err As Boolean = False
 
                                     number_of_dls += 1
 
-                                    Try
-                                        IO.File.WriteAllText(lock_file_download, p.Id.ToString & vbCrLf & GetMD5(last_view))
-                                    Catch ex As Exception
+                                    Dim op As OutputResponse = Nothing
 
-                                    End Try
+                                    If vt = RequestVideoType.ShortVideo Then
+                                        op = LaunchProcess("-f ""bv*[height<=1080][fps<=60]+ba/b[height<=1080][fps<=60]"" --no-part --no-continue -o """ & destfile & """ ""https://www.youtube.com/shorts/" & last_view & """", , lock_file_download, last_view)
+                                    Else
+                                        op = LaunchProcess("-f ""bv*[height<=1080][fps<=60]+ba/b[height<=1080][fps<=60]"" --no-part --no-continue -o """ & destfile & """ ""https://www.youtube.com/watch?v=" & last_view & """", , lock_file_download, last_view)
+                                    End If
 
-                                    Dim output As String = p.StandardOutput.ReadToEnd()
-                                    Dim err As String = p.StandardError.ReadToEnd()
+                                    If Not String.IsNullOrEmpty(op.OutputData) AndAlso op.OutputData.Length > 0 Then
+                                        WriteLog(op.OutputData, ConsoleColor.Cyan, client)
+                                    End If
 
-                                    Try
-                                        p.WaitForExit(1200000)
-                                        IO.File.Delete(lock_file_download)
-                                    Catch ex As Exception
-                                        WriteLog("Erreur lors du processus de téléchargement: " & ex.Message, ConsoleColor.Red)
+                                    If Not String.IsNullOrEmpty(op.ErrorData) AndAlso op.ErrorData.Length > 0 Then
+                                        WriteLog(op.ErrorData, ConsoleColor.Red, client)
+                                    End If
+
+                                    If op.HasErrors Then
+                                        WriteLog("Erreur lors du processus de téléchargement de la vidéo: " & op.ExceptionMessage, ConsoleColor.Red)
                                         has_err = True
-                                    End Try
+                                    End If
 
                                     If has_err Then
-                                        Dim ise_data As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le traitement de la vidéo demandée n'a pas pu être effectué (Identifiant connu: <I>" & last_view & "</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                        Dim ise_data As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le traitement de la vidéo demandée n'a pas pu être effectué (Identifiant connu: <I>" & last_view & "</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                         Try
                                             stream.Write(ise_data, 0, ise_data.Length)
@@ -1977,10 +2194,6 @@ Module Program
                                         client.Close()
                                         Exit Sub
                                     End If
-
-                                    'Affichage du résultat dans la fenêtre
-                                    WriteLog(output, ConsoleColor.Cyan)
-                                    If Not String.IsNullOrEmpty(err) AndAlso err.Length > 0 Then WriteLog(err, ConsoleColor.Red)
 
                                     number_of_dls -= 1
                                 End If
@@ -1997,7 +2210,7 @@ Module Program
                             Next
 
                             If Not IO.File.Exists(destfile) Then
-                                Dim ise_data As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>La vidéo demandée n'a pas pu être téléchargée (Identifiant connu: <I>" & last_view & "</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                                Dim ise_data As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>La vidéo demandée n'a pas pu être téléchargée (Identifiant connu: <I>" & last_view & "</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                                 Try
                                     stream.Write(ise_data, 0, ise_data.Length)
@@ -2010,8 +2223,7 @@ Module Program
                             End If
                         End If
                     Else
-                        WriteLog("Vidéo déjà présente dans le cache source !")
-                        'WriteLog("Résolution en " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " FPS demandée.", ConsoleColor.Green)
+                        WriteLog("Vidéo déjà présente dans le cache source ! Traitement en cours de la vidéo...")
                     End If
 
                     'Trouver le fichier généré depuis le nom
@@ -2024,7 +2236,7 @@ Module Program
 
                     If Not IO.File.Exists(output_path) Then
                         If number_of_vids >= 10 Then
-                            Dim ise_data As Byte() = GetHTTPBytes(429, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 429 - Trop de requêtes en cours</H1>" & vbCrLf & "<P>Il y a déjà 10 vidéos en cours de traitement. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                            Dim ise_data As Byte() = GetHTTPBytes(429, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 429 - Trop de requêtes en cours</H1>" & vbCrLf & "<P>Il y a déjà 10 vidéos en cours de traitement. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                             Try
                                 stream.Write(ise_data, 0, ise_data.Length)
@@ -2036,128 +2248,185 @@ Module Program
                             Exit Sub
                         End If
 
-                        Dim psi2 As New ProcessStartInfo()
-                        psi2.FileName = "ffmpeg.exe"
+                        Dim op_conv_video As OutputResponse = Nothing
+                        Dim lock_file_output As String = CurDir() & "\prclocks\output_" & GetMD5(output_path) & ".lock"
+                        number_of_vids += 1
+
+                        If IO.File.Exists(lock_file_output) Then
+                            'Si le fichier est déjà en cours de conversion
+                            Dim ise_data As Byte() = GetHTTPBytes(409, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 409 - Demande en conflit</H1>" & vbCrLf & "<P>La vidéo demandée est déjà en cours de conversion par le serveur. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+
+                            Try
+                                stream.Write(ise_data, 0, ise_data.Length)
+                            Catch ex As Exception
+                                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                            End Try
+
+                            number_of_vids -= 1
+                            client.Close()
+                            Exit Sub
+                        End If
 
                         Select Case used_codec
                             Case "mpeg1"
                                 'Codec vidéo MPEG-1, audio MP2 (100% compatible)
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format MPEG (Configuration 100% compatible)...")
                                 num_used_resolution = 240
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=352:240 -r 30000/1001 -c:v mpeg1video -b:v 1150k -maxrate 1150k -minrate 1150k -bufsize 327680 -c:a mp2 -b:a 96k -ar 44100 -ac 2 """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format MPEG (Configuration 100% compatible)...")
+                                WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=352:240 -r 30000/1001 -c:v mpeg1video -b:v 1150k -maxrate 1150k -minrate 1150k -bufsize 327680 -c:a mp2 -b:a 96k -ar 44100 -ac 2 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "recent_mpeg1"
                                 'Codec vidéo MPEG-1, audio MP2
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format MPEG (Codec vidéo MPEG-1, codec audio MP2)...")
-                                psi2.Arguments = "-i """ & destfile & """ -c:v mpeg1video -vf scale=-2:" & used_resolution & " -bufsize 442k -maxrate 50000k -q:v 7 -c:a mp2 -b:a 192k """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format MPEG (Codec vidéo MPEG-1, codec audio MP2)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -c:v mpeg1video -vf scale=-2:" & used_resolution & " -bufsize 442k -maxrate 50000k -q:v 7 -c:a mp2 -b:a 192k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "avi_mpeg4"
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo MPEG-4, codec audio MP3)...")
+                                WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo MPEG-4, codec audio MP3)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
                                 'Format AVI encodé avec MPEG-4 (codec vidéo assez fonctionnel et compatible avec les systèmes Windows), et MP3.
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 128k """ & output_path & """"
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "avi_yuv"
                                 'Format AVI YUV (sans codec) avec PCM
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Vidéo YUV, codec audio PCM)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v rawvideo -pix_fmt yuyv422 -vtag YUY2 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format AVI (Vidéo YUV, codec audio PCM)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v rawvideo -pix_fmt yuyv422 -vtag YUY2 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "wmv2"
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format WMV nouveau (Codec vidéo WMV2, codec audio WMAv2)...")
+                                WriteLog("Conversion du fichier vidéo vers le format WMV [Nouveau] (Codec vidéo WMV2, codec audio WMAv2)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
                                 'Format WMV, très utilisé sous Windows, depuis Windows 98. Codec WMV2 et WMAv2
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv2 -b:v 800k -c:a wmav2 -b:a 128k """ & output_path & """"
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv2 -b:v 800k -c:a wmav2 -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "wmv1"
                                 'Format WMV ancien, codec WMV2, audio WMAv1.
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format WMV ancien (Codec vidéo WMV1, codec audio WMAv1)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv1 -b:v 500k -c:a wmav1 -b:a 128k -ar 44100 -ac 1 """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format WMV [Ancien] (Codec vidéo WMV1, codec audio WMAv1)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv1 -b:v 500k -c:a wmav1 -b:a 128k -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "rm"
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format RealMedia (Codec vidéo RV10, codec audio AC3)...")
+                                WriteLog("Conversion du fichier vidéo vers le format RealMedia (Codec vidéo RV10, codec audio AC3)...")
                                 'Format Real Media (code par Le Jarb aidé de Léo AI). A permis de faire fonctionner la lecture intégrée sous IE 3.0 et Windows 3.11.
                                 'Codec vidéo RV10 et audio AC3
-                                If num_used_resolution <= 120 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:128 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
-                                ElseIf num_used_resolution = 144 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
-                                ElseIf num_used_resolution = 240 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
+                                If vt = RequestVideoType.ShortVideo Then
+                                    'Une seule résolution, la seule réellement compatible 9:16 et qui soit multiple de 16, la plus "époque", les autres résolutions trouvées déformaient le ratio.
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 Else
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=480:360 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """"
+                                    If num_used_resolution <= 120 Then
+                                        WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:128 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 144 Then
+                                        WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 240 Then
+                                        WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    Else
+                                        WriteLog("Résolution 360p @ " & frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=480:360 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    End If
                                 End If
                             Case "3gp"
                                 'Format 3GP (pour les vieux mobiles Nokia, SONY, etc.), codec vidéo H.263, audio AMR-NB
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format 3GP (Codec vidéo H.263, codec audio AMR-NB)...")
-                                If num_used_resolution = 96 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=128:96 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """"
-                                Else
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=176:144 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """"
-                                End If
+                                WriteLog("Conversion du fichier vidéo vers le format 3GP (Codec vidéo H.263, codec audio AMR-NB)...")
+                                Select Case num_used_resolution
+                                    Case 96
+                                        WriteLog("Résolution 96p @ " & frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=128:96 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    Case 120, 144
+                                        WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=176:144 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    Case Else '240p compris
+                                        WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=352:288 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                End Select
                             Case "mov_cinepak"
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo Cinepak, codec audio PCM)...")
+                                WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo Cinepak, codec audio PCM)...")
                                 'Format QuickTime (codec vidéo Cinepak, fortement utilisé dans les années 1990, et PCM pour l'audio)
                                 If num_used_resolution <= 120 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 ElseIf num_used_resolution = 144 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 Else
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 End If
                             Case "mov_svq1"
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo Sorenson SVQ1, codec audio PCM)...")
+                                WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo Sorenson SVQ1, codec audio PCM)...")
                                 'Format QuickTime (codec vidéo Sorenson SVQ1, surtout utilisé dans les années 2000, et codec audio MP3)
                                 If num_used_resolution >= 720 Then num_used_resolution = 480 'HQ indisponible
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v svq1 -q:v 3 -c:a libmp3lame -b:a 128k """ & output_path & """"
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v svq1 -q:v 3 -c:a libmp3lame -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "mov_mpeg4"
                                 'Format QuickTime (codec vidéo MPEG-4, audio MP3)
                                 If num_used_resolution >= 720 Then num_used_resolution = 480 'Bridé à 480p
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo MPEG-4, codec audio MP3)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mpeg4 -b:v 500k -c:a libmp3lame -b:a 128k -ar 44100 -ac 2 """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo MPEG-4, codec audio MP3)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mpeg4 -b:v 500k -c:a libmp3lame -b:a 128k -ar 44100 -ac 2 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "mov_mjpeg"
                                 'Format QuickTime, encodé MJPEG et PCM
                                 If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo MJPEG, codec audio PCM)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo MJPEG, codec audio PCM)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "mov_rpza"
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format Apple QuickTime (Codec vidéo RPZA, codec audio PCM)...")
+                                WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo RPZA, codec audio PCM)...")
                                 'Format QuickTime (codec vidéo RPZA, format très Apple des années 1990, et PCM pour l'audio)
                                 If num_used_resolution <= 120 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 ElseIf num_used_resolution = 144 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 Else
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 End If
                             Case "avi_mjpeg"
                                 'Format AVI encodé avec MJPEG et PCM
                                 If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo MJPEG, codec audio PCM)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo MJPEG, codec audio PCM)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "avi_msvideo1"
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo MSVideo1, codec audio PCM)...")
+                                WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo MSVideo1, codec audio PCM)...")
                                 'Format AVI encodé avec Microsoft Video 1 (fonctionne en pratique sous toutes les versions de Windows, y compris Windows 3.11, surtout puisqu'il accompagné du codec audio PCM).
                                 If num_used_resolution <= 120 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 ElseIf num_used_resolution = 144 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 ElseIf num_used_resolution = 240 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 ElseIf num_used_resolution = 360 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=480:360 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 360p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=480:360 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 Else
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=640:480 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 480p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=640:480 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 End If
                             Case "avi_cinepak"
                                 'Cinepak version AVI, audio PCM
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo Cinepak, codec audio PCM)...")
+                                WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo Cinepak, codec audio PCM)...")
                                 'Format AVI encodé avec Cinepak (codec répandu dans les années 90, et pris en charge par Windows 3.11, surtout accompagné du codec audio PCM).
                                 If num_used_resolution <= 120 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 ElseIf num_used_resolution = 144 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 ElseIf num_used_resolution = 240 Then
-                                    psi2.Arguments = "-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """"
+                                    WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 End If
                             Case "mp4"
                                 'Format MP4 - Codec vidéo: H.264, codec audio: AAC, avec le format pixel forcé à YUV420P pour éviter les erreurs d'affichage sur les vieux lecteurs. Baseline et level 3.0 avec pour rendre compatible avec les vieux lecteurs Android.
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format MP4 (Codec vidéo H.264, codec audio AAC)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 192k """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format MP4 (Codec vidéo H.264, codec audio AAC)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 192k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "legacy_mp4"
                                 'Format MP4 - Adapté aux anciens Android
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format MP4 (Avec configuration adaptée aux vieux lecteurs)...")
+                                WriteLog("Conversion du fichier vidéo vers le format MP4 (Profil adapté aux vieux lecteurs)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
                                 Dim target_height As Integer = num_used_resolution
 
                                 'Calcul largeur 4:3 finale
@@ -2172,62 +2441,38 @@ Module Program
                                 If target_height Mod 2 <> 0 Then target_height -= 1
 
                                 Dim vf_arg As String = """scale=-2:" & inner_height.ToString & ",pad=" & target_width.ToString & ":" & target_height.ToString & ":(ow-iw)/2:(oh-ih)/2"""
-                                psi2.Arguments = "-i """ & destfile & """ " & "-vf " & vf_arg & " " & "-r " & num_frame_rate & " -c:v libx264 -preset fast -crf 23 -profile:v baseline -level 3.0 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k -ar 44100 -ac 2 """ & output_path & """"
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ " & "-vf " & vf_arg & " " & "-r " & num_frame_rate & " -c:v libx264 -preset fast -crf 23 -profile:v baseline -level 3.0 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k -ar 44100 -ac 2 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "xvid"
                                 'Format Xvid, avec le conteneur AVI, et le codec audio MP3
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format AVI (Codec vidéo Xvid, codec audio MP3)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libxvid -qscale:v 3 -vtag xvid -c:a libmp3lame -b:a 128k """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo Xvid, codec audio MP3)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libxvid -qscale:v 3 -vtag xvid -c:a libmp3lame -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "flv"
                                 'Format FLV (Codec vidéo Sorenson Spark, audio MP3) [Macromedia Flash Video]
-                                WriteLog("Conversion du fichier vidéo trouvé vers le format vidéo Flash (Codec vidéo Sorenson Spark, codec audio MP3)...")
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v flv -b:v 500k -c:a libmp3lame -b:a 128k """ & output_path & """"
+                                WriteLog("Conversion du fichier vidéo vers le format vidéo Flash (Codec vidéo Sorenson Spark, codec audio MP3)...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v flv -b:v 500k -c:a libmp3lame -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case Else
-                                WriteLog("Aucun format de destination valide, usage d'un format par défaut...")
+                                WriteLog("Aucun format de destination valide, usage d'un profil par défaut...")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
                                 'Par défaut, envoyer du MPEG4.
-                                psi2.Arguments = "-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 128k """ & output_path & """"
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                         End Select
 
                         'WriteLog("Veuillez NE PAS FERMER la fenêtre.", ConsoleColor.DarkRed)
 
-                        Dim lock_file_output As String = CurDir() & "\prclocks\output_" & GetMD5(output_path) & ".lock"
-
-                        If IO.File.Exists(lock_file_output) Then
-                            'Si le fichier est déjà en cours de conversion
-                            Dim ise_data As Byte() = GetHTTPBytes(409, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 409 - Demande en conflit</H1>" & vbCrLf & "<P>La vidéo demandée est déjà en cours de conversion par le serveur. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
-
-                            Try
-                                stream.Write(ise_data, 0, ise_data.Length)
-                            Catch ex As Exception
-                                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
-                            End Try
-
-                            client.Close()
-                            Exit Sub
+                        If op_conv_video.HasErrors Then
+                            WriteLog("Erreur lors de la conversion de la vidéo: " & op_conv_video.ExceptionMessage, ConsoleColor.Red)
                         End If
-
-                        psi2.UseShellExecute = False
-                        psi2.CreateNoWindow = True
-
-                        number_of_vids += 1
-
-                        Dim p2 As Process = Process.Start(psi2)
-                        IO.File.WriteAllText(lock_file_output, p2.Id.ToString & vbCrLf & output_filename)
-
-                        Try
-                            p2.WaitForExit(1200000)
-                            IO.File.Delete(lock_file_output)
-                        Catch ex As Exception
-                            WriteLog("Erreur lors de la conversion: " & ex.Message, ConsoleColor.Red)
-                        End Try
 
                         number_of_vids -= 1
                     Else
-                        WriteLog("Fichier vidéo de destination déjà existant au format demandé! Aucune conversion nécessaire.", , client)
+                        WriteLog("Fichier vidéo de destination déjà existant au format demandé! Aucune conversion n'est donc nécessaire.", , client)
                     End If
 
                     'Formatage de la page en HTML, avec lecteur intégré
 
-                    If vt = RequestVideoType.WatchVideo Then
+                    If vt = RequestVideoType.WatchVideo Or vt = RequestVideoType.ShortVideo Then
                         patternpage.Append(InitValues(EscapeHtml(tmp_prop.Title), , wanted_skin, , used_player))
 
                         Dim media_type As String = "video/mp4"
@@ -2250,192 +2495,216 @@ Module Program
                         player_height = 480
 
                         'Détermination de la taille du lecteur via le cookie
-                        Select Case player_size
-                            Case "micro"
-                                'Lecteur microscopique, pour les scénarios d'écrans en très faible résolution (téléphones mobiles)
-                                player_width = 160
-                                player_height = 120
-                            Case "ultrasmall"
-                                'Pour les écrans en faible résolution (320x240 par exemple)
-                                player_width = 256
-                                player_height = 192
-                            Case "small"
-                                'Petit lecteur, utile pour les écrans standards des années 1980/1990
-                                player_width = 320
-                                player_height = 240
-                            Case "cs"
-                                'Taille classique du lecteur Youtube des années 2000
-                                player_width = 480
-                                player_height = 360
-                            Case "middle"
-                                'Moyen lecteur (correspondant au standard VGA)
-                                player_width = 640
-                                player_height = 480
-                            Case "large"
-                                'Lecteur large, format pouvant afficher du 16:9
-                                player_width = 854
-                                player_height = 480
-                            Case "cinema"
-                                'Format cinéma, également au 16:9
-                                player_width = 1280
-                                player_height = 720
-                            Case "bigcinema"
-                                'Format cinéma grand format, également au 16:9
-                                player_width = 2560
-                                player_height = 1440
-                            Case "gold1"
-                                'Format 16:10 standard
-                                player_width = 1280
-                                player_height = 800
-                            Case "gold2"
-                                'Format 16:10 grand format
-                                player_width = 1440
-                                player_height = 900
-                            Case "aheight"
-                                'Taille renseignée par la résolution elle-même de la vidéo
-                                player_height = num_used_resolution
-                                player_width = num_used_resolution * 4 / 3
-                            Case "vertical1"
-                                'Format vertical 3:4 (360x480)
-                                player_width = 360
-                                player_height = 480
-                            Case "vertical2"
-                                'Format vertical 16:9 (720x1280)
-                                player_width = 720
-                                player_height = 1280
-                            Case "eh"
-                                player_width = 800
-                                player_height = 600
-                            Case "ot"
-                                player_width = 1024
-                                player_height = 768
-                            Case "otsh"
-                                player_width = 1600
-                                player_height = 1200
-                            Case "auto"
-                                'Taille contrôlée avec Javascript
-                                player_width = 640
-                                player_height = 480 'Failsafe
+                        If vt = RequestVideoType.WatchVideo Then
+                            Select Case player_size
+                                Case "micro"
+                                    'Lecteur microscopique, pour les scénarios d'écrans en très faible résolution (téléphones mobiles)
+                                    player_width = 160
+                                    player_height = 120
+                                Case "ultrasmall"
+                                    'Pour les écrans en faible résolution (320x240 par exemple)
+                                    player_width = 256
+                                    player_height = 192
+                                Case "small"
+                                    'Petit lecteur, utile pour les écrans standards des années 1980/1990 (QVGA)
+                                    player_width = 320
+                                    player_height = 240
+                                Case "cs"
+                                    'Taille classique du lecteur Youtube des années 2000
+                                    player_width = 480
+                                    player_height = 360
+                                Case "middle"
+                                    'Moyen lecteur (correspondant au standard VGA)
+                                    player_width = 640
+                                    player_height = 480
+                                Case "large"
+                                    'Lecteur large, format pouvant afficher du 16:9 (WVGA)
+                                    player_width = 854
+                                    player_height = 480
+                                Case "cinema"
+                                    'Format cinéma, également au 16:9
+                                    player_width = 1280
+                                    player_height = 720
+                                Case "bigcinema"
+                                    'Format cinéma grand format, également au 16:9
+                                    player_width = 2560
+                                    player_height = 1440
+                                Case "gold1"
+                                    'Format 16:10 standard
+                                    player_width = 1280
+                                    player_height = 800
+                                Case "gold2"
+                                    'Format 16:10 grand format
+                                    player_width = 1440
+                                    player_height = 900
+                                Case "aheight"
+                                    'Taille renseignée par la résolution elle-même de la vidéo
+                                    player_height = num_used_resolution
+                                    player_width = num_used_resolution * 4 / 3
+                                Case "vertical1"
+                                    'Format vertical 9:16 (270x480)
+                                    player_width = 270
+                                    player_height = 480
+                                Case "vertical2"
+                                    'Format vertical 9:16 (360x640)
+                                    player_width = 360
+                                    player_height = 640
+                                Case "vertical3"
+                                    'Format vertical 9:16 (720x1280)
+                                    player_width = 720
+                                    player_height = 1280
+                                Case "eh"
+                                    player_width = 800
+                                    player_height = 600
+                                Case "ot"
+                                    player_width = 1024
+                                    player_height = 768
+                                Case "otsh"
+                                    player_width = 1600
+                                    player_height = 1200
+                                Case "auto"
+                                    'Taille contrôlée avec Javascript
+                                    player_width = 640
+                                    player_height = 480 'Failsafe
 
-                                Dim tmp_w, tmp_h As Integer
-                                tmp_w = 640
-                                tmp_h = 480
+                                    Dim tmp_w, tmp_h As Integer
+                                    tmp_w = 640
+                                    tmp_h = 480
 
-                                Dim tmp_dimensions() As String = Split(tmp_prop.Dimensions, ":")
-                                tmp_w = CInt(tmp_dimensions(0))
-                                tmp_h = CInt(tmp_dimensions(1))
+                                    Dim tmp_dimensions() As String = Split(tmp_prop.Dimensions, ":")
+                                    tmp_w = CInt(tmp_dimensions(0))
+                                    tmp_h = CInt(tmp_dimensions(1))
 
-                                'Utilisation du Javascript pour redimensionner de façon dynamique le lecteur intégré.
-                                patternpage.AppendLine("<script language=""javascript"">")
-                                patternpage.AppendLine(" function resizePlayer() {")
-                                patternpage.AppendLine("  var player = document.getElementById(""mainplayer"");")
-                                patternpage.AppendLine()
+                                    'Utilisation du Javascript pour redimensionner de façon dynamique le lecteur intégré.
+                                    patternpage.AppendLine("<script language=""javascript"">")
+                                    patternpage.AppendLine(" function resizePlayer() {")
+                                    patternpage.AppendLine("  var player = document.getElementById(""mainplayer"");")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  var winW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;")
-                                patternpage.AppendLine("  var winH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  var winW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;")
+                                    patternpage.AppendLine("  var winH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  // Marges")
-                                patternpage.AppendLine("  var maxW = winW - 40;")
-                                patternpage.AppendLine("  var maxH = winH - 120;")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  // Marges")
+                                    patternpage.AppendLine("  var maxW = winW - 40;")
+                                    patternpage.AppendLine("  var maxH = winH - 120;")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  // Ratio 4:3")
-                                patternpage.AppendLine("  var ratioW = " & tmp_w.ToString & ";")
-                                patternpage.AppendLine("  var ratioH = " & tmp_h.ToString & ";")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  // Ratio 4:3")
+                                    patternpage.AppendLine("  var ratioW = " & tmp_w.ToString & ";")
+                                    patternpage.AppendLine("  var ratioH = " & tmp_h.ToString & ";")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  // Calcul basé sur largeur")
-                                patternpage.AppendLine("  var width = maxW;")
-                                patternpage.AppendLine("  var height = Math.floor(width * ratioH / ratioW);")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  // Calcul basé sur largeur")
+                                    patternpage.AppendLine("  var width = maxW;")
+                                    patternpage.AppendLine("  var height = Math.floor(width * ratioH / ratioW);")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  // Si ça dépasse en hauteur, alors recalcul de la taille du lecteur")
-                                patternpage.AppendLine("  if (height > maxH) {")
-                                patternpage.AppendLine("   height = maxH;")
-                                patternpage.AppendLine("   width = Math.floor(height * ratioW / ratioH);")
-                                patternpage.AppendLine("  }")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  // Si ça dépasse en hauteur, alors recalcul de la taille du lecteur")
+                                    patternpage.AppendLine("  if (height > maxH) {")
+                                    patternpage.AppendLine("   height = maxH;")
+                                    patternpage.AppendLine("   width = Math.floor(height * ratioW / ratioH);")
+                                    patternpage.AppendLine("  }")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  // Minimum de 240 pixels de large")
-                                patternpage.AppendLine("  if (width < 240) {")
-                                patternpage.AppendLine("   width = 240;")
-                                patternpage.AppendLine("   height = Math.floor(width * ratioH / ratioW);")
-                                patternpage.AppendLine("  }")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  // Minimum de 240 pixels de large")
+                                    patternpage.AppendLine("  if (width < 240) {")
+                                    patternpage.AppendLine("   width = 240;")
+                                    patternpage.AppendLine("   height = Math.floor(width * ratioH / ratioW);")
+                                    patternpage.AppendLine("  }")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  player.width = width;")
-                                patternpage.AppendLine("  player.height = height;")
-                                patternpage.AppendLine(" }")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  player.width = width;")
+                                    patternpage.AppendLine("  player.height = height;")
+                                    patternpage.AppendLine(" }")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine(" window.onload = resizePlayer;")
-                                patternpage.AppendLine(" window.onresize = resizePlayer;")
-                                patternpage.AppendLine("</script>")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine(" window.onload = resizePlayer;")
+                                    patternpage.AppendLine(" window.onresize = resizePlayer;")
+                                    patternpage.AppendLine("</script>")
+                                    patternpage.AppendLine()
                                 'ChatGPT m'a généré ce code.
-                            Case "fulljs"
-                                'Plein écran avec Javascript
+                                Case "fulljs"
+                                    'Plein écran avec Javascript
 
-                                If used_player = "video" Then
-                                    patternpage.AppendLine("<!DOCTYPE html>")
-                                Else
-                                    patternpage.AppendLine("<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">")
-                                End If
+                                    If used_player = "video" Then
+                                        patternpage.AppendLine("<!DOCTYPE html>")
+                                    Else
+                                        patternpage.AppendLine("<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">")
+                                    End If
 
-                                patternpage.AppendLine("<HTML>")
-                                patternpage.AppendLine("<HEAD>")
-                                patternpage.AppendLine(" <META HTTP-EQUIV=""Content-Type"" CONTENT=""text/html; charset=iso-8859-1"">")
-                                patternpage.AppendLine(" <META CHARSET=""iso-8859-1"" />")
-                                patternpage.AppendLine(" <LINK REL=""shortcut icon"" HREF=""favicon.ico"" />")
-                                patternpage.AppendLine("</HEAD>")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("<HTML>")
+                                    patternpage.AppendLine("<HEAD>")
+                                    patternpage.AppendLine(" <META HTTP-EQUIV=""Content-Type"" CONTENT=""text/html; charset=iso-8859-1"">")
+                                    patternpage.AppendLine(" <META CHARSET=""iso-8859-1"" />")
+                                    patternpage.AppendLine(" <LINK REL=""shortcut icon"" HREF=""favicon.ico"" />")
+                                    patternpage.AppendLine("</HEAD>")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("<BODY TEXT=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"" TOPMARGIN=0 LEFTMARGIN=0 MARGINHEIGHT=0 MARGINWIDTH=0>")
-                                patternpage.AppendLine("<script language=""javascript"">")
-                                patternpage.AppendLine(" function resizePlayer() {")
-                                patternpage.AppendLine("  var player = document.getElementById(""mainplayer"");")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("<BODY TEXT=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"" TOPMARGIN=0 LEFTMARGIN=0 MARGINHEIGHT=0 MARGINWIDTH=0>")
+                                    patternpage.AppendLine("<script language=""javascript"">")
+                                    patternpage.AppendLine(" function resizePlayer() {")
+                                    patternpage.AppendLine("  var player = document.getElementById(""mainplayer"");")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  var winW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;")
-                                patternpage.AppendLine("  var winH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  var winW = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;")
+                                    patternpage.AppendLine("  var winH = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("  player.width = winW;")
-                                patternpage.AppendLine("  player.height = winH;")
-                                patternpage.AppendLine(" }")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("  player.width = winW;")
+                                    patternpage.AppendLine("  player.height = winH;")
+                                    patternpage.AppendLine(" }")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine(" window.onload = resizePlayer;")
-                                patternpage.AppendLine(" window.onresize = resizePlayer;")
-                                patternpage.AppendLine("</script>")
-                                patternpage.AppendLine()
-                                player_prop = "%"
+                                    patternpage.AppendLine(" window.onload = resizePlayer;")
+                                    patternpage.AppendLine(" window.onresize = resizePlayer;")
+                                    patternpage.AppendLine("</script>")
+                                    patternpage.AppendLine()
+                                    player_prop = "%"
                                 'Code de ChatGPT modifié.
-                            Case "fullscreen"
-                                'Plein écran avec HTML (peut dépasser le cadre)
-                                link_color = "#c2272f"
+                                Case "fullscreen"
+                                    'Plein écran avec HTML (peut dépasser le cadre)
+                                    link_color = "#c2272f"
 
-                                If used_player = "video" Then
-                                    patternpage.AppendLine("<!DOCTYPE html>")
-                                Else
-                                    patternpage.AppendLine("<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">")
-                                End If
+                                    If used_player = "video" Then
+                                        patternpage.AppendLine("<!DOCTYPE html>")
+                                    Else
+                                        patternpage.AppendLine("<!DOCTYPE HTML PUBLIC ""-//W3C//DTD HTML 4.01 Transitional//EN"" ""https://www.w3.org/TR/html4/loose.dtd"">")
+                                    End If
 
-                                patternpage.AppendLine("<HTML>")
-                                patternpage.AppendLine("<HEAD>")
-                                patternpage.AppendLine(" <META HTTP-EQUIV=""Content-Type"" CONTENT=""text/html; charset=iso-8859-1"">")
-                                patternpage.AppendLine(" <META CHARSET=""iso-8859-1"" />")
-                                patternpage.AppendLine(" <LINK REL=""shortcut icon"" HREF=""favicon.ico"" />")
-                                patternpage.AppendLine("</HEAD>")
-                                patternpage.AppendLine()
+                                    patternpage.AppendLine("<HTML>")
+                                    patternpage.AppendLine("<HEAD>")
+                                    patternpage.AppendLine(" <META HTTP-EQUIV=""Content-Type"" CONTENT=""text/html; charset=iso-8859-1"">")
+                                    patternpage.AppendLine(" <META CHARSET=""iso-8859-1"" />")
+                                    patternpage.AppendLine(" <LINK REL=""shortcut icon"" HREF=""favicon.ico"" />")
+                                    patternpage.AppendLine("</HEAD>")
+                                    patternpage.AppendLine()
 
-                                patternpage.AppendLine("<BODY TEXT=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"" TOPMARGIN=0 LEFTMARGIN=0 MARGINHEIGHT=0 MARGINWIDTH=0>")
+                                    patternpage.AppendLine("<BODY TEXT=""#FFFFFF"" BGCOLOR=""#000000"" ALINK=""#C2272F"" VLINK=""#C2272F"" STYLE=""display: block; padding: 0px 0px 0px 0px; margin: 0px 0px 0px 0px;"" TOPMARGIN=0 LEFTMARGIN=0 MARGINHEIGHT=0 MARGINWIDTH=0>")
 
-                                player_width = 100
-                                player_height = 100
-                                player_prop = "%"
-                        End Select
+                                    player_width = 100
+                                    player_height = 100
+                                    player_prop = "%"
+                            End Select
+                        Else
+                            Select Case player_vsize
+                                Case "vert0"
+                                    player_width = 144
+                                    player_height = 256
+                                Case "vert1"
+                                    player_width = 270
+                                    player_height = 480
+                                Case "vert2"
+                                    player_width = 360
+                                    player_height = 640
+                                Case "vert3"
+                                    player_width = 720
+                                    player_height = 1280
+                                Case Else
+                                    player_width = 270
+                                    player_height = 480
+                            End Select
+                        End If
 
                         'Marge pour les contrôles
                         If used_player <> "video" Then player_height += 20
@@ -2443,29 +2712,49 @@ Module Program
                         'Si aucun argument mot-clef n'est spécifié, les vidéos relatives regardent le titre de la vidéo
                         If String.IsNullOrEmpty(req) OrElse req.Length = 0 Then req = tmp_prop.Title
 
-                        'Titre de la vidéo dans la page
-                        Dim actual_width As String = "640"
+                        ''Titre de la vidéo dans la page
+                        'Dim actual_width As String = "640"
 
-                        If player_prop = "%" Then
-                            actual_width = "100%"
-                        Else
-                            actual_width = Convert.ToString(Math.Max(480, player_width) + IIf(right_panel, 400, 0))
-                        End If
+                        'If player_prop = "%" Then
+                        '    actual_width = "100%"
+                        'Else
+                        '    actual_width = Convert.ToString(Math.Max(480, player_width) + IIf(right_panel, 400, 0))
+                        'End If
 
                         If player_size <> "fulljs" AndAlso player_size <> "fullscreen" Then
-                            patternpage.AppendLine("<CENTER><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=4 ALIGN=CENTER WIDTH=" & actual_width & ">")
+                            patternpage.AppendLine("<CENTER><TABLE BORDER=0 CELLSPACING=0 CELLPADDING=4 ALIGN=CENTER VALIGN=TOP") 'WIDTH=" & actual_width & ">"
                             patternpage.AppendLine(" <TR>")
                             patternpage.AppendLine("  <TD COLSPAN=2>")
-                            patternpage.Append("   <H2><B>" & EscapeHtml(tmp_prop.Title))
-                            If display_stream_button Then patternpage.Append(" (<A HREF=""/v/" & output_filename & """>Flux&nbsp;direct</A>)")
+                            If vt = RequestVideoType.ShortVideo Then patternpage.AppendLine("<CENTER>")
+                            patternpage.Append("   <H2 STYLE=""line-height: 24px;""><B>" & EscapeHtml(tmp_prop.Title) & IIf(vt = RequestVideoType.ShortVideo, " par <A HREF=""" & tmp_prop.Channel_URL.Replace("section=videos", "section=shorts") & """>" & tmp_prop.Creator & "</A>", String.Empty))
+                            If display_stream_button And vt = RequestVideoType.WatchVideo Then patternpage.Append(" (<A HREF=""/v/" & output_filename & """>Flux&nbsp;direct</A>)")
                             patternpage.AppendLine("</B></H2>")
                             patternpage.AppendLine("  </TD>")
+                            If vt = RequestVideoType.ShortVideo Then patternpage.AppendLine("</CENTER>")
                             patternpage.AppendLine(" </TR>")
 
                             patternpage.AppendLine(" <TR VALIGN=TOP>")
-                            patternpage.AppendLine("  <TD WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=480>")
+
+                            If used_player = "no_integration" Then
+                                patternpage.AppendLine("  <TD WIDTH=700>")
+                            Else
+                                If vt = RequestVideoType.ShortVideo Then
+                                    Select Case player_vsize
+                                        Case "vert0"
+                                            patternpage.AppendLine("  <TD WIDTH=300><BR><BR>")
+                                        Case "vert1"
+                                            patternpage.AppendLine("  <TD WIDTH=300>")
+                                        Case "vert2"
+                                            patternpage.AppendLine("  <TD WIDTH=400>")
+                                        Case "vert3"
+                                            patternpage.AppendLine("  <TD WIDTH=800>")
+                                    End Select
+                                Else
+                                    patternpage.AppendLine("  <TD WIDTH=""" & player_width.ToString & player_prop & """>")
+                                End If
+                            End If
+
                             patternpage.AppendLine()
-                            patternpage.AppendLine("<CENTER>")
                         End If
 
                         'Le lecteur intégré
@@ -2475,15 +2764,16 @@ Module Program
                                 patternpage.AppendLine("<!-- Intégration d'un objet ActiveX pour Windows Media Player 6.4 -->")
                                 patternpage.AppendLine()
 
-                                patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ CLASSID=""CLSID:22D6F312-B0F6-11D0-94AB-0080C74C7E95"">")
+                                patternpage.AppendLine("<OBJECT ID=""mainplayer"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ CLASSID=""CLSID:22D6F312-B0F6-11D0-94AB-0080C74C7E95"">")
                                 patternpage.AppendLine(" <PARAM NAME=""FileName"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""AutoStart"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""EnableFullScreenControls"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""VideoBorder3D"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""StretchToFit"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""ShowControls"" VALUE=""true"">")
+                                If vt = RequestVideoType.ShortVideo Then patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""true""><SCRIPT LANGUAGE=""javascript"">mainplayer.settings.setMode(""loop"", true);</SCRIPT>")
                                 patternpage.AppendLine(" <PARAM NAME=""DisplaySize"" VALUE=4>")
-                                patternpage.AppendLine(" <PARAM NAME=""DefaultFrame"" VALUE=""" & GetHost() & "getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """>")
+                                patternpage.AppendLine(" <PARAM NAME=""DefaultFrame"" VALUE=""" & GetHost() & "getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """>")
                                 patternpage.AppendLine("</OBJECT>")
                             Case "wmp"
                                 'Nouveau lecteur Windows Media (7.0 et +) intégré avec la balise <object> (ActiveX).
@@ -2491,9 +2781,9 @@ Module Program
                                 patternpage.AppendLine()
 
                                 If player_prop = "%" Then
-                                    patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" WIDTH=""" & player_width.ToString & "%"" HEIGHT=""" & player_height.ToString & "%"" CLASSID=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">")
+                                    patternpage.AppendLine("<OBJECT ID=""mainplayer"" WIDTH=""" & player_width.ToString & "%"" HEIGHT=""" & player_height.ToString & "%"" CLASSID=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">")
                                 Else
-                                    patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" WIDTH=""" & player_width.ToString & """ HEIGHT=""" & player_height.ToString & """ CLASSID=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">")
+                                    patternpage.AppendLine("<OBJECT ID=""mainplayer"" WIDTH=""" & player_width.ToString & """ HEIGHT=""" & player_height.ToString & """ CLASSID=""CLSID:6BF52A52-394A-11d3-B153-00C04F79FAA6"">")
                                 End If
 
                                 patternpage.AppendLine(" <PARAM NAME=""URL"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
@@ -2502,7 +2792,8 @@ Module Program
                                 patternpage.AppendLine(" <PARAM NAME=""VideoBorder3D"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""StretchToFit"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""ShowControls"" VALUE=""true"">")
-                                patternpage.AppendLine(" <PARAM NAME=""DefaultFrame"" VALUE=""" & GetHost() & "getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """>")
+                                If vt = RequestVideoType.ShortVideo Then patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""true""><SCRIPT LANGUAGE=""javascript"">mainplayer.settings.setMode(""loop"", true);</SCRIPT>")
+                                patternpage.AppendLine(" <PARAM NAME=""DefaultFrame"" VALUE=""" & GetHost() & "getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """>")
                                 patternpage.AppendLine("</OBJECT>")
                             Case "vlc"
                                 'Lecteur VLC Media Player (via ActiveX)
@@ -2510,9 +2801,9 @@ Module Program
                                 patternpage.AppendLine()
 
                                 If player_prop = "%" Then
-                                    patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" CLASSID=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" WIDTH=""" & player_width.ToString & "%"" HEIGHT=""" & player_height.ToString & "%"">")
+                                    patternpage.AppendLine("<OBJECT ID=""mainplayer"" CLASSID=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" WIDTH=""" & player_width.ToString & "%"" HEIGHT=""" & player_height.ToString & "%"">")
                                 Else
-                                    patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" CLASSID=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" WIDTH=""" & player_width.ToString & """ HEIGHT=""" & player_height.ToString & """>")
+                                    patternpage.AppendLine("<OBJECT ID=""mainplayer"" CLASSID=""CLSID:9BE31822-FDAD-461B-AD51-BE1D1C159921"" WIDTH=""" & player_width.ToString & """ HEIGHT=""" & player_height.ToString & """>")
                                 End If
 
                                 patternpage.AppendLine(" <PARAM NAME=""target"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
@@ -2520,42 +2811,61 @@ Module Program
                                 patternpage.AppendLine(" <PARAM NAME=""src"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""autoplay"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""controller"" VALUE=""true"">") 'Affichage des contrôles du lecteur
-                                patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""false"">")
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""true"">")
+                                Else
+                                    patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""false"">")
+                                End If
+
                                 patternpage.AppendLine("</OBJECT>")
                             Case "alt_vlc"
                                 'Lecteur VLC Media Player (via ActiveX aussi)
                                 patternpage.AppendLine("<!-- Intégration d'un objet ActiveX pour le lecteur VLC avec un identificateur de classe alternatif -->")
                                 patternpage.AppendLine()
 
-                                patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" CLASSID=""CLSID:E23FE9C6-778E-49D4-B537-38FCDE4887D8"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """>")
+                                patternpage.AppendLine("<OBJECT ID=""mainplayer"" CLASSID=""CLSID:E23FE9C6-778E-49D4-B537-38FCDE4887D8"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""target"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""MRL"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""src"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""autoplay"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""controller"" VALUE=""true"">") 'Affichage des contrôles du lecteur
-                                patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""false"">")
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""true"">")
+                                Else
+                                    patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""false"">")
+                                End If
+
                                 patternpage.AppendLine("</OBJECT>")
                             Case "embed_vlc"
                                 'Lecteur VLC via la balise HTML embed.
                                 patternpage.AppendLine("<!-- Embarcation du plugin VLC -->")
                                 patternpage.AppendLine()
-                                patternpage.AppendLine("<EMBED ALIGN=CENTER ID=""mainplayer"" TYPE=""application/x-vlc-plugin"" SRC=""" & GetHost() & "v/" & output_filename & """ TARGET=""" & GetHost() & "v/" & output_filename & """ MRL=""" & GetHost() & "v/" & output_filename & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ AUTPLAY=""true"" LOOP=""false"" />")
+                                patternpage.AppendLine("<EMBED ID=""mainplayer"" TYPE=""application/x-vlc-plugin"" SRC=""" & GetHost() & "v/" & output_filename & """ TARGET=""" & GetHost() & "v/" & output_filename & """ MRL=""" & GetHost() & "v/" & output_filename & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ AUTPLAY=""true"" LOOP=""" & IIf(vt = RequestVideoType.ShortVideo, "true", "false") & """ />")
                             Case "quicktime"
                                 'Lecteur QuickTime via ActiveX (Exclusivement sous Windows)
                                 patternpage.AppendLine("<!-- Intégration d'un objet ActiveX pour le lecteur Apple QuickTime. -->")
                                 patternpage.AppendLine()
 
-                                patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" CLASSID=""CLSID:02BF25D5-8C17-4B23-BC80-D3488ABDDC6B"" WIDTH=""" & player_width.ToString & """ HEIGHT=""" & player_height.ToString & """>")
+                                patternpage.AppendLine("<OBJECT ID=""mainplayer"" CLASSID=""CLSID:02BF25D5-8C17-4B23-BC80-D3488ABDDC6B"" WIDTH=""" & player_width.ToString & """ HEIGHT=""" & player_height.ToString & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""src"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""autoplay"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""controller"" VALUE=""true"">")
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""true"">")
+                                Else
+                                    patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""false"">")
+                                End If
+
                                 patternpage.AppendLine("</OBJECT>")
                                 patternpage.AppendLine()
                             Case "embed_quicktime"
                                 'Lecteur QuickTime via la balise HTML embed (surtout pour les systèmes Apple)
                                 patternpage.AppendLine("<!-- Embarcation d'un lecteur Apple QuickTime -->")
                                 patternpage.AppendLine()
-                                patternpage.AppendLine("<EMBED ALIGN=CENTER ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ TYPE=""" & media_type & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ CONTROLLER=""true"" AUTPLAY=""true"" />")
+                                patternpage.AppendLine("<EMBED ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ TYPE=""" & media_type & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ CONTROLLER=""true"" AUTOPLAY=""true"" LOOP=""" & IIf(vt = RequestVideoType.ShortVideo, "true", "false") & """ />")
                             Case "embed"
                                 'Balise <embed> générique, une syntaxe et un fonctionnement lancés par NetScape en 1995.
                                 patternpage.AppendLine("<!-- Embarcation du contenu multimédia avec la balise HTML embed. -->")
@@ -2563,29 +2873,27 @@ Module Program
 
                                 If used_codec = "rm" Then
                                     If player_prop = "%" Then player_height = 90
-                                    patternpage.AppendLine("<EMBED ALIGN=CENTER ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ TYPE=""audio/x-pn-realaudio-plugin"" AUTOSTART=""true"" CONTROLS=""ImageWindow"" CONSOLE=""rmplayer"" /><BR>")
-                                    patternpage.AppendLine("<EMBED ALIGN=CENTER WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""20"" TYPE=""audio/x-pn-realaudio-plugin"" CONTROLS=""PositionSlider"" CONSOLE=""rmplayer"" />")
+                                    patternpage.AppendLine("<EMBED ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ TYPE=""audio/x-pn-realaudio-plugin"" AUTOSTART=""true"" CONTROLS=""ImageWindow"" CONSOLE=""rmplayer"" LOOP=""" & IIf(vt = RequestVideoType.ShortVideo, "true", "false") & """ /><BR>")
+                                    patternpage.AppendLine("<EMBED WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""20"" TYPE=""audio/x-pn-realaudio-plugin"" CONTROLS=""PositionSlider"" CONSOLE=""rmplayer"" />")
                                 Else
-                                    patternpage.AppendLine("<EMBED ALIGN=CENTER ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ MRL=""" & GetHost() & "v/" & output_filename & """ TARGET=""" & GetHost() & "v/" & output_filename & """ HREF=""" & GetHost() & "v/" & output_filename & """ FILENAME=""" & GetHost() & "v/" & output_filename & """ URL=""" & GetHost() & "v/" & output_filename & """ TYPE=""" & media_type & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ AUTOSTART=""true"" />")
+                                    patternpage.AppendLine("<EMBED ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ MRL=""" & GetHost() & "v/" & output_filename & """ TARGET=""" & GetHost() & "v/" & output_filename & """ HREF=""" & GetHost() & "v/" & output_filename & """ FILENAME=""" & GetHost() & "v/" & output_filename & """ URL=""" & GetHost() & "v/" & output_filename & """ TYPE=""" & media_type & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ AUTOSTART=""true"" />")
                                 End If
                             Case "video"
                                 'Balise <video> de HTML 5.0 (Standard W3C natif aux navigateurs récents)
                                 patternpage.AppendLine("<!-- Utilisation de la balise video de HTML5 -->")
                                 patternpage.AppendLine()
 
-                                patternpage.AppendLine("<video id=""mainplayer"" controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ autoplay=""true"">")
+                                patternpage.AppendLine("<video id=""mainplayer"" controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ preload=""auto""" & IIf(vt = RequestVideoType.ShortVideo, " loop", String.Empty) & " autoplay=""true"" poster=""" & GetHost() & "getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """>")
                                 patternpage.AppendLine(" <source src=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ />")
-                                patternpage.AppendLine(" <source poster=""" & GetHost() & "getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ />")
                                 patternpage.AppendLine(" <P ALIGN=CENTER>Votre navigateur ne semble pas prendre en charge la balise video de HTML5.<BR><BR>Vous pouvez cliquer sur <A HREF=""/config.cgi"">ce lien</A> pour adapter les paramètres de RetroYT à votre configuration.</P>")
                                 patternpage.AppendLine("</video>")
                             Case "alt_video"
                                 'Balise <video> de HTML 5.0 (Pour les plateformes Nintendo, SONY et Android)
-                                patternpage.AppendLine("<!-- Utilisation de la balise video de HTML5 -->")
+                                patternpage.AppendLine("<!-- Utilisation de la balise video de HTML5 (version adaptée pour les vieilles versions d'Android et les consoles de salon connectées -->")
                                 patternpage.AppendLine()
 
-                                patternpage.AppendLine("<video id=""mainplayer"" webkit-playsinline playsinline controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ preload autoplay=""true"" onClick=""this.play();"">")
+                                patternpage.AppendLine("<video id=""mainplayer"" webkit-playsinline playsinline controls width=""" & player_width.ToString & player_prop & """ height=""" & player_height.ToString & player_prop & """ preload=""auto""" & IIf(vt = RequestVideoType.ShortVideo, " loop", String.Empty) & " autoplay=""true"" onClick=""this.play();"" poster=""" & GetHost() & "getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """>")
                                 patternpage.AppendLine(" <source src=""" & GetHost() & "v/" & output_filename & """ type=""" & media_type & """ />")
-                                patternpage.AppendLine(" <source poster=""" & GetHost() & "getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ />")
                                 patternpage.AppendLine(" <P ALIGN=CENTER>Votre navigateur ne semble pas prendre en charge la balise video de HTML5.<BR><BR>Vous pouvez cliquer sur <A HREF=""/config.cgi"">ce lien</A> pour adapter les paramètres de RetroYT à votre configuration.</P>")
                                 patternpage.AppendLine("</video>")
                             Case "realplayer"
@@ -2594,20 +2902,29 @@ Module Program
                                 patternpage.AppendLine()
 
                                 If player_prop = "%" Then player_height = 90
-                                patternpage.AppendLine("<EMBED ALIGN=CENTER ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ TYPE=""audio/x-pn-realaudio-plugin"" AUTOSTART=""true"" CONTROLS=""ImageWindow"" CONSOLE=""rmplayer"" /><BR>")
-                                patternpage.AppendLine("<EMBED ALIGN=CENTER WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""20"" TYPE=""audio/x-pn-realaudio-plugin"" CONTROLS=""PositionSlider"" CONSOLE=""rmplayer"" />")
+                                patternpage.AppendLine("<EMBED ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ TYPE=""audio/x-pn-realaudio-plugin"" AUTOSTART=""true"" CONTROLS=""ImageWindow"" CONSOLE=""rmplayer"" LOOP=""" & IIf(vt = RequestVideoType.ShortVideo, "true", "false") & """ /><BR>")
+                                patternpage.AppendLine("<EMBED WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""20"" TYPE=""audio/x-pn-realaudio-plugin"" CONTROLS=""PositionSlider"" CONSOLE=""rmplayer"" />")
                             Case "activex_realplayer"
                                 'Real Player (ActiveX)
                                 patternpage.AppendLine("<!-- Intégration d'un objet ActiveX pour Real Player 5.0 -->")
                                 patternpage.AppendLine()
 
-                                patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" CLASSID=""CLSID:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """>")
+                                patternpage.AppendLine("<OBJECT ID=""mainplayer"" CLASSID=""CLSID:CFCDAA03-8BE4-11cf-B84B-0020AFBBCCFA"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""src"" VALUE=""" & GetHost() & "v/" & output_filename & """>")
+                                If vt = RequestVideoType.ShortVideo Then patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""true"">")
                                 patternpage.AppendLine("</OBJECT>")
                                 patternpage.AppendLine()
                             Case "no_integration"
                                 'Aucune intégration, donc aucun lecteur affiché. Code HTML bidon qui suit.
-                                patternpage.AppendLine("<!-- Aucune intégration activée --><BR><BR><BR><BR><BR><BR><BR>")
+                                patternpage.AppendLine("<!-- Aucune intégration activée -->")
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    patternpage.AppendLine("<CENTER><A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""picshort.jpg"" ALT=""Démarrer le short en mode streaming"" STYLE=""border-radius: 4px;"" BORDER=0 /></A></CENTER><BR><BR>")
+                                Else
+                                    patternpage.AppendLine("<A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""picplay.jpg"" ALT=""Démarrer la lecture en mode streaming"" BORDER=0 STYLE=""border-radius: 4px;"" /></A><BR><BR>")
+                                End If
+
+                                patternpage.AppendLine()
                             Case "flash"
                                 'Lecteur Flash 8 via Javascript
                                 patternpage.AppendLine("<!-- Intégration d'un lecteur Flash via Javascript -->")
@@ -2629,6 +2946,7 @@ Module Program
                                 patternpage.AppendLine(" so4.addVariable('height','" & player_height.ToString & player_prop & "');")
                                 patternpage.AppendLine(" so4.addVariable('file','" & GetHost() & "v/" & output_filename & "');")
                                 patternpage.AppendLine(" so4.addVariable('searchbar','false');")
+                                If vt = RequestVideoType.ShortVideo Then patternpage.AppendLine(" so4.addVariable('loop','true');")
                                 patternpage.AppendLine(" so4.addVariable('linkfromdisplay','true');")
                                 patternpage.AppendLine()
 
@@ -2641,15 +2959,16 @@ Module Program
                                 patternpage.AppendLine("<!-- Embarcation directe du lecteur Flash -->")
                                 patternpage.AppendLine()
 
-                                patternpage.AppendLine("<EMBED ALIGN=CENTER SRC=""/player.swf"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ ID=""mainplayer"" allowfullscreen=""true"" allowscriptaccess=""always"" flashvars=""file=" & GetHost() & "v/" & output_filename & """ type=""application/x-shockwave-flash"" />")
+                                patternpage.AppendLine("<EMBED SRC=""/player.swf"" LOOP=""" & IIf(vt = RequestVideoType.ShortVideo, "true", "false") & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ ID=""mainplayer"" allowfullscreen=""true"" allowscriptaccess=""always"" flashvars=""file=" & GetHost() & "v/" & output_filename & """ type=""application/x-shockwave-flash"" />")
                             Case "activex_flash"
                                 'Flash via ActiveX
                                 patternpage.AppendLine("<!-- Intégration d'un objet ActiveX pour le lecteur Flash Player -->")
                                 patternpage.AppendLine()
 
-                                patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" CLASSID=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """>")
+                                patternpage.AppendLine("<OBJECT ID=""mainplayer"" CLASSID=""clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"" WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """>")
                                 patternpage.AppendLine(" <PARAM NAME=""movie"" VALUE=""/player.swf"">")
                                 patternpage.AppendLine(" <PARAM NAME=""allowfullscreen"" VALUE=""true"">")
+                                If vt = RequestVideoType.ShortVideo Then patternpage.AppendLine(" <PARAM NAME=""loop"" VALUE=""true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""allowscriptaccess"" VALUE=""always"">")
                                 patternpage.AppendLine(" <PARAM NAME=""flashvars"" VALUE=""file=" & GetHost() & "v/" & output_filename & "%26searchbar=false%26linkfromdisplay=true"">")
                                 patternpage.AppendLine(" <PARAM NAME=""wmode"" VALUE=""opaque"">")
@@ -2659,290 +2978,469 @@ Module Program
                                 'Objet générique sans ActiveX
                                 patternpage.AppendLine("<!-- Intégration d'un média de façon générique via Object -->")
                                 patternpage.AppendLine()
-
-                                patternpage.AppendLine("<OBJECT ALIGN=CENTER ID=""mainplayer"" DATA=""" & GetHost() & "v/" & output_filename & """ SRC=""" & GetHost() & "v/" & output_filename & """ MRL=""" & GetHost() & "v/" & output_filename & """ TARGET=""" & GetHost() & "v/" & output_filename & """ HREF=""" & GetHost() & "v/" & output_filename & """ FILENAME=""" & GetHost() & "v/" & output_filename & """ URL=""" & GetHost() & "v/" & output_filename & """ TYPE=""" & media_type & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """></OBJECT>")
+                                patternpage.AppendLine("<OBJECT ID=""mainplayer"" DATA=""" & GetHost() & "v/" & output_filename & """ SRC=""" & GetHost() & "v/" & output_filename & """ MRL=""" & GetHost() & "v/" & output_filename & """ TARGET=""" & GetHost() & "v/" & output_filename & """ HREF=""" & GetHost() & "v/" & output_filename & """ FILENAME=""" & GetHost() & "v/" & output_filename & """ URL=""" & GetHost() & "v/" & output_filename & """ TYPE=""" & media_type & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ LOOP=""" & IIf(vt = RequestVideoType.ShortVideo, "true", "false") & """></OBJECT>")
                                 patternpage.AppendLine()
                             Case Else
                                 'Si par mésaventure, le paramètre manque, affichage d'un lecteur générique.
                                 patternpage.AppendLine("<!-- Fallback vers une intégration générique via la balise HTML embed -->")
                                 patternpage.AppendLine()
-                                patternpage.AppendLine("<EMBED ALIGN=CENTER ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ MRL=""" & GetHost() & "v/" & output_filename & """ TARGET=""" & GetHost() & "v/" & output_filename & """ HREF=""" & GetHost() & "v/" & output_filename & """ FILENAME=""" & GetHost() & "v/" & output_filename & """ URL=""" & GetHost() & "v/" & output_filename & """ TYPE=""" & media_type & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ autostart=""true"" />")
+                                patternpage.AppendLine("<EMBED ID=""mainplayer"" SRC=""" & GetHost() & "v/" & output_filename & """ MRL=""" & GetHost() & "v/" & output_filename & """ TARGET=""" & GetHost() & "v/" & output_filename & """ HREF=""" & GetHost() & "v/" & output_filename & """ FILENAME=""" & GetHost() & "v/" & output_filename & """ URL=""" & GetHost() & "v/" & output_filename & """ TYPE=""" & media_type & """ WIDTH=""" & player_width.ToString & player_prop & """ HEIGHT=""" & player_height.ToString & player_prop & """ autostart=""true"" LOOP=""" & IIf(vt = RequestVideoType.ShortVideo, "true", "false") & """ />")
                         End Select
 
-                        If player_size = "fullscreen" Or player_size = "fulljs" Then
-                            patternpage.AppendLine("</BODY></HTML>")
-                        Else
-                            patternpage.AppendLine("</CENTER><BR>")
-                            patternpage.Append("<P><B>Vidéo publiée le " & tmp_prop.DateOfRelease & " par <A HREF=""" & tmp_prop.Channel_URL & """>" & tmp_prop.Creator & "</A> | " & tmp_prop.Views.Replace(" ", "&nbsp;") & " vue(s)")
-                            If Not LCase(tmp_prop.Like_Count).StartsWith("na") Or Not LCase(tmp_prop.Dislike_Count).StartsWith("na") Then patternpage.Append(" |")
-                            If Not LCase(tmp_prop.Like_Count).StartsWith("na") Then patternpage.Append(" <IMG SRC=""th_up.gif"" ALT=""Avis positifs"" />&nbsp;<FONT COLOR=""#008000"">" & GetThousands(tmp_prop.Like_Count) & "</FONT>")
-                            If Not LCase(tmp_prop.Dislike_Count).StartsWith("na") Then patternpage.Append(" <IMG SRC=""th_down.gif"" ALT=""Avis négatifs"" />&nbsp;<FONT COLOR=""#800000"">" & GetThousands(tmp_prop.Dislike_Count) & "</FONT>")
-                            patternpage.AppendLine("</B></P>")
-                            patternpage.AppendLine("<P STYLE=""text-align: justify;"">" & tmp_prop.Description & "</P><BR>")
-
-                            Dim psi4 As New ProcessStartInfo()
-                            psi4.FileName = "yt-dlp.exe"
-
-                            Dim add_cookie As String = String.Empty
-
-                            If IO.File.Exists("cookies.txt") Then
-                                add_cookie &= " --cookies cookies.txt"
-                                WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                            End If
-
-                            'Si on ne supprime pas le fichier des commentaires de façon immédiate, les commentaires s'accumulent et se répètent.
-                            If IO.File.Exists(CurDir() & "\comments\" & GetMD5(last_view) & ".json") Then
-                                IO.File.Delete(CurDir() & "\comments\" & GetMD5(last_view) & ".json")
-                            End If
-
-                            psi4.Arguments = "--write-comments --no-download ""https://www.youtube.com/watch?v=" & last_view & """ --no-write-info-json --extractor-args ""youtube:max_comments=500,max_comment_depth=1"" --print-to-file ""after_filter:%(comments)j"" """ & CurDir() & "\comments\" & GetMD5(last_view) & ".json"" --parse-meta ""video::(?P<comments>)"" --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-                            psi4.UseShellExecute = False
-                            psi4.RedirectStandardOutput = True
-                            psi4.RedirectStandardError = True
-                            psi4.CreateNoWindow = True
-                            psi4.StandardOutputEncoding = Encoding.UTF8
-                            psi4.StandardErrorEncoding = Encoding.UTF8
-
-                            Dim p4 As Process = Process.Start(psi4)
-                            Dim output4 As String = p4.StandardOutput.ReadToEnd()
-                            Dim err4 As String = p4.StandardError.ReadToEnd()
-                            Dim acc_com As String = String.Empty
-                            Dim total_comments As Integer = 0
-
-                            p4.WaitForExit()
-
-                            If IO.File.Exists(CurDir() & "\comments\" & GetMD5(last_view) & ".json") AndAlso FileLen(CurDir() & "\comments\" & GetMD5(last_view) & ".json") > 6 AndAlso disp_comments_per_video > 0 Then
-                                WriteLog("Lecture du fichier JSON contenant les commentaires de la vidéo...")
-                                Dim output_comments As String = IO.File.ReadAllText(CurDir() & "\comments\" & GetMD5(last_view) & ".json")
-                                Dim cid1, cid2 As Integer
-                                cid1 = 0
-                                cid2 = 0
-
-                                Do
-                                    cid1 = output_comments.IndexOf("{""id"":", cid2)
-                                    If cid1 = -1 Then Exit Do
-                                    cid2 = output_comments.IndexOf("}", cid1)
-                                    If cid1 >= cid2 Or cid1 = -1 Then Exit Do
-
-                                    total_comments += 1
-
-                                    Dim one_comment As String = output_comments.Substring(cid1, cid2 - cid1)
-                                    one_comment = one_comment.Replace("\""", "&quot;")
-                                    Dim com_author As String = "(Auteur inconnu)"
-                                    Dim com_content As String = "(Contenu indisponible)"
-                                    Dim com_date As String = "(Date inconnue)"
-                                    Dim com_likes As String = "0"
-                                    Dim com_channel As String = "about:blank"
-                                    Dim param1, param2 As Integer
-
-                                    'Trouver l'auteur
-                                    param1 = one_comment.IndexOf("""author"": ""@")
-                                    If param1 >= 0 Then
-                                        param2 = one_comment.IndexOf("""", param1 + 12)
-                                        com_author = one_comment.Substring(param1 + 11, param2 - param1 - 11)
-                                    End If
-
-                                    param1 = one_comment.IndexOf("""text"": """)
-                                    If param1 >= 0 Then
-                                        param2 = one_comment.IndexOf("""", param1 + 9)
-                                        com_content = one_comment.Substring(param1 + 9, param2 - param1 - 9)
-                                        com_content = UnicodeJson(com_content)
-                                    End If
-
-                                    param1 = one_comment.IndexOf("""_time_text"": """)
-                                    If param1 >= 0 Then
-                                        param2 = one_comment.IndexOf("""", param1 + 15)
-                                        com_date = one_comment.Substring(param1 + 15, param2 - param1 - 15)
-                                        com_date = com_date.Replace(" ago", String.Empty)
-                                        com_date = com_date.Replace("years", "ans")
-                                        com_date = com_date.Replace("year", "an")
-                                        com_date = com_date.Replace("days", "jours")
-                                        com_date = com_date.Replace("day", "jour")
-                                        com_date = com_date.Replace("months", "mois")
-                                        com_date = com_date.Replace("month", "mois")
-                                        com_date = com_date.Replace("hours", "heures")
-                                        com_date = com_date.Replace("hour", "heure")
-                                        com_date = com_date.Replace("weeks", "semaines")
-                                        com_date = com_date.Replace("week", "semaine")
-                                        com_date = com_date.Replace("(edited)", "(modifié)")
-                                        com_date = "il y a " & com_date
-                                    End If
-
-                                    param1 = one_comment.IndexOf("""like_count"": """)
-                                    If param1 > -1 Then
-                                        param2 = one_comment.IndexOf(",", param1 + 14)
-                                        com_likes = one_comment.Substring(param1 + 14, param2 - param1 - 14)
-                                    End If
-
-                                    param1 = one_comment.IndexOf("""author_id"": """)
-                                    If param1 > -1 Then
-                                        param2 = one_comment.IndexOf("""", param1 + 14)
-                                        com_channel = "/channel.cgi?id=" & one_comment.Substring(param1 + 14, param2 - param1 - 14) & "&amp;section=videos"
-                                    End If
-
-                                    'acc_com &= "<HR WIDTH=100% />" & vbCrLf
-                                    acc_com &= "<P><B>Par <A HREF=""" & com_channel & """ STYLE=""color: " & link_color & """>" & com_author & "</A>, " & com_date & " :</B><BR>" & vbCrLf
-                                    acc_com &= com_content & vbCrLf
-                                    If com_likes <> "0" Then
-                                        acc_com &= "<B><IMG SRC=""th_up.gif"" ALT=""Pouce vert"" />&nbsp;<FONT COLOR=GREEN>" & com_likes & " utilisateur(s) ont aimé ce message.</FONT></B>" & vbCrLf
-                                    End If
-                                    acc_com &= "</P><BR>" & vbCrLf & vbCrLf
-
-                                    'Affichage des x premiers commentaires
-                                    If total_comments > disp_comments_per_video - 1 Then Exit Do
-                                Loop
-
-                                WriteLog("Il y a " & total_comments.ToString & " commentaire(s) sélectionné(s) sur cette vidéo.", ConsoleColor.Blue)
-                            End If
-
-                            If total_comments = 0 Then
-                                If disp_comments_per_video = 0 Then
-                                    patternpage.AppendLine("<P><H2>Commentaires désactivés par l'utilisateur.</H2></P>")
-                                Else
-                                    patternpage.AppendLine("<P><H2>Il n'y a aucun commentaire à afficher, ou ils ont été désactivés par l'auteur de la vidéo.</H2></P>")
-                                End If
+                        If vt = RequestVideoType.WatchVideo Or vt = RequestVideoType.ShortVideo Then
+                            If player_size = "fullscreen" Or player_size = "fulljs" Then
+                                patternpage.AppendLine("</BODY></HTML>")
                             Else
-                                patternpage.AppendLine("<P><H2 CLASS=""black_label"">Commentaires (" & total_comments.ToString & " sélectionnés) :</H2></P><BR>")
-                            End If
-
-                            patternpage.AppendLine(acc_com)
-                            If total_comments > 0 Then patternpage.AppendLine("<P><A HREF=""/com.cgi?v=" & last_view & """ TARGET=""_blank"">Afficher tous les commentaires</A></P>")
-                            patternpage.AppendLine("  </TD>")
-
-                            If right_panel AndAlso String.IsNullOrEmpty(req) = False Then
-                                patternpage.AppendLine("  <TD ROWSPAN=2 WIDTH=400>")
-                                '***************************************************************************************************************************************************
-
-                                Dim psi As New ProcessStartInfo()
-                                psi.FileName = "yt-dlp.exe"
-
-                                If IO.File.Exists("cookies.txt") Then
-                                    add_cookie &= " --cookies cookies.txt"
-                                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur.", ConsoleColor.Magenta)
+                                'Si on ne supprime pas le fichier des commentaires de façon systématique, les commentaires s'accumulent et se répètent.
+                                If IO.File.Exists(CurDir() & "\comments\" & GetMD5(last_view) & ".json") Then
+                                    IO.File.Delete(CurDir() & "\comments\" & GetMD5(last_view) & ".json")
                                 End If
 
-                                psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s<||>"" ""ytsearch" & number_of_results.ToString & ":" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                                Dim op_get_comments As OutputResponse = LaunchProcess("--write-comments --no-download ""https://www.youtube.com/watch?v=" & last_view & """ --no-write-info-json --extractor-args ""youtube:max_comments=500,max_comment_depth=1"" --print-to-file ""after_filter:%(comments)j"" """ & CurDir() & "\comments\" & GetMD5(last_view) & ".json"" --parse-meta ""video::(?P<comments>)""")
+                                Dim output4 As String = op_get_comments.OutputData
+                                Dim err4 As String = op_get_comments.ErrorData
+                                Dim acc_com As String = String.Empty
+                                Dim total_comments As Integer = 0
 
-                                psi.UseShellExecute = False
-                                psi.RedirectStandardOutput = True
-                                psi.RedirectStandardError = True
-                                psi.CreateNoWindow = True
-                                psi.StandardOutputEncoding = Encoding.UTF8
-                                psi.StandardErrorEncoding = Encoding.UTF8
+                                If IO.File.Exists(CurDir() & "\comments\" & GetMD5(last_view) & ".json") AndAlso FileLen(CurDir() & "\comments\" & GetMD5(last_view) & ".json") > 6 AndAlso disp_comments_per_video > 0 Then
+                                    WriteLog("Lecture du fichier JSON contenant les commentaires de la vidéo...")
+                                    Dim output_comments As String = IO.File.ReadAllText(CurDir() & "\comments\" & GetMD5(last_view) & ".json")
+                                    Dim cid1, cid2 As Integer
+                                    cid1 = 0
+                                    cid2 = 0
 
-                                Dim p As Process = Process.Start(psi)
-                                Dim output As String = p.StandardOutput.ReadToEnd() 'Récupération des résultats
-                                output = output.Replace(vbLf, String.Empty)
-                                output = output.Replace(vbCr, String.Empty)
-                                If output.EndsWith("<||>") Then output = output.Remove(output.Length - 4, 4)
-                                Dim err As String = p.StandardError.ReadToEnd()
+                                    Do
+                                        cid1 = output_comments.IndexOf("{""id"":", cid2)
+                                        If cid1 = -1 Then Exit Do
+                                        cid2 = output_comments.IndexOf("}", cid1)
+                                        If cid1 >= cid2 Or cid1 = -1 Then Exit Do
 
-                                p.WaitForExit()
+                                        total_comments += 1
 
-                                'Récupération des lignes
+                                        If total_comments < disp_comments_per_video Then
+                                            Dim one_comment As String = output_comments.Substring(cid1, cid2 - cid1)
+                                            one_comment = one_comment.Replace("\""", "&quot;")
+                                            Dim com_author As String = "(Auteur inconnu)"
+                                            Dim com_content As String = "(Contenu indisponible)"
+                                            Dim com_date As String = "(Date inconnue)"
+                                            Dim com_likes As String = "0"
+                                            Dim com_channel As String = "about:blank"
+                                            Dim param1, param2 As Integer
 
-                                If String.IsNullOrEmpty(output) Then
-                                    patternpage.AppendLine(" <P ALIGN=CENTER><B>Aucun contenu relatif à cette vidéo n'a été trouvé !</B></P>")
-                                Else
-                                    output = output.Remove(output.Length - 4, 4)
-                                    Dim lines As String() = output.Split("<||>", StringSplitOptions.RemoveEmptyEntries)
+                                            'Trouver l'auteur
+                                            param1 = one_comment.IndexOf("""author"": ""@")
+                                            If param1 >= 0 Then
+                                                param2 = one_comment.IndexOf("""", param1 + 12)
+                                                com_author = one_comment.Substring(param1 + 11, param2 - param1 - 11)
+                                            End If
 
-                                    If lines.Count = 0 Then
-                                        'S'il n'y a aucune ligne retournée.
-                                        patternpage.AppendLine(" <P ALIGN=CENTER><B>Aucun contenu relatif à cette vidéo n'a été trouvé !</B></P>")
+                                            param1 = one_comment.IndexOf("""text"": """)
+                                            If param1 >= 0 Then
+                                                param2 = one_comment.IndexOf("""", param1 + 9)
+                                                com_content = one_comment.Substring(param1 + 9, param2 - param1 - 9)
+                                                com_content = UnicodeJson(com_content)
+                                            End If
+
+                                            param1 = one_comment.IndexOf("""_time_text"": """)
+                                            If param1 >= 0 Then
+                                                param2 = one_comment.IndexOf("""", param1 + 15)
+                                                com_date = one_comment.Substring(param1 + 15, param2 - param1 - 15)
+                                                com_date = com_date.Replace(" ago", String.Empty)
+                                                com_date = com_date.Replace("years", "ans")
+                                                com_date = com_date.Replace("year", "an")
+                                                com_date = com_date.Replace("days", "jours")
+                                                com_date = com_date.Replace("day", "jour")
+                                                com_date = com_date.Replace("months", "mois")
+                                                com_date = com_date.Replace("month", "mois")
+                                                com_date = com_date.Replace("hours", "heures")
+                                                com_date = com_date.Replace("hour", "heure")
+                                                com_date = com_date.Replace("weeks", "semaines")
+                                                com_date = com_date.Replace("week", "semaine")
+                                                com_date = com_date.Replace("(edited)", "(modifié)")
+                                                com_date = "il y a " & com_date
+                                            End If
+
+                                            param1 = one_comment.IndexOf("""like_count"": """)
+                                            If param1 > -1 Then
+                                                param2 = one_comment.IndexOf(",", param1 + 14)
+                                                com_likes = one_comment.Substring(param1 + 14, param2 - param1 - 14)
+                                            End If
+
+                                            param1 = one_comment.IndexOf("""author_id"": """)
+                                            If param1 > -1 Then
+                                                param2 = one_comment.IndexOf("""", param1 + 14)
+                                                com_channel = "/channel.cgi?id=" & one_comment.Substring(param1 + 14, param2 - param1 - 14) & "&amp;section=videos"
+                                            End If
+
+                                            'acc_com &= "<HR WIDTH=100% />" & vbCrLf
+                                            acc_com &= "<P><B>Par <A HREF=""" & com_channel & """ STYLE=""color: " & link_color & """>" & com_author & "</A>, " & com_date & " :</B><BR>" & vbCrLf
+                                            acc_com &= com_content & vbCrLf
+                                            If com_likes <> "0" Then
+                                                acc_com &= "<B><IMG SRC=""th_up.gif"" ALT=""Pouce vert"" />&nbsp;<FONT COLOR=GREEN>" & com_likes & " utilisateur(s) ont aimé ce message.</FONT></B>" & vbCrLf
+                                            End If
+                                            acc_com &= "</P><BR>" & vbCrLf & vbCrLf
+                                        End If
+                                    Loop
+
+                                    WriteLog("Il y a " & total_comments.ToString & " commentaire(s) sur cette vidéo.", ConsoleColor.Blue)
+                                End If
+
+                                If vt = RequestVideoType.WatchVideo Then
+                                    patternpage.AppendLine("<BR>")
+                                    patternpage.Append("<P><B>Vidéo publiée le " & tmp_prop.DateOfRelease & " par <A HREF=""" & tmp_prop.Channel_URL & """>" & tmp_prop.Creator & "</A> | " & tmp_prop.Views.Replace(" ", "&nbsp;") & " vue(s)")
+                                    If Not LCase(tmp_prop.Like_Count).StartsWith("na") Or Not LCase(tmp_prop.Dislike_Count).StartsWith("na") Then patternpage.Append(" |")
+                                    If Not LCase(tmp_prop.Like_Count).StartsWith("na") Then patternpage.Append(" <IMG SRC=""th_up.gif"" ALT=""Avis positifs"" />&nbsp;<FONT COLOR=""#008000"">" & GetThousands(tmp_prop.Like_Count).Replace(" ", "&nbsp;") & "</FONT>")
+                                    If Not LCase(tmp_prop.Dislike_Count).StartsWith("na") Then patternpage.Append(" <IMG SRC=""th_down.gif"" ALT=""Avis négatifs"" />&nbsp;<FONT COLOR=""#800000"">" & GetThousands(tmp_prop.Dislike_Count).Replace(" ", "&nbsp;") & "</FONT>")
+                                    patternpage.AppendLine("</B></P>")
+                                    patternpage.AppendLine("<P STYLE=""text-align: justify;"">" & tmp_prop.Description & "</P><BR>")
+
+                                    Dim p_unit As String = player_prop
+                                    If String.IsNullOrEmpty(p_unit) Then p_unit = "px"
+
+                                    If total_comments = 0 Then
+                                        patternpage.AppendLine("<P><H2 CLASS=""black_label"" STYLE=""width: " & player_width.ToString & p_unit & ";"">Commentaires :</H2></P><BR>")
+                                        If disp_comments_per_video = 0 Then
+                                            patternpage.AppendLine("<P>Commentaires désactivés par l'utilisateur.</P>")
+                                        Else
+                                            patternpage.AppendLine("<P>Il n'y a aucun commentaire à afficher, ou ils ont été désactivés par l'auteur de la vidéo.</P>")
+                                        End If
                                     Else
-                                        'Sinon, on affiche les résultats dans la page Web.
-                                        patternpage.AppendLine("  <TABLE BORDER=0 CELLPADDING=8 CELLSPACING=0 WIDTH=400 ALIGN=CENTER>")
+                                        patternpage.AppendLine("<P><H2 CLASS=""black_label"" STYLE=""width: " & player_width.ToString & p_unit & ";"">Commentaires (" & total_comments.ToString & " au total) :</H2></P><BR>")
+                                    End If
 
-                                        WriteLog("La recherche relative du mot-clef '" & req & "' a donné " & lines.Count.ToString & " résultat(s).")
+                                    'Afficher tous les commentaires
+                                    patternpage.AppendLine(acc_com)
+                                    If total_comments > 0 Then patternpage.AppendLine("<P><A HREF=""/com.cgi?v=" & last_view & """ TARGET=""_blank"">Afficher tous les commentaires</A></P>")
+                                    patternpage.AppendLine("  </TD>")
+                                End If
 
-                                        For Each line In lines
+                                'Volet droit (suggestions de vidéos à visionner, boutons des shorts, et parcours de playlists)
+                                If right_panel Then
+                                    If vt = RequestVideoType.ShortVideo Then
+                                        Dim actual_index As Integer = -1
+                                        Dim max_videos As Integer = 1
+                                        patternpage.AppendLine("  <TD WIDTH=64 ALIGN=CENTER VALIGN=MIDDLE>")
+                                        If LCase(tmp_prop.Like_Count) <> "na" Then patternpage.AppendLine("   <P><IMG SRC=""th_up.gif"" ALT=""Likes"" />&nbsp;<FONT COLOR=GREEN><B>" & GetThousands(tmp_prop.Like_Count) & "</B></FONT></P>")
+                                        If LCase(tmp_prop.Dislike_Count) <> "na" Then patternpage.AppendLine("   <P><IMG SRC=""th_down.gif"" ALT=""Dislikes"" />&nbsp;<FONT COLOR=DARKRED><B>" & GetThousands(tmp_prop.Dislike_Count) & "</B></FONT></P>")
+                                        patternpage.AppendLine("<BR>")
 
-                                            line = line.Replace(vbLf, String.Empty)
-                                            line = line.Replace(vbCr, String.Empty)
-                                            If line.EndsWith("<|>") Then line = line.Substring(0, line.Length - 3)
-                                            Dim parts As String() = line.Split(New String() {"<|>"}, StringSplitOptions.None)
+                                        If String.IsNullOrEmpty(current_list) Then
+                                            patternpage.AppendLine("   <IMG SRC=""s_dis_up.gif"" ALT=""Arrow Up Disabled"" /><BR><BR>")
+                                            patternpage.AppendLine("   <IMG SRC=""s_dis_dw.gif"" ALT=""Arrow Down Disabled"" /><BR><BR>")
+                                        Else
+                                            Dim op_short As OutputResponse = Nothing
 
-                                            For i As Integer = 0 To parts.Length - 1
-                                                For j As Integer = 0 To &H1F
-                                                    parts(i) = parts(i).Replace(Chr(j), String.Empty)
-                                                Next
-                                            Next
+                                            op_short = LaunchProcess("--flat-playlist --print ""%(id)s<|>"" ""https://www.youtube.com/channel/" & current_list & "/shorts/""", , , , 600000)
 
-                                            If parts.Length = 13 Then
-                                                Dim id As String = parts(0)
-                                                Dim title As String = parts(1)
-                                                Dim tmp_prop2 As New VideoProperties
-                                                title = CleanText(title)
+                                            Dim output5 As String = op_short.OutputData
+                                            output5 = output5.Replace(vbLf, String.Empty)
+                                            output5 = output5.Replace(vbCr, String.Empty)
+                                            If output5.EndsWith("<|>") Then output5 = output5.Remove(output5.Length - 3, 3)
+                                            Dim err5 As String = op_short.ErrorData
 
-                                                tmp_prop2.Title = CleanText(parts(1))
-                                                tmp_prop2.ID = parts(0)
-                                                tmp_prop2.Views = IIf(LCase(parts(2)) = "na", "0", GetThousands(parts(2)))
-                                                tmp_prop2.DateOfRelease = GetDate(parts(3))
-                                                tmp_prop2.Creator = CleanText(parts(4))
-                                                tmp_prop2.Thumbnail = parts(5)
-                                                tmp_prop2.Like_Count = parts(11)
-                                                tmp_prop2.Dislike_Count = parts(12)
+                                            If String.IsNullOrEmpty(output5) OrElse output5.Length = 0 OrElse output5.StartsWith("null") Then
+                                                patternpage.AppendLine("   <IMG SRC=""s_dis_up.gif"" ALT=""Arrow Up Disabled"" /><BR><BR>")
+                                                patternpage.AppendLine("   <IMG SRC=""s_dis_dw.gif"" ALT=""Arrow Down Disabled"" /><BR><BR>")
+                                            Else
+                                                Dim short_list() As String = output5.Split("<|>")
+                                                max_videos = short_list.Length
 
-                                                If LCase(parts(6)) = "na" Then
-                                                    tmp_prop2.Duration = "?:??"
-                                                Else
-                                                    tmp_prop2.Duration = GetDuration(parts(6))
-                                                End If
-
-                                                tmp_prop2.Dimensions = IIf(IsNumeric(parts(7)), parts(7), "640") & ":" & IIf(IsNumeric(parts(8)), parts(8), "480")
-                                                tmp_prop2.Channel_URL = "/channel.cgi?id=" & CleanText(parts(10))
-
-                                                tmp_prop2.Description = IIf(String.IsNullOrEmpty(parts(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(parts(9))))
-                                                If tmp_prop2.Description.Length > 1024 Then tmp_prop2.Description = tmp_prop2.Description.Substring(0, 1024) & "..."
-                                                tmp_prop2.Description = tmp_prop2.Description.Replace(vbCrLf, "<BR>")
-                                                tmp_prop2.Description = tmp_prop2.Description.Replace(vbCr, "<BR>")
-                                                tmp_prop2.Description = tmp_prop2.Description.Replace(vbLf, "<BR>")
-                                                tmp_prop2.DateAdded = Now
-
-                                                SyncLock video_props
-                                                    If Not video_props.ContainsKey(id) Then
-                                                        Try
-                                                            If video_props.Count > 1000 Then
-                                                                Do Until video_props.Count = 1000
-                                                                    video_props.Remove(video_props.Keys(0))
-                                                                Loop
-                                                            End If
-
-                                                            video_props.Add(id, tmp_prop2)
-                                                        Catch ex As Exception
-
-                                                        End Try
+                                                For i As Integer = 0 To short_list.Length - 1
+                                                    If short_list(i) = tmp_prop.ID Then
+                                                        actual_index = i
+                                                        Exit For
                                                     End If
-                                                End SyncLock
+                                                Next
 
-                                                'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
-                                                If parts(0) <> last_view Then
-                                                    patternpage.AppendLine("   <TR CLASS=""survol"">")
-                                                    patternpage.AppendLine("    <TD WIDTH=160 HEIGHT=100>")
-                                                    patternpage.AppendLine("     <A HREF=""/watch?v=" & id & """ TARGET=""_parent""><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop2.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop2.Duration.Replace(":", "_") & """ WIDTH=160 HEIGHT=120 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A>")
-                                                    patternpage.AppendLine("    </TD>")
-                                                    patternpage.AppendLine("    <TD WIDTH=* VALIGN=TOP>")
-                                                    patternpage.Append("     <A HREF=""/watch?v=" & id & """ TARGET=""_parent"">" & EscapeHtml(title) & "</A>")
-                                                    If display_stream_button Then patternpage.Append(" <A HREF=""/stream?v=" & id & """><IMG SRC=""playbtn.gif"" ALT=""Flux direct"" BORDER=0 /></A>")
-                                                    patternpage.AppendLine()
-                                                    patternpage.AppendLine("<BR>Par <A HREF=""" & tmp_prop2.Channel_URL & """>" & tmp_prop2.Creator & "</A><BR>Date:&nbsp;" & tmp_prop2.DateOfRelease)
-                                                    patternpage.AppendLine("    </TD>")
-                                                    patternpage.AppendLine("   </TR>")
+                                                If actual_index = -1 Then
+                                                    patternpage.AppendLine("   <IMG SRC=""s_dis_up.gif"" ALT=""Arrow Up Disabled"" /><BR><BR>")
+                                                    patternpage.AppendLine("   <IMG SRC=""s_dis_dw.gif"" ALT=""Arrow Down Disabled"" /><BR><BR>")
+                                                Else
+                                                    If short_list.Length = 1 Then
+                                                        patternpage.AppendLine("   <IMG SRC=""s_dis_up.gif"" ALT=""Arrow Up Disabled"" /><BR><BR>")
+                                                        patternpage.AppendLine("   <IMG SRC=""s_dis_dw.gif"" ALT=""Arrow Down Disabled"" /><BR><BR>")
+                                                    Else
+                                                        If actual_index = 0 Then
+                                                            patternpage.AppendLine("   <IMG SRC=""s_dis_up.gif"" ALT=""Arrow Up Disabled"" /><BR><BR>")
+                                                            patternpage.AppendLine("   <A HREF=""/short?v=" & short_list(actual_index + 1) & "&amp;list=" & current_list & """><IMG SRC=""s_ena_dw.gif"" ALT=""Arrow Down"" BORDER=0 /></A><BR><BR>")
+                                                        ElseIf actual_index = short_list.Length - 1 Then
+                                                            patternpage.AppendLine("   <A HREF=""/short?v=" & short_list(actual_index - 1) & "&amp;list=" & current_list & """><IMG SRC=""s_ena_up.gif"" ALT=""Arrow Up"" BORDER=0 /></A><BR><BR>")
+                                                            patternpage.AppendLine("   <IMG SRC=""s_dis_dw.gif"" ALT=""Arrow Down Disabled"" /><BR><BR>")
+                                                        Else
+                                                            patternpage.AppendLine("   <A HREF=""/short?v=" & short_list(actual_index - 1) & "&amp;list=" & current_list & """><IMG SRC=""s_ena_up.gif"" ALT=""Arrow Up"" BORDER=0 /></A><BR><BR>")
+                                                            patternpage.AppendLine("   <A HREF=""/short?v=" & short_list(actual_index + 1) & "&amp;list=" & current_list & """><IMG SRC=""s_ena_dw.gif"" ALT=""Arrow Down"" BORDER=0 /></A><BR><BR>")
+                                                        End If
+                                                    End If
                                                 End If
                                             End If
-                                        Next
 
-                                        patternpage.AppendLine("  </TABLE>")
+                                        End If
+
+                                        If total_comments > 0 Then
+                                            patternpage.AppendLine("   <A HREF=""/com.cgi?v=" & last_view & "&type=short"" TARGET=""_blank""><IMG SRC=""s_ena_ms.gif"" ALT=""Comments Disabled"" BORDER=0 /></A><BR><BR>")
+                                        Else
+                                            patternpage.AppendLine("   <IMG SRC=""s_dis_ms.gif"" ALT=""Comments Disabled"" /><BR><BR>")
+                                        End If
+
+                                        If display_stream_button Then patternpage.AppendLine("   <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""s_stream.gif"" ALT=""Direct Stream"" BORDER=0 /></A>")
+
+                                        patternpage.AppendLine("<BR><BR>")
+                                        Dim a_views As String = IIf(IsNumeric(tmp_prop.Views), CInt(tmp_prop.Views), "0")
+                                        If max_videos > 1 Then patternpage.AppendLine("<CENTER><P><B>SHORT</B><BR>N°" & GetThousands(CStr(actual_index)).Replace(" ", "&nbsp;") & "/" & GetThousands(max_videos).Replace(" ", "&nbsp;") & "</P></CENTER>")
+                                        If total_comments >= 0 Then patternpage.AppendLine("<CENTER><P><B>COMM.</B><BR>" & GetThousands(total_comments.ToString).Replace(" ", "&nbsp;") & "</P></CENTER>")
+                                        patternpage.AppendLine("<CENTER><P><B>VUE(S)</B><BR>" & GetThousands(a_views).Replace(" ", "&nbsp;") & "</P></CENTER>")
+                                        patternpage.AppendLine("  </TD>")
+                                        patternpage.AppendLine(" </TR>")
+                                        patternpage.AppendLine()
+                                        patternpage.AppendLine(" <TR>")
+                                        patternpage.AppendLine("  <TD>")
+                                        patternpage.AppendLine("   <DIV CLASS=bodysep></DIV>")
+                                        patternpage.AppendLine("  </TD>")
+                                        patternpage.AppendLine(" </TR>")
+                                    Else
+                                        If String.IsNullOrEmpty(current_list) Then
+                                            If String.IsNullOrEmpty(req) = False Then
+                                                patternpage.AppendLine("  <TD WIDTH=400>")
+                                                '***************************************************************************************************************************************************
+
+                                                Dim op_getvid As OutputResponse = LaunchProcess("--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s<||>"" ""ytsearch" & number_of_results.ToString & ":" & req & """")
+                                                Dim output As String = op_getvid.OutputData 'Récupération des résultats
+                                                output = output.Replace(vbLf, String.Empty)
+                                                output = output.Replace(vbCr, String.Empty)
+                                                If output.EndsWith("<||>") Then output = output.Remove(output.Length - 4, 4)
+                                                Dim err As String = op_getvid.ErrorData
+
+                                                'Récupération des lignes
+
+                                                If String.IsNullOrEmpty(output) Then
+                                                    patternpage.AppendLine(" <P ALIGN=CENTER><B>Aucun contenu relatif à cette vidéo n'a été trouvé !</B></P>")
+                                                Else
+                                                    output = output.Remove(output.Length - 4, 4)
+                                                    Dim lines As String() = output.Split("<||>", StringSplitOptions.RemoveEmptyEntries)
+
+                                                    If lines.Count = 0 Then
+                                                        'S'il n'y a aucune ligne retournée.
+                                                        patternpage.AppendLine(" <P ALIGN=CENTER><B>Aucun contenu relatif à cette vidéo n'a été trouvé !</B></P>")
+                                                    Else
+                                                        'Sinon, on affiche les résultats dans la page Web.
+                                                        patternpage.AppendLine("  <TABLE BORDER=0 CELLPADDING=8 CELLSPACING=0 WIDTH=400 ALIGN=CENTER>")
+
+                                                        WriteLog("La recherche relative du mot-clef '" & req & "' a donné " & lines.Count.ToString & " résultat(s).")
+
+                                                        For Each line In lines
+                                                            line = line.Replace(vbLf, String.Empty)
+                                                            line = line.Replace(vbCr, String.Empty)
+                                                            If line.EndsWith("<|>") Then line = line.Substring(0, line.Length - 3)
+                                                            Dim parts As String() = line.Split(New String() {"<|>"}, StringSplitOptions.None)
+
+                                                            For i As Integer = 0 To parts.Length - 1
+                                                                For j As Integer = 0 To &H1F
+                                                                    parts(i) = parts(i).Replace(Chr(j), String.Empty)
+                                                                Next
+                                                            Next
+
+                                                            If parts.Length = 13 Then
+                                                                Dim id As String = parts(0)
+                                                                Dim title As String = parts(1)
+                                                                Dim tmp_prop2 As New VideoProperties
+                                                                title = CleanText(title)
+
+                                                                tmp_prop2.Title = CleanText(parts(1))
+                                                                tmp_prop2.ID = parts(0)
+                                                                tmp_prop2.Views = IIf(LCase(parts(2)) = "na", "0", GetThousands(parts(2)))
+                                                                tmp_prop2.DateOfRelease = GetDate(parts(3))
+                                                                tmp_prop2.Creator = CleanText(parts(4))
+                                                                tmp_prop2.Thumbnail = parts(5)
+                                                                tmp_prop2.Like_Count = parts(11)
+                                                                tmp_prop2.Dislike_Count = parts(12)
+
+                                                                If LCase(parts(6)) = "na" Then
+                                                                    tmp_prop2.Duration = -1
+                                                                Else
+                                                                    tmp_prop2.Duration = CInt(parts(6))
+                                                                End If
+
+                                                                tmp_prop2.Dimensions = IIf(IsNumeric(parts(7)), parts(7), "640") & ":" & IIf(IsNumeric(parts(8)), parts(8), "480")
+                                                                tmp_prop2.Channel_URL = "/channel.cgi?id=" & CleanText(parts(10))
+
+                                                                tmp_prop2.Description = IIf(String.IsNullOrEmpty(parts(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(parts(9))))
+                                                                If tmp_prop2.Description.Length > 2048 Then tmp_prop2.Description = tmp_prop2.Description.Substring(0, 2048) & "..."
+                                                                tmp_prop2.Description = tmp_prop2.Description.Replace(vbCrLf, "<BR>")
+                                                                tmp_prop2.Description = tmp_prop2.Description.Replace(vbCr, "<BR>")
+                                                                tmp_prop2.Description = tmp_prop2.Description.Replace(vbLf, "<BR>")
+                                                                tmp_prop2.DateAdded = Now
+
+                                                                SyncLock video_props
+                                                                    If Not video_props.ContainsKey(id) Then
+                                                                        Try
+                                                                            If video_props.Count > 1000 Then
+                                                                                Do Until video_props.Count = 1000
+                                                                                    video_props.Remove(video_props.Keys(0))
+                                                                                Loop
+                                                                            End If
+
+                                                                            video_props.Add(id, tmp_prop2)
+                                                                        Catch ex As Exception
+
+                                                                        End Try
+                                                                    End If
+                                                                End SyncLock
+
+                                                                'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
+                                                                If parts(0) <> last_view Then
+                                                                    patternpage.AppendLine("   <TR CLASS=""survol"">")
+                                                                    patternpage.AppendLine("    <TD WIDTH=160 HEIGHT=100>")
+                                                                    patternpage.AppendLine("     <A HREF=""/watch?v=" & id & """ TARGET=""_parent""><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop2.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop2.Duration).Replace(":", "_") & """ WIDTH=160 HEIGHT=120 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A>")
+                                                                    patternpage.AppendLine("    </TD>")
+                                                                    patternpage.AppendLine("    <TD WIDTH=* VALIGN=TOP>")
+                                                                    patternpage.Append("     <A HREF=""/watch?v=" & id & """ TARGET=""_parent"">" & EscapeHtml(title) & "</A>")
+                                                                    If display_stream_button Then patternpage.Append(" <A HREF=""/stream?v=" & id & """><IMG SRC=""playbtn.gif"" ALT=""Flux direct"" BORDER=0 /></A>")
+                                                                    patternpage.AppendLine()
+                                                                    patternpage.AppendLine("<BR>Par <A HREF=""" & tmp_prop2.Channel_URL & """>" & tmp_prop2.Creator & "</A><BR>Date:&nbsp;" & tmp_prop2.DateOfRelease)
+                                                                    patternpage.AppendLine("    </TD>")
+                                                                    patternpage.AppendLine("   </TR>")
+                                                                End If
+                                                            End If
+                                                        Next
+
+                                                        patternpage.AppendLine("  </TABLE>")
+                                                    End If
+                                                End If
+
+                                                patternpage.AppendLine("  </TD>")
+                                                patternpage.AppendLine(" </TR>")
+                                            End If
+                                        Else
+                                            patternpage.AppendLine("  <TD WIDTH=400 ALIGN=CENTER VALIGN=TOP>")
+                                            patternpage.AppendLine("   <TABLE CELLPADDING=8 CELLSPACING=0 BORDER=0 VALIGN=TOP>") 'Encore une table dans une table !!!
+                                            'Volet droit pour la playlist en cours de lecture
+
+                                            'Liste des vidéos de la playlist
+                                            Dim op_playlist_2 As OutputResponse = LaunchProcess("--flat-playlist --print ""%(id)s<|>"" ""https://www.youtube.com/playlist?list=" & current_list & """")
+                                            Dim output5 As String = op_playlist_2.OutputData
+                                            Dim found_index As Integer = -1
+                                            Dim max_index As Integer = 1
+                                            output5 = output5.Replace(vbLf, String.Empty)
+                                            output5 = output5.Replace(vbCr, String.Empty)
+                                            If output5.EndsWith("<|>") Then output5 = output5.Remove(output5.Length - 3, 3)
+                                            Dim err5 As String = op_playlist_2.ErrorData
+
+                                            If String.IsNullOrEmpty(output5) OrElse output5.Length = 0 OrElse output5.StartsWith("null") Then
+                                                patternpage.AppendLine("    <TR><TD><P>La playlist demandée n'existe pas ou est indisponible. Veuillez spécifier un identifiant de playlist valide.</P></TD></TR>")
+                                            Else
+                                                Dim playlist_vids() As String = output5.Split("<|>")
+                                                Dim final_playlist As New List(Of String) 'Compilation de 5 vidéos dans la liste
+                                                max_index = playlist_vids.Length
+
+                                                Dim pt As String = String.Empty
+
+                                                If playlist_list.ContainsKey(current_list) Then
+                                                    pt = "'" & playlist_list(current_list) & "'"
+                                                End If
+
+                                                For i As Integer = 0 To playlist_vids.Length - 1
+                                                    If playlist_vids(i) = last_view Then
+                                                        found_index = i
+                                                        Exit For
+                                                    End If
+                                                Next
+
+                                                If String.IsNullOrEmpty(pt) Then
+                                                    patternpage.AppendLine("   <TR><TD WIDTH=* COLSPAN=2><P><FONT SIZE=3><CENTER><B><SPAN STYLE=""display: block; background-color: black; color: white; padding: 12px 12px 12px 12px; border-radius: 4px;"">Navigation dans la playlist actuelle&nbsp;:</SPAN><BR><BR>")
+                                                Else
+                                                    patternpage.AppendLine("   <TR><TD WIDTH=* COLSPAN=2><P><FONT SIZE=3><CENTER><B><SPAN STYLE=""display: block; background-color: black; color: white; padding: 12px 12px 12px 12px; border-radius: 4px;"">Navigation dans la playlist<BR>" & UnicodeJson(pt) & "</SPAN><BR><BR>")
+                                                End If
+
+                                                patternpage.Append("Lecture de la vidéo " & CStr(found_index + 1) & " sur " & playlist_vids.Count.ToString)
+                                                patternpage.AppendLine("<BR><BR>")
+
+                                                If found_index = -1 Or playlist_vids.Count = 1 Then
+                                                    patternpage.Append("<IMG SRC=""s_dis_up.gif"" ALT=""Up Arrow Disabled"" />&nbsp;")
+                                                    patternpage.Append("<IMG SRC=""s_dis_dw.gif"" ALT=""Down Arrow Disabled"" />")
+                                                ElseIf found_index = 0 Then
+                                                    patternpage.Append("<IMG SRC=""s_dis_up.gif"" ALT=""Up Arrow Disabled"" />&nbsp;")
+                                                    patternpage.Append("<A HREF=""/watch?v=" & playlist_vids(found_index + 1) & "&amp;list=" & current_list & """><IMG SRC=""s_ena_dw.gif"" ALT=""Down Arrow"" BORDER=0 /></A>&nbsp;")
+                                                ElseIf found_index = playlist_vids.Count - 1 Then
+                                                    patternpage.Append("<A HREF=""/watch?v=" & playlist_vids(found_index - 1) & "&amp;list=" & current_list & """><IMG SRC=""s_ena_up.gif"" ALT=""Up Arrow"" BORDER=0 /></A>&nbsp;")
+                                                    patternpage.Append("<IMG SRC=""s_dis_dw.gif"" ALT=""Down Arrow Disabled"" />")
+                                                Else
+                                                    patternpage.Append("<A HREF=""/watch?v=" & playlist_vids(found_index - 1) & "&amp;list=" & current_list & """><IMG SRC=""s_ena_up.gif"" ALT=""Up Arrow"" BORDER=0 /></A>&nbsp;")
+                                                    patternpage.Append("<A HREF=""/watch?v=" & playlist_vids(found_index + 1) & "&amp;list=" & current_list & """><IMG SRC=""s_ena_dw.gif"" ALT=""Down Arrow"" BORDER=0 /></A>")
+                                                End If
+
+                                                patternpage.AppendLine("</B></FONT></CENTER></P></TD></TR>")
+
+                                                Dim first As Integer
+                                                Dim last As Integer
+
+                                                If playlist_vids.Length <= 5 Then
+                                                    first = 0
+                                                    last = playlist_vids.Length - 1
+                                                Else
+                                                    first = Math.Max(0, found_index - 2)
+                                                    last = Math.Min(playlist_vids.Length - 1, found_index + 2)
+
+                                                    If last - first < 4 Then
+                                                        If first = 0 Then
+                                                            last = 4
+                                                        Else
+                                                            first = playlist_vids.Length - 5
+                                                        End If
+                                                    End If
+                                                End If
+
+                                                For i = first To last
+                                                    final_playlist.Add(playlist_vids(i))
+                                                Next
+
+                                                For Each l As String In final_playlist
+                                                    Dim playlist_vid_prop As VideoProperties = GetVideo(l)
+                                                    patternpage.AppendLine("   <TR CLASS=""survol"">")
+
+                                                    If l = last_view Then
+                                                        patternpage.AppendLine("    <TD WIDTH=160 HEIGHT=100 BGCOLOR=""#80C0FF"">")
+                                                    Else
+                                                        patternpage.AppendLine("    <TD WIDTH=160 HEIGHT=100>")
+                                                    End If
+
+                                                    If l <> last_view Then patternpage.Append("     <A HREF=""/watch?v=" & playlist_vid_prop.ID & "&amp;list=" & current_list & """>")
+                                                    If l = last_view Then patternpage.Append("     ")
+                                                    patternpage.Append("<IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(playlist_vid_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(playlist_vid_prop.Duration).Replace(":", "_") & """ WIDTH=160 HEIGHT=120 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(playlist_vid_prop.Title) & """ />")
+                                                    If l <> last_view Then patternpage.Append("</A>")
+                                                    patternpage.AppendLine()
+                                                    patternpage.AppendLine("    </TD>")
+
+                                                    If l = last_view Then
+                                                        patternpage.AppendLine("    <TD WIDTH=* VALIGN=TOP BGCOLOR=""#80C0FF"">")
+                                                    Else
+                                                        patternpage.AppendLine("    <TD WIDTH=* VALIGN=TOP>")
+                                                    End If
+
+                                                    If l <> last_view Then patternpage.Append("     <A HREF=""/watch?v=" & playlist_vid_prop.ID & "&amp;list=" & current_list & """ TARGET=""_parent"">")
+                                                    If l = last_view Then patternpage.Append("     <B>")
+                                                    patternpage.Append(EscapeHtml(playlist_vid_prop.Title))
+                                                    If l = last_view Then patternpage.Append("</B>")
+                                                    If l <> last_view Then patternpage.AppendLine("</A>")
+                                                    If display_stream_button Then patternpage.Append("     <A HREF=""/stream?v=" & playlist_vid_prop.ID & """><IMG SRC=""playbtn.gif"" ALT=""Flux direct"" BORDER=0 /></A>")
+                                                    patternpage.AppendLine()
+                                                    patternpage.AppendLine("    <BR>Par <A HREF=""" & playlist_vid_prop.Channel_URL.Replace("section=videos", "section=playlists") & """>" & playlist_vid_prop.Creator & "</A><BR>Date:&nbsp;" & playlist_vid_prop.DateOfRelease & "<BR>")
+                                                    If l = last_view Then patternpage.AppendLine("    <FONT COLOR=DARKRED><B>(&#9658; En cours de lecture)</B></FONT>")
+                                                    patternpage.AppendLine("    </TD>")
+                                                    patternpage.AppendLine("   </TR>")
+                                                Next
+                                            End If
+
+                                            patternpage.AppendLine("    <TR><TD COLSPAN=2><BR><CENTER><A HREF=""/playlist.cgi?id=" & current_list & """>Afficher la playlist complète</A></CENTER></TD></TR>")
+                                            patternpage.AppendLine("   </TABLE>")
+                                            patternpage.AppendLine("  </TD>")
+                                            patternpage.AppendLine(" </TR>")
+                                        End If
                                     End If
                                 End If
 
-                                patternpage.AppendLine("  </TD>")
-                                patternpage.AppendLine(" </TR>")
+                                patternpage.AppendLine("</TABLE></CENTER><BR><BR><BR>")
+                                patternpage.AppendLine(footer)
                             End If
-
-                            patternpage.AppendLine("</TABLE></CENTER><BR><BR><BR>")
-                            patternpage.AppendLine(footer)
                         End If
 
                         Dim watch_resp As String =
@@ -2983,7 +3481,7 @@ Module Program
                         Exit Sub
                     End If
                 Else
-                    Dim notfound_data As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le serveur proxy n'est pas connecté à Internet, et ne peut donc pas traiter cette requête.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
+                    Dim notfound_data As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le serveur proxy n'est pas connecté à Internet, et ne peut donc pas traiter cette requête.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
 
                     Try
                         stream.Write(notfound_data, 0, notfound_data.Length)
@@ -2994,7 +3492,7 @@ Module Program
             Else
                 'Identifiant invalide manifestement!
                 patternpage.AppendLine(InitValues("Erreur de saisie", , wanted_skin, , used_player))
-                patternpage.AppendLine(" <P ALIGN=CENTER><BR><B>L'identifiant vidéo que vous avez entré semble invalide. Aucune lecture ne peut être poursuivie.<BR><BR>Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</B></P><BR><BR></BODY></HTML>")
+                patternpage.AppendLine(" <P ALIGN=CENTER><BR><B>L'identifiant vidéo que vous avez entré semble invalide. Aucune lecture ne peut être poursuivie.<BR><BR>Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</B></P><BR><BR></BODY></HTML>")
                 patternpage.AppendLine()
 
                 Dim watch_resp As String =
@@ -3016,7 +3514,7 @@ Module Program
             client.Close()
         ElseIf request.StartsWith("GET /watch") Then
             'Requête vide
-            Dim result_page As String = "<TITLE>RetroYT - Information</TITLE><H1>302 Ressource trouvée</H1><P>Veuillez vous rendre sur ce <A HREF=""/"">lien</A> pour effectuer une recherche.</P>" & vbCrLf
+            Dim result_page As String = "<TITLE>RetroYT - Information</TITLE><H1>302 Ressource trouvée</H1><P>Veuillez vous rendre sur ce <A HREF=""/feed"">lien</A> pour effectuer une recherche.</P>" & vbCrLf
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 302 Found" & vbCrLf &
@@ -3041,7 +3539,7 @@ Module Program
 
             If last_host_2 = "/" Then last_host_2 = "127.0.0.1"
 
-            Dim result_page As String = "<H1>Erreur 400 - Requête erronée</H1><P>Vous devez préciser quel vidéo lire directement en flux, avec le paramètre <I>v</I>.<BR>Ex: http://" & last_host_2 & "/stream?v=BbCefdlDDTU<BR><BR>" & vbCrLf & "Click <A HREF=""/"">here</A> to go back to the index page.</P>" & vbCrLf
+            Dim result_page As String = "<H1>Erreur 400 - Requête erronée</H1><P>Vous devez préciser quel vidéo lire directement en flux, avec le paramètre <I>v</I>.<BR>Ex: http://" & last_host_2 & "/stream?v=BbCefdlDDTU<BR><BR>" & vbCrLf & "Click <A HREF=""/feed"">here</A> to go back to the index page.</P>" & vbCrLf
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 400 Bad Request" & vbCrLf &
@@ -3096,37 +3594,22 @@ Module Program
                     If vt = RequestVideoType.LuckyVideo Then WriteLog("Mode chanceux activé par l'utilisateur. Seul le premier résultat sera renvoyé.")
 
                     'Lancement de yt-dlp
-                    Dim psi As New ProcessStartInfo()
-                    psi.FileName = "yt-dlp.exe"
-
-                    Dim add_cookie As String = String.Empty
-
-                    If IO.File.Exists("cookies.txt") Then
-                        add_cookie &= " --cookies cookies.txt"
-                        WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur.", ConsoleColor.Magenta)
-                    End If
+                    Dim n As String = "0"
 
                     If vt = RequestVideoType.LuckyVideo Then
-                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s<||>"" ""ytsearch1:" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                        n = "1"
                     Else
-                        psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s<||>"" ""ytsearch" & number_of_results.ToString & ":" & req & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                        n = number_of_results.ToString
                     End If
 
-                    psi.UseShellExecute = False
-                    psi.RedirectStandardOutput = True
-                    psi.RedirectStandardError = True
-                    psi.CreateNoWindow = True
-                    psi.StandardOutputEncoding = Encoding.UTF8
-                    psi.StandardErrorEncoding = Encoding.UTF8
-
-                    Dim p As Process = Process.Start(psi)
-                    Dim output As String = p.StandardOutput.ReadToEnd() 'Récupération des résultats
+                    Dim op_getvid As OutputResponse = LaunchProcess("--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s<||>"" ""ytsearch" & n & ":" & req & """")
+                    Dim output As String = op_getvid.OutputData 'Récupération des résultats
                     output = output.Replace(vbLf, String.Empty)
                     output = output.Replace(vbCr, String.Empty)
                     If output.EndsWith("<||>") Then output = output.Remove(output.Length - 4, 4)
-                    Dim err As String = p.StandardError.ReadToEnd()
 
-                    p.WaitForExit()
+                    Dim err As String = op_getvid.ErrorData
+
                     If vt <> RequestVideoType.LuckyVideo Then patternpage.Append(InitValues("Recherche de " & EscapeHtml(req), req, wanted_skin, , used_player))
 
                     'Récupération des lignes
@@ -3141,7 +3624,7 @@ Module Program
                         If lines.Count = 0 Then
                             'S'il n'y a aucune ligne retournée.
                             If vt = RequestVideoType.LuckyVideo Then
-                                Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Ceci est un message d'erreur générique pour annoncer qu'aucune vidéo avec le(s) mot-clef(s) spécifié(s) n'a été trouvée.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
+                                Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Ceci est un message d'erreur générique pour annoncer qu'aucune vidéo avec le(s) mot-clef(s) spécifié(s) n'a été trouvée.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
 
                                 Try
                                     stream.Write(notfound_data, 0, notfound_data.Length)
@@ -3185,10 +3668,10 @@ Module Program
                                 Exit Sub
                             Else
                                 If lines.Count = 1 Then
-                                    patternpage.AppendLine(" <BR><BR><CENTER><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Le meilleur résultat pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P></CENTER><BR><BR>")
+                                    patternpage.AppendLine(" <BR><CENTER><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Le meilleur résultat pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;»&nbsp;:</FONT></B></P></CENTER><BR><BR>")
                                     patternpage.AppendLine()
                                 Else
-                                    patternpage.AppendLine(" <BR><BR><CENTER><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Les " & lines.Count.ToString & " meilleurs résultats pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;» :</FONT></B></P></CENTER><BR><BR>")
+                                    patternpage.AppendLine(" <BR><CENTER><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Les " & lines.Count.ToString & " meilleurs résultats pour la recherche de «&nbsp;" & EscapeHtml(req) & "&nbsp;»&nbsp;:</FONT></B></P></CENTER><BR><BR>")
                                     patternpage.AppendLine()
                                 End If
 
@@ -3226,15 +3709,15 @@ Module Program
                                         tmp_prop.Dislike_Count = parts(12)
 
                                         If LCase(parts(6)) = "na" Then
-                                            tmp_prop.Duration = "?:??"
+                                            tmp_prop.Duration = -1
                                         Else
-                                            tmp_prop.Duration = GetDuration(parts(6))
+                                            tmp_prop.Duration = CInt(parts(6))
                                         End If
 
                                         tmp_prop.Dimensions = IIf(IsNumeric(parts(7)), parts(7), "640") & ":" & IIf(IsNumeric(parts(8)), parts(8), "480")
 
                                         tmp_prop.Description = IIf(String.IsNullOrEmpty(parts(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(parts(9))))
-                                        If tmp_prop.Description.Length > 1024 Then tmp_prop.Description = tmp_prop.Description.Substring(0, 1024)
+                                        If tmp_prop.Description.Length > 2048 Then tmp_prop.Description = tmp_prop.Description.Substring(0, 2048) & "..."
                                         tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
                                         tmp_prop.Description = tmp_prop.Description.Replace(vbCr, "<BR>")
                                         tmp_prop.Description = tmp_prop.Description.Replace(vbLf, "<BR>")
@@ -3259,7 +3742,7 @@ Module Program
                                         'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
                                         patternpage.AppendLine("   <TR CLASS=""survol"">")
                                         patternpage.AppendLine("    <TD WIDTH=160 HEIGHT=100>")
-                                        patternpage.AppendLine("     <A HREF=""/watch?v=" & id & "&amp;lastsearch=" & Uri.EscapeDataString(req.Replace(" ", "+")) & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A>")
+                                        patternpage.AppendLine("     <A HREF=""/watch?v=" & id & "&amp;lastsearch=" & Uri.EscapeDataString(req.Replace(" ", "+")) & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """ WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" BORDER=0 ALT=""" & EscapeHtml(title) & """ /></A>")
                                         patternpage.AppendLine("    </TD>")
                                         patternpage.AppendLine("    <TD WIDTH=* VALIGN=TOP>")
                                         patternpage.Append("     <A HREF=""/watch?v=" & id & "&amp;lastsearch=" & Uri.EscapeDataString(req.Replace(" ", "+")) & """>" & EscapeHtml(title) & "</A>")
@@ -3300,7 +3783,7 @@ Module Program
                 Else
                     'Si le mot-clef est vide voire invalide.
                     If vt = RequestVideoType.LuckyVideo Then
-                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Message générique pour annoncer à l'utilisateur qu'aucun mot-clef n'a été spécifié.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
+                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Message générique pour annoncer à l'utilisateur qu'aucun mot-clef n'a été spécifié.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
 
                         Try
                             stream.Write(notfound_data, 0, notfound_data.Length)
@@ -3311,7 +3794,8 @@ Module Program
                     Else
                         patternpage.AppendLine(InitValues("Erreur de recherche", , wanted_skin, , used_player))
                         'patternpage &= " <HR WIDTH=880 ALIGN=CENTER /><BR>" & vbCrLf
-                        patternpage.AppendLine(" <P ALIGN=CENTER><BR><B><FONT SIZE=2>Veuillez spécifier un mot-clef pour que la recherche puisse avoir lieu.<BR><BR>Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</FONT></B></P><BR><BR><DIV CLASS=""bodysep""></DIV>")
+                        patternpage.AppendLine(" <CENTER><H1 CLASS=""black_label"">Message d'erreur</H1></CENTER>")
+                        patternpage.AppendLine(" <P ALIGN=CENTER><BR><B><FONT SIZE=2>Veuillez spécifier un mot-clef pour que la recherche puisse avoir lieu.<BR><BR>Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</FONT></B></P><BR><BR><DIV CLASS=""bodysep""></DIV>")
                         patternpage.AppendLine()
                         patternpage.AppendLine(footer)
 
@@ -3334,7 +3818,7 @@ Module Program
 
                 client.Close()
             Else
-                Dim notfound_data As Byte() = GetHTTPBytes(500, "<H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le serveur proxy n'est pas connecté à Internet, ainsi, la requête ne peut pas être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                Dim notfound_data As Byte() = GetHTTPBytes(500, "<H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le serveur proxy n'est pas connecté à Internet. Ainsi, la requête ne peut pas être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                 Try
                     stream.Write(notfound_data, 0, notfound_data.Length)
@@ -3346,7 +3830,7 @@ Module Program
             End If
         ElseIf request.StartsWith("GET /search") Then
             'Requête vide
-            Dim result_page As String = "<TITLE>RetroYT - Information</TITLE><H1>302 Ressource trouvée</H1><P>Veuillez vous rendre <A HREF=""/"">ici</A> pour chercher une vidéo.</P>" & vbCrLf
+            Dim result_page As String = "<TITLE>RetroYT - Information</TITLE><H1>302 Ressource trouvée</H1><P>Veuillez vous rendre <A HREF=""/feed"">ici</A> pour chercher une vidéo.</P>" & vbCrLf
 
             Dim index_resp As String = "HTTP/" & http_ver & " 302 Found" & vbCrLf &
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
@@ -3396,6 +3880,7 @@ Module Program
             Dim pic_url As String = "about:blank"
             Dim pic_duration As String = "?:??"
             Dim default_resource As String = "nopic.jpg"
+            Dim no_duration As Boolean = True
 
             If arg.Contains("&") Then
                 pic_params = arg.Split("&") 'Collection de paramètres
@@ -3416,8 +3901,9 @@ Module Program
                             Try
                                 pic_duration = sub_params(1)
                             Catch ex As Exception
-                                pic_duration = "?:??"
+                                pic_duration = "?_??"
                             End Try
+                            no_duration = False
                         Case "type"
                             If {"thumbnail", "short", "playlist", "avatar", "banner"}.Contains(sub_params(1)) Then
                                 pic_type = sub_params(1)
@@ -3427,6 +3913,21 @@ Module Program
                     End Select
                 End If
             Next
+
+            'Si l'utilisateur met des durées pourries
+            If Not IsNumeric(pic_duration.Replace("_", String.Empty)) Or pic_duration.Length > 10 Then
+                pic_duration = "?_??"
+            End If
+
+            If Not pic_duration.Contains("_") Then
+                pic_duration = "?_??"
+            End If
+
+            If Split(pic_duration, "_").Length > 3 Then
+                pic_duration = "?_??"
+            End If
+
+            If no_duration Then pic_duration = String.Empty
 
             WriteLog("Ressource picturale demandée: " & IIf(String.IsNullOrEmpty(pic_url), "<null>", pic_url), , client)
 
@@ -3476,34 +3977,24 @@ Module Program
             '***************************************************************************************** CONVERSION *********************************************************************
             '**************************************************************************************************************************************************************************
 
-            Dim psi As New ProcessStartInfo()
-            psi.FileName = "ImageTool.exe"
-
-            psi.Arguments = "-i " & GetMD5(pic_url) & ".jpg -o " & GetMD5(pic_url) & ".jpg "
+            Dim wanted_arg As String = String.Empty
+            wanted_arg = "-i " & GetMD5(pic_url) & ".jpg -o " & GetMD5(pic_url) & ".jpg "
 
             Select Case pic_type
                 Case "thumbnail"
-                    psi.Arguments &= "-w 160 -h 100"
-                    If pic_duration <> "?:??" Then psi.Arguments &= " -duration " & pic_duration.Replace("_", ":")
+                    wanted_arg &= "-w 160 -h 100"
+                    If Not String.IsNullOrEmpty(pic_duration) AndAlso pic_duration <> "?:??" Then wanted_arg &= " -duration " & pic_duration.Replace("_", ":")
                 Case "avatar"
-                    psi.Arguments &= "-w 64 -h 64"
+                    wanted_arg &= "-w 64 -h 64"
                 Case "banner"
-                    psi.Arguments &= "-w 600 -h 100"
+                    wanted_arg &= "-w 600 -h 100"
                 Case "shorts"
-                    psi.Arguments &= "-w 120 -h 214"
+                    wanted_arg &= "-w 120 -h 214"
                 Case Else
-                    psi.Arguments &= "-w 160 -h 100"
+                    wanted_arg &= "-w 160 -h 100"
             End Select
 
-            psi.UseShellExecute = False
-            psi.RedirectStandardOutput = True
-            psi.RedirectStandardError = True
-            psi.CreateNoWindow = True
-            psi.StandardOutputEncoding = Encoding.UTF8
-            psi.StandardErrorEncoding = Encoding.UTF8
-
-            Dim p As Process = Process.Start(psi)
-            p.WaitForExit(60000)
+            Dim op_image As OutputResponse = LaunchProcess(wanted_arg, "ImageTool.exe", , , 60000) '1 minute maximum
 
             If IO.File.Exists(CurDir() & "\thumbs\" & GetMD5(pic_url) & ".jpg") Then
                 path = CurDir() & "\thumbs\" & GetMD5(pic_url) & ".jpg"
@@ -3512,9 +4003,7 @@ Module Program
             End If
 
             Dim bytes As Byte() = IO.File.ReadAllBytes(path)
-
-            Dim header As String =
-                "HTTP/" & http_ver & " 200 OK" & vbCrLf
+            Dim header As String = "HTTP/" & http_ver & " 200 OK" & vbCrLf
 
             If path = "\resfiles\blank.gif" Then
                 header &= "Content-Type: image/gif" & vbCrLf
@@ -3581,9 +4070,15 @@ Module Program
             Dim selected_big_cinema As String = String.Empty
             Dim selected_vertical1 As String = String.Empty
             Dim selected_vertical2 As String = String.Empty
+            Dim selected_vertical3 As String = String.Empty
             Dim selected_eh As String = String.Empty 'Eight hundred
             Dim selected_ot As String = String.Empty 'One thousand
             Dim selected_otsh As String = String.Empty 'One thousand six hundred six seven six seven six seven
+
+            Dim selected_v1 As String = String.Empty 'Lecteur pour les shorts
+            Dim selected_v2 As String = String.Empty
+            Dim selected_v3 As String = String.Empty
+            Dim selected_v0 As String = String.Empty
 
             Dim selected_avi_mpeg4 As String = String.Empty
             Dim selected_avi_msvideo1 As String = String.Empty
@@ -3695,6 +4190,7 @@ Module Program
                 Case "bigcinema" : selected_big_cinema = " SELECTED"
                 Case "vertical1" : selected_vertical1 = " SELECTED"
                 Case "vertical2" : selected_vertical2 = " SELECTED"
+                Case "vertical3" : selected_vertical3 = " SELECTED"
                 Case "eh" : selected_eh = " SELECTED"
                 Case "ot" : selected_ot = " SELECTED"
                 Case "otsh" : selected_otsh = " SELECTED"
@@ -3796,6 +4292,13 @@ Module Program
                 Case Else : selected_channel_nine = " SELECTED"
             End Select
 
+            Select Case player_vsize
+                Case "vert0" : selected_v0 = " SELECTED"
+                Case "vert1" : selected_v1 = " SELECTED"
+                Case "vert2" : selected_v2 = " SELECTED"
+                Case "vert3" : selected_v3 = " SELECTED"
+            End Select
+
             If right_panel Then
                 selected_panel = " SELECTED"
             Else
@@ -3820,8 +4323,8 @@ Module Program
                 selected_long_vids = " SELECTED"
             End If
 
-            patternpage.AppendLine(InitValues("Configuration client", , wanted_skin, , used_player))
-            patternpage.AppendLine("<BR><CENTER><H1 CLASS=""black_label""><B>Configuration du client RetroYT :</B></H1></CENTER><BR>")
+            patternpage.AppendLine(InitValues("Configuration client", , wanted_skin, , used_player, , True))
+            patternpage.AppendLine("<BR><CENTER><H1 CLASS=""black_label"" STYLE=""width: 780px;""><B>Configuration du client RetroYT :</B></H1></CENTER><BR>")
             patternpage.AppendLine()
 
             If request.Contains("message=gotreset") Then
@@ -4003,8 +4506,8 @@ Module Program
             patternpage.AppendLine("	   <OPTION VALUE=""micro""" & selected_micro & ">Micro (160x140)</OPTION>")
             patternpage.AppendLine("	   <OPTION VALUE=""ultrasmall""" & selected_ultrasmall & ">Ultra Compact (256x192)</OPTION>")
             patternpage.AppendLine("	   <OPTION VALUE=""small""" & selected_small & ">Compact (320x240)</OPTION>")
-            patternpage.AppendLine("	   <OPTION VALUE=""cs""" & selected_classic_size & ">Classique (480x360) [Par défaut]</OPTION>")
-            patternpage.AppendLine("	   <OPTION VALUE=""middle""" & selected_middle & ">Standard VGA (640x480)</OPTION>")
+            patternpage.AppendLine("	   <OPTION VALUE=""cs""" & selected_classic_size & ">Classique (480x360)</OPTION>")
+            patternpage.AppendLine("	   <OPTION VALUE=""middle""" & selected_middle & ">Standard (640x480) [Par défaut]</OPTION>")
             patternpage.AppendLine("	   <OPTION VALUE=""eh""" & selected_eh & ">Moyen (800x600)</OPTION>")
             patternpage.AppendLine("	   <OPTION VALUE=""ot""" & selected_ot & ">Grand (1024x768)</OPTION>")
             patternpage.AppendLine("	   <OPTION VALUE=""otsh""" & selected_otsh & ">Très grand (1600x1200)</OPTION>")
@@ -4022,8 +4525,9 @@ Module Program
 
             If (Not old_ie) Then patternpage.AppendLine("	   <OPTION DISABLED></OPTION>")
             If (Not old_ie) Then patternpage.AppendLine("	   <OPTION DISABLED>Proportions verticales :</OPTION>")
-            patternpage.AppendLine("	   <OPTION VALUE=""vertical1""" & selected_vertical1 & ">Vertical en 3:4 (360x480)</OPTION>")
-            patternpage.AppendLine("	   <OPTION VALUE=""vertical2""" & selected_vertical2 & ">Vertical en 9:16 (720x1280)</OPTION>")
+            patternpage.AppendLine("	   <OPTION VALUE=""vertical1""" & selected_vertical1 & ">Vertical classique en 3:4 (270x480)</OPTION>")
+            patternpage.AppendLine("	   <OPTION VALUE=""vertical2""" & selected_vertical2 & ">Vertical standard en 9:16 (360x640)</OPTION>")
+            patternpage.AppendLine("	   <OPTION VALUE=""vertical3""" & selected_vertical3 & ">Vertical grand en 9:16 (720x1280)</OPTION>")
 
             If (Not old_ie) Then patternpage.AppendLine("	   <OPTION DISABLED></OPTION>")
             If (Not old_ie) Then patternpage.AppendLine("	   <OPTION DISABLED>Proportions dynamiques :</OPTION>")
@@ -4031,6 +4535,19 @@ Module Program
             patternpage.AppendLine("	   <OPTION VALUE=""autoheight""" & selected_auto_height & ">Automatique (Selon taille vidéo)</OPTION>")
             patternpage.AppendLine("	   <OPTION VALUE=""fullscreen""" & selected_fullscreen & ">Plein écran (Avec HTML)</OPTION>")
             patternpage.AppendLine("	   <OPTION VALUE=""fulljs""" & selected_fulljs & ">Plein écran (Avec Javascript)</OPTION>")
+            patternpage.AppendLine("	  </SELECT>")
+            patternpage.AppendLine("	 </TD>")
+            patternpage.AppendLine("	</TR>")
+            patternpage.AppendLine()
+
+            patternpage.AppendLine("	<TR>")
+            patternpage.AppendLine("	 <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Taille du lecteur pour les shorts&nbsp;:&nbsp;</TD>")
+            patternpage.AppendLine("	 <TD WIDTH=* HEIGHT=40>")
+            patternpage.AppendLine("	  <SELECT NAME=""vsize"" WIDTH=300>")
+            patternpage.AppendLine("	   <OPTION VALUE=""vert0""" & selected_v0 & ">Taille verticale micro (144x256)</OPTION>")
+            patternpage.AppendLine("	   <OPTION VALUE=""vert1""" & selected_v1 & ">Taille verticale petite (270x480) [Par défaut]</OPTION>")
+            patternpage.AppendLine("	   <OPTION VALUE=""vert2""" & selected_v2 & ">Taille verticale moyenne (360x640)</OPTION>")
+            patternpage.AppendLine("	   <OPTION VALUE=""vert3""" & selected_v3 & ">Grande taille verticale (720x1280)</OPTION>")
             patternpage.AppendLine("	  </SELECT>")
             patternpage.AppendLine("	 </TD>")
             patternpage.AppendLine("	</TR>")
@@ -4056,7 +4573,7 @@ Module Program
             patternpage.AppendLine("	</TR>")
 
             patternpage.AppendLine("    <TR>")
-            patternpage.AppendLine("     <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Afficher le volet des suggestions&nbsp;:&nbsp;</TD>")
+            patternpage.AppendLine("     <TD ALIGN=RIGHT WIDTH=380 HEIGHT=40>Afficher le volet droit (suggestions, playlists, shorts)&nbsp;:&nbsp;</TD>")
             patternpage.AppendLine("     <TD WIDTH=* HEIGHT=40>")
             patternpage.AppendLine("      <SELECT NAME=""panel"" WIDTH=300>")
             patternpage.AppendLine("       <OPTION VALUE=""true""" & selected_panel & ">Activé [Par défaut]</OPTION>")
@@ -4092,11 +4609,11 @@ Module Program
             patternpage.AppendLine("   </TABLE></CENTER><BR><BR>")
             patternpage.AppendLine()
 
-            patternpage.AppendLine("   <CENTER><P>Cliquez sur le bouton pour <INPUT TYPE=""SUBMIT"" VALUE=""Enregistrer"" CLASS=""red_button"" /> ou sur le lien <A HREF=""/resetcfg.cgi"">réinitialiser les paramètres</A>.</P></CENTER>")
+            patternpage.AppendLine("   <CENTER><P>Cliquez sur le bouton pour <INPUT TYPE=""SUBMIT"" VALUE=""Enregistrer"" CLASS=""red_button"" /> la configuration, ou sur ce lien pour <A HREF=""/resetcfg.cgi"">réinitialiser les paramètres</A>.</P></CENTER>")
             patternpage.AppendLine("  </FORM><BR><BR>")
             patternpage.AppendLine("  <NOSCRIPT><P ALIGN=CENTER><B>Avertissement:</B>&nbsp;Javascript semble indisponible sur votre navigateur. Veuillez le réactiver ou changer de navigateur, si vous voulez utiliser certaines options.<BR><BR></P></NOSCRIPT>")
-            patternpage.AppendLine("  <CENTER><DIV STYLE=""display: block; width: 780px; margin-left: auto; margin-right: auto; !text-align: center;""><P STYLE=""text-align: justify;""><B>NOTA:</B>&nbsp;L'intégration du lecteur multimédia HTML5 convient aux navigateurs sortis après 2008, accompagné du format MP4. Une version de ce lecteur adaptée aux anciennes versions d'Android, aux consoles Nintendo ou SONY, qu'elles soient portables ou de salon, permet de rendre la lecture plus aisée sur ces configurations connectables à Internet. Nintendo® et SONY® sont des marques déposées, appartenant à leurs sociétés respectives (Merci à LeJarb pour son code d'intégration spécifique à ces configurations).<BR><BR>")
-            patternpage.AppendLine("  <B>NOTA 2:</B>&nbsp;Par ailleurs, le mode 60 FPS n'est pas tout le temps disponible. Il faut que la vidéo source soit déjà en 60 FPS, ce qui n'est pas toujours le cas. Le format de destination doit être assez récent pour prendre en charge ce mode. Prudence sur les anciennes configurations, où des saturations mémoire peuvent surgir.</P>")
+            patternpage.AppendLine("  <CENTER><DIV STYLE=""display: block; width: 780px; margin-left: auto; margin-right: auto; !text-align: center;""><P STYLE=""text-align: justify;""><B>NOTA:</B>&nbsp;L'intégration du lecteur multimédia HTML5 convient aux navigateurs publiés après l'année 2008. Auquel cas, il est également recommandé de faire usage du format MP4. Une version de cette intégration, adaptée aux anciennes versions d'Android, aux consoles Nintendo ou SONY, permet de rendre la lecture plus aisée sur ces périphériques connectables à Internet. Nintendo® et SONY® sont des marques déposées appartenant à leurs sociétés respectives (Merci à LeJarb pour son code d'intégration spécifique à ces configurations).<BR><BR>")
+            patternpage.AppendLine("  <B>NOTA 2:</B>&nbsp;Par ailleurs, le mode 60 FPS n'est pas tout le temps disponible pour la lecture. Il faut que la vidéo source soit déjà en 60 FPS, ce qui n'est pas toujours le cas. Le format de destination doit être assez récent pour prendre en charge ce nombre d'images par seconde. Prudence sur les anciennes configurations, où un tel nombre d'images par seconde peut provoquer des saturations mémoire.</P>")
             patternpage.AppendLine("  <VIDEO STYLE=""height: 32px; width: 780px;""><P ALIGN=CENTER><B>NOTA 3:</B>&nbsp;Votre navigateur ne semble pas supporter le HTML5. Il est donc déconseillé d'utiliser l'intégration de type vidéo HTML5 pour lire du contenu multimédia.</VIDEO></DIV></CENTER>")
             patternpage.AppendLine(" <BR><BR><BR><BR>" & footer)
 
@@ -4189,7 +4706,7 @@ Module Program
                 "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
                 "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
                 "Connection: close" & vbCrLf &
-                "Set-Cookie: " & cookie_header & "results=10&size=cs&codec=avi_mpeg4&player=embed&skin=cosmic&resolution=auto&framerate=auto&panel=true&displaycomments=20&vcn=18&trends=enable&displaystream=enable&hidelongvids=yes; Path=/; Expires=" & exp & vbCrLf &
+                "Set-Cookie: " & cookie_header & "results=10&size=middle&codec=recent_mpeg1&player=embed&skin=cosmic&resolution=auto&framerate=auto&panel=true&displaycomments=20&vcn=18&trends=enable&displaystream=enable&hidelongvids=yes&vsize=vert1; Path=/; Expires=" & exp & vbCrLf &
                 "Location: /config.cgi&message=gotreset" & vbCrLf &
                 "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser
 
@@ -4210,6 +4727,7 @@ Module Program
             Dim com_offset As Integer = 0
             Dim has_error As Boolean = False
             Dim dcpv As Integer = Math.Max(20, disp_comments_per_video)
+            Dim is_short As Boolean = False
 
             Try
                 arg1 = arg1.Remove(0, 11)
@@ -4219,6 +4737,11 @@ Module Program
                     arg1 = arg1.Trim
                     arg1 = arg1.Replace(vbLf, String.Empty)
                     arg1 = arg1.Replace(vbCr, String.Empty)
+                End If
+
+                If arg1.Contains("&type=short") Then
+                    arg1 = arg1.Replace("&type=short", String.Empty)
+                    is_short = True
                 End If
 
                 If arg1.EndsWith("&") Then
@@ -4367,10 +4890,13 @@ Module Program
                     End If
                 Loop
 
+                Dim prefix As String = "watch"
+                If is_short Then prefix = "short"
+
                 If String.IsNullOrEmpty(acc_coms) Then
-                    patternpage.AppendLine("<BR><BR><CENTER><H2>Affichage des commentaires pour la vidéo <A HREF=""/watch?v=" & last_view & """>" & video_props(last_view).Title & "</A> :<BR><BR>Aucun commentaire trouvé, ou numéro de page invalide.</H2></CENTER><DIV CLASS=bodysep></DIV>")
+                    patternpage.AppendLine("<BR><BR><CENTER><H2>Affichage des commentaires pour la vidéo <A HREF=""/" & prefix & "?v=" & last_view & """>" & video_props(last_view).Title & "</A> :<BR><BR>Aucun commentaire trouvé, ou numéro de page invalide.</H2></CENTER><DIV CLASS=bodysep></DIV>")
                 Else
-                    patternpage.AppendLine("<DIV STYLE=""width: 100%; padding: 24px 24px 24px 24px;""><CENTER><H2>" & total_comments.ToString & " commentaire(s) pour la vidéo <A HREF=""/watch?v=" & last_view & """>" & video_props(last_view).Title & "</A> (Affichage des commentaires " & CStr(1 + com_offset * disp_comments_per_video) & " à " & CStr(Math.Min(total_comments, (com_offset * disp_comments_per_video) + dcpv)) & ") :</H2></CENTER><BR><BR>")
+                    patternpage.AppendLine("<DIV STYLE=""width: 100%; padding: 24px 24px 24px 24px;""><CENTER><H2>" & total_comments.ToString & " commentaire(s) pour la vidéo <A HREF=""/" & prefix & "?v=" & last_view & """>" & video_props(last_view).Title & "</A> (Affichage des commentaires " & CStr(1 + com_offset * disp_comments_per_video) & " à " & CStr(Math.Min(total_comments, (com_offset * disp_comments_per_video) + dcpv)) & ") :</H2></CENTER><BR><BR>")
                     patternpage.AppendLine(acc_coms & "</DIV>")
 
                     If total_comments > dcpv Then
@@ -4381,13 +4907,13 @@ Module Program
                         patternpage.AppendLine("<FORM METHOD=""GET"" ACTION=""/com.cgi"">")
 
                         If com_offset <> 0 Then
-                            patternpage.Append("<LABEL><A HREF=""/com.cgi?v=" & last_view & "&amp;page=" & CStr(CInt(com_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;")
+                            patternpage.Append("<LABEL><A HREF=""/com.cgi?v=" & last_view & "&amp;page=" & CStr(CInt(com_offset)) & IIf(is_short, "&type=short", String.Empty) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;")
                         Else
                             patternpage.Append("<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;")
                         End If
 
                         If com_offset <> max_page - 1 Then
-                            patternpage.Append("<LABEL><A HREF=""/com.cgi?v=" & arg1 & "&amp;page=" & CStr(CInt(com_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;")
+                            patternpage.Append("<LABEL><A HREF=""/com.cgi?v=" & arg1 & "&amp;page=" & CStr(CInt(com_offset + 2)) & IIf(is_short, "&type=short", String.Empty) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;")
                         Else
                             patternpage.AppendLine("<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;")
                         End If
@@ -4442,7 +4968,7 @@ Module Program
             'Les autres requêtes entraînent une erreur 400 (requête invalide).
             WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Vous devez spécifier la vidéo sur laquelle consulter les commentaires en paramètre (avec <I>v=id_video</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Vous devez spécifier la vidéo sur laquelle consulter les commentaires en paramètre (avec <I>v=id_video</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
@@ -4473,7 +4999,7 @@ Module Program
 
             If Not IO.File.Exists(CurDir() & "\vidcache\" & arg1) Then
                 Dim notfound_data As Byte()
-                notfound_data = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>La vidéo avec pour nom de fichier '" & arg1.Replace(">", "&gt;").Replace("<", "&lt;") & "' n'a pas été trouvée sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
+                notfound_data = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>La vidéo avec pour nom de fichier '" & arg1.Replace(">", "&gt;").Replace("<", "&lt;") & "' n'a pas été trouvée sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
 
                 Try
                     stream.Write(notfound_data, 0, notfound_data.Length)
@@ -4516,7 +5042,7 @@ Module Program
                 If range_begin >= 0 Or range_end >= 0 Then
                     If range_begin >= f_length Or range_end > f_length Or range_begin < 0 Or range_end < 0 Then
                         'Lever une erreur
-                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                        Dim invalidrangedata As Byte() = GetHTTPBytes(416, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 416 - Plage de données invalide</H1>" & vbCrLf & "<P>La requête envoyée par le navigateur est erronée, car les offsets demandés dans le fichier sont invalides.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                         Try
                             stream.Write(invalidrangedata, 0, invalidrangedata.Length)
@@ -4602,7 +5128,7 @@ Module Program
             End If
         ElseIf request.StartsWith("GET /channel.cgi?id=") Then
             If number_of_channels > 10 Then
-                Dim baddata As Byte() = GetHTTPBytes(429, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 429 - Trop de requêtes simultanées</H1>" & vbCrLf & "<P>Trop de chaînes sont en cours de lecture par le serveur. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+                Dim baddata As Byte() = GetHTTPBytes(429, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 429 - Trop de requêtes simultanées</H1>" & vbCrLf & "<P>Trop de chaînes sont en cours de lecture par le serveur. Veuillez réessayer plus tard.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
 
                 Try
                     stream.Write(baddata, 0, baddata.Length)
@@ -4630,7 +5156,7 @@ Module Program
             If error_encountered OrElse String.IsNullOrEmpty(arg1) OrElse arg1.Length = 0 Then
                 WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
 
-                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Impossible d'afficher la chaîne demandée, car aucun identifiant de chaîne n'a été spécifié.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Impossible d'afficher la chaîne demandée, car aucun identifiant de chaîne n'a été spécifié.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
                 Try
                     stream.Write(baddata, 0, baddata.Length)
@@ -4645,9 +5171,8 @@ Module Program
                 client.Close()
             Else
                 number_of_channels += 1
-                Dim psi4 As New ProcessStartInfo()
+
                 Dim url_params() As String
-                psi4.FileName = "yt-dlp.exe"
 
                 If arg1.EndsWith("&") Then
                     arg1 = arg1.Remove(arg1.Length - 1, 1)
@@ -4665,7 +5190,7 @@ Module Program
                             Dim sub_params() As String = u.Split("=")
                             Select Case sub_params(0)
                                 Case "section"
-                                    If {"videos", "shorts", "playlists"}.Contains(sub_params(1)) Then
+                                    If {"videos", "shorts", "playlists", "streams"}.Contains(sub_params(1)) Then
                                         vid_section = sub_params(1)
                                     End If
                                 Case "page"
@@ -4685,25 +5210,9 @@ Module Program
 
                 WriteLog("Demande d'informations sur la chaîne " & arg1 & IIf(vid_offset = 0, String.Empty, ", page " & CStr(vid_offset + 1)) & ", section '" & vid_section & "'.", ConsoleColor.Blue, client)
 
-                Dim add_cookie As String = String.Empty
-
-                If IO.File.Exists("cookies.txt") Then
-                    add_cookie &= " --cookies cookies.txt"
-                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                End If
-
-                psi4.Arguments = "-J --playlist-items 1 ""https://www.youtube.com/channel/" & arg1 & "/"" --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-                psi4.UseShellExecute = False
-                psi4.RedirectStandardOutput = True
-                psi4.RedirectStandardError = True
-                psi4.CreateNoWindow = True
-                psi4.StandardOutputEncoding = Encoding.UTF8
-                psi4.StandardErrorEncoding = Encoding.UTF8
-
-                Dim p4 As Process = Process.Start(psi4)
-                Dim output4 As String = p4.StandardOutput.ReadToEnd()
-                Dim err4 As String = p4.StandardError.ReadToEnd()
-                p4.WaitForExit(600000)
+                Dim op_get_channel As OutputResponse = LaunchProcess("-J --playlist-items 1 ""https://www.youtube.com/channel/" & arg1 & "/""") '60000 ms
+                Dim output4 As String = op_get_channel.OutputData
+                Dim err4 As String = op_get_channel.ErrorData
 
                 Dim channel_name As String = "&lt;Nom inconnu&gt;"
                 Dim channel_desc As String = "&lt;Aucune description disponible&gt;"
@@ -4714,7 +5223,7 @@ Module Program
                 Dim channel_avatar As String = "about:blank"
 
                 If String.IsNullOrEmpty(output4) OrElse output4.StartsWith("null") Then
-                    Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne</H1>" & vbCrLf & "<P>La chaîne demandée n'existe pas selon les serveurs YouTube, ou ne contient aucune information traitable.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+                    Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>La chaîne demandée n'existe pas selon les serveurs YouTube, ou ne contient aucune information traitable.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
                     Try
                         stream.Write(baddata, 0, baddata.Length)
@@ -4790,34 +5299,19 @@ Module Program
                 End If
 
                 'Liste des vidéos de la chaîne
-                Dim psi5 As New ProcessStartInfo()
-                psi5.FileName = "yt-dlp.exe"
-
-                If IO.File.Exists("cookies.txt") Then
-                    add_cookie = " --cookies cookies.txt"
-                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                End If
+                Dim op_play As OutputResponse = Nothing
 
                 If vid_section = "playlists" Then
-                    psi5.Arguments = "--print ""%()j"" --flat-playlist ""https://www.youtube.com/channel/" & arg1 & "/" & vid_section & "/"" --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                    op_play = LaunchProcess("--print ""%()j"" --flat-playlist ""https://www.youtube.com/channel/" & arg1 & "/" & vid_section & "/""", , , , 600000)
                 Else
-                    psi5.Arguments = "--flat-playlist --print ""%(id)s<|>"" ""https://www.youtube.com/channel/" & arg1 & "/" & vid_section & "/"" --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
+                    op_play = LaunchProcess("--flat-playlist --print ""%(id)s<|>"" ""https://www.youtube.com/channel/" & arg1 & "/" & vid_section & "/""", , , , 600000)
                 End If
 
-                psi5.UseShellExecute = False
-                psi5.RedirectStandardOutput = True
-                psi5.RedirectStandardError = True
-                psi5.CreateNoWindow = True
-                psi5.StandardOutputEncoding = Encoding.UTF8
-                psi5.StandardErrorEncoding = Encoding.UTF8
-
-                Dim p5 As Process = Process.Start(psi5)
-                Dim output5 As String = p5.StandardOutput.ReadToEnd()
+                Dim output5 As String = op_play.OutputData
                 output5 = output5.Trim(vbLf)
                 output5 = output5.Trim(vbCr)
                 If output5.EndsWith("<|>") Then output5 = output5.Remove(output5.Length - 3, 3)
-                Dim err5 As String = p5.StandardError.ReadToEnd()
-                p5.WaitForExit(600000)
+                Dim err5 As String = op_play.ErrorData
 
                 If String.IsNullOrEmpty(output5) OrElse output5.Length = 0 OrElse output5.StartsWith("null") Then
 
@@ -4839,38 +5333,41 @@ Module Program
                     End If
 
                     patternpage.AppendLine(InitValues(final_channel_name2, , wanted_skin, , used_player))
-                    If channel_banner <> "about:blank" And output4.Contains("""id"": ""banner_uncropped""") Then patternpage.AppendLine("<BR><CENTER><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_banner) & "&amp;type=banner"" ALT=""Bannière de " & channel_name & """ WIDTH=600 HEIGHT=100 STYLE=""border-radius: 8px;"" /></CENTER><BR>")
                     patternpage.AppendLine("<CENTER><H1 CLASS=""black_label"">" & final_channel_name2 & "</H1></CENTER>")
+                    If channel_banner <> "about:blank" And output4.Contains("""id"": ""banner_uncropped""") Then patternpage.AppendLine("<BR><CENTER><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_banner) & "&amp;type=banner"" ALT=""Bannière de " & channel_name & """ WIDTH=600 HEIGHT=100 STYLE=""border-radius: 8px;"" /></CENTER>")
                     patternpage.AppendLine("<BR><CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=600>")
                     patternpage.AppendLine(" <TR>")
                     patternpage.AppendLine("  <TD WIDTH=92 VALIGN=TOP>")
-                    patternpage.AppendLine("   <CENTER><BR><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_avatar) & "&amp;type=avatar"" ALT=""Avatar de " & channel_name & """ WIDTH=64 HEIGHT=64 STYLE=""border-radius: 32px;"" /></CENTER>")
+                    patternpage.AppendLine("   <CENTER><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_avatar) & "&amp;type=avatar"" ALT=""Avatar de " & channel_name & """ WIDTH=64 HEIGHT=64 STYLE=""border-radius: 32px;"" /></CENTER>")
                     patternpage.AppendLine("  </TD>")
                     patternpage.AppendLine("  <TD WIDTH=*>")
-                    'patternpage.AppendLine("   <H1>" & UnicodeJson(channel_name) & "</H1>")
 
                     Select Case vid_section
                         Case "shorts"
-                            patternpage.AppendLine("   <P><BR>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; 0 short(s)</P>")
+                            patternpage.AppendLine("   <P><B>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; 0 short</B></P>")
                         Case "playlists"
-                            patternpage.AppendLine("   <P><BR>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; 0 playlist(s)</P>")
+                            patternpage.AppendLine("   <P><B>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; 0 playlist</B></P>")
+                        Case "streams"
+                            patternpage.AppendLine("   <P><B>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; 0 vidéo en live</B></P>")
                         Case Else
-                            patternpage.AppendLine("   <P><BR>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; 0 vidéo(s)</P>")
+                            patternpage.AppendLine("   <P><B>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; 0 vidéo</B></P>")
                     End Select
 
                     patternpage.AppendLine("   <P>" & UnicodeJson(channel_desc) & "</P><BR>")
                     patternpage.AppendLine("  </TD>")
                     patternpage.AppendLine(" </TR>")
                     patternpage.AppendLine(" <TR>")
-                    patternpage.Append("  <TD COLSPAN=3><CENTER><B>Sections disponibles à la navigation:</B> ")
+                    patternpage.Append("  <TD COLSPAN=3><CENTER><H2 CLASS=""black_label""><B>Sections de la chaîne :</B></H1><BR>")
 
                     Select Case vid_section
-                        Case "videos"
-                            patternpage.AppendLine("<B>VID&Eacute;OS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A></CENTER></TD>")
                         Case "shorts"
-                            patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <B>SHORTS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A></CENTER></TD>")
+                            patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <B>SHORTS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=streams"">LIVES</A></CENTER></TD>")
                         Case "playlists"
-                            patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <B>PLAYLISTS</B></CENTER></TD>")
+                            patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <B>PLAYLISTS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=streams"">LIVES</A></CENTER></TD>")
+                        Case "streams"
+                            patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A> - <B>LIVES</B></CENTER></TD>")
+                        Case Else
+                            patternpage.AppendLine("<B>VID&Eacute;OS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=streams"">LIVES</A></CENTER></TD>")
                     End Select
 
                     patternpage.AppendLine(" </TR>")
@@ -4919,17 +5416,16 @@ Module Program
 
                 patternpage.AppendLine(InitValues(final_channel_name, , wanted_skin, , used_player))
 
-                If channel_banner <> "about:blank" And output4.Contains("""id"": ""banner_uncropped""") Then patternpage.AppendLine("<BR><CENTER><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_banner) & "&amp;type=banner"" ALT=""Bannière de " & channel_name & """ WIDTH=600 HEIGHT=100 STYLE=""border-radius: 8px;"" /></CENTER><BR>")
                 patternpage.AppendLine("<CENTER><H1 CLASS=""black_label"">" & final_channel_name & "</H1></CENTER>")
+                If channel_banner <> "about:blank" And output4.Contains("""id"": ""banner_uncropped""") Then patternpage.AppendLine("<BR><CENTER><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_banner) & "&amp;type=banner"" ALT=""Bannière de " & channel_name & """ WIDTH=600 HEIGHT=100 STYLE=""border-radius: 8px;"" /></CENTER>")
                 patternpage.AppendLine("<BR><CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=600>")
                 patternpage.AppendLine(" <TR>")
                 patternpage.AppendLine("  <TD WIDTH=92 VALIGN=TOP>")
-                patternpage.AppendLine("   <CENTER><BR><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_avatar) & "&amp;type=avatar"" ALT=""Avatar de " & channel_name & """ WIDTH=64 HEIGHT=64 STYLE=""border-radius: 32px;"" /></CENTER>")
+                patternpage.AppendLine("   <CENTER><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(channel_avatar) & "&amp;type=avatar"" ALT=""Avatar de " & channel_name & """ WIDTH=64 HEIGHT=64 STYLE=""border-radius: 32px;"" /></CENTER>")
                 patternpage.AppendLine("  </TD>")
                 patternpage.AppendLine("  <TD WIDTH=*>")
-                'patternpage.AppendLine("   <H1>" & UnicodeJson(channel_name) & "</H1>")
 
-                Dim compiledpage As String = String.Empty
+                Dim compiledpage As New StringBuilder
                 Dim f_counter As Integer = 0
 
                 If vid_section = "playlists" Then
@@ -4940,11 +5436,11 @@ Module Program
                     Dim found_elements() As String = Split(output5, "{""title"": """)
 
                     If found_elements.Length = 0 Then
-                        compiledpage &= "<CENTER><H2>Aucune playlist n'a été trouvée sur cette chaîne !</H2></CENTER><DIV CLASS=bodysep></DIV>"
+                        compiledpage.AppendLine("<CENTER><H2>Aucune playlist n'a été trouvée sur cette chaîne !</H2></CENTER><DIV CLASS=bodysep></DIV>")
                     Else
                         Dim actually_found As Boolean = False
 
-                        compiledpage &= "<CENTER><TABLE BORDER=0 WIDTH=400 CELLPADDING=8 CELLSPACING=0>" & vbCrLf
+                        compiledpage.AppendLine("<CENTER><TABLE BORDER=0 WIDTH=400 CELLPADDING=8 CELLSPACING=0>")
                         For Each fe As String In found_elements
                             Dim found_playlist_title As String = "(Sans titre)"
                             Dim found_playlist_thumbnail As String = "about:blank"
@@ -4975,58 +5471,60 @@ Module Program
                                 f_counter += 1
 
                                 If f_counter >= vid_offset * disp_vids_per_channel And f_counter < vid_offset * disp_vids_per_channel + disp_vids_per_channel Then
-                                    compiledpage &= " <TR CLASS=""survol"">" & vbCrLf
-                                    compiledpage &= "  <TD VALIGN=TOP WIDTH=160>" & vbCrLf
-                                    compiledpage &= "   <A HREF=""/playlist.cgi?id=" & found_playlist_id & """ TARGET=""_new"">" & vbCrLf
-                                    compiledpage &= "    <IMG SRC=""playhead.gif"" ALT=""Playlist"" /><BR>" & vbCrLf
-                                    compiledpage &= "    <IMG SRC=""getpic.cgi?url=" & Uri.EscapeDataString(found_playlist_thumbnail) & "&amp;type=thumbnail"" ALT=""" & EscapeHtml(found_playlist_title) & """ CLASS=""thumbstyle"" STYLE=""border: 1px solid black; border-radius: 0px; position: relative; top: -2px;"" />" & vbCrLf
-                                    compiledpage &= "   </A>" & vbCrLf
-                                    compiledpage &= "  </TD>" & vbCrLf
-                                    compiledpage &= "  <TD WIDTH=*>" & vbCrLf
-                                    compiledpage &= "   <P><B>Playlist #" & f_counter.ToString & ": </B><A HREF=""/playlist.cgi?id=" & found_playlist_id & """ TARGET=""_new"">" & found_playlist_title & "</A></P>" & vbCrLf
-                                    compiledpage &= "  </TD>" & vbCrLf
-                                    compiledpage &= " </TR>" & vbCrLf & vbCrLf
+                                    compiledpage.AppendLine(" <TR CLASS=""survol"">")
+                                    compiledpage.AppendLine("  <TD VALIGN=TOP WIDTH=160>")
+                                    compiledpage.AppendLine("   <A HREF=""/playlist.cgi?id=" & found_playlist_id & """ TARGET=""_new"">")
+                                    compiledpage.AppendLine("    <IMG SRC=""playhead.gif"" ALT=""Playlist"" /><BR>")
+                                    compiledpage.AppendLine("    <IMG SRC=""getpic.cgi?url=" & Uri.EscapeDataString(found_playlist_thumbnail) & "&amp;type=thumbnail"" ALT=""" & EscapeHtml(found_playlist_title) & """ CLASS=""thumbstyle"" STYLE=""border: 1px solid black; border-radius: 0px; position: relative; top: -2px;"" />")
+                                    compiledpage.AppendLine("   </A>")
+                                    compiledpage.AppendLine("  </TD>")
+                                    compiledpage.AppendLine("  <TD WIDTH=*>")
+                                    compiledpage.AppendLine("   <P><B>Playlist #" & f_counter.ToString & ": </B><A HREF=""/playlist.cgi?id=" & found_playlist_id & """ TARGET=""_new"">" & found_playlist_title & "</A></P>")
+                                    compiledpage.AppendLine("  </TD>")
+                                    compiledpage.AppendLine(" </TR>")
+                                    compiledpage.AppendLine()
                                 End If
                             End If
                         Next
 
                         If vid_offset * disp_vids_per_channel > f_counter Then
-                            compiledpage &= "<TR><TD ALIGN=CENTER><H2>Indice en dehors de la plage !</H2></TD></TR>" & vbCrLf
+                            compiledpage.AppendLine("<TR><TD ALIGN=CENTER><H2>Indice en dehors de la plage !</H2></TD></TR>")
                         Else
                             If Not actually_found Then
-                                compiledpage &= "<TR><TD ALIGN=CENTER><H2>Aucune playlist n'a été trouvée !</H2></TD></TR>" & vbCrLf
+                                compiledpage.AppendLine("<TR><TD ALIGN=CENTER><H2>Aucune playlist n'a été trouvée !</H2></TD></TR>")
                             End If
                         End If
 
-                        compiledpage &= "</TABLE></CENTER><BR><BR>" & vbCrLf & vbCrLf
+                        compiledpage.AppendLine("</TABLE></CENTER><BR><BR>")
+                        compiledpage.AppendLine()
 
                         If f_counter > disp_vids_per_channel Then
-                            compiledpage &= "<CENTER><P>" & vbCrLf
+                            compiledpage.AppendLine("<CENTER><P>")
 
                             Dim max_page As Integer = CInt(Math.Ceiling(CDbl(f_counter) / CDbl(disp_vids_per_channel)))
 
-                            compiledpage &= "<FORM METHOD=""GET"" ACTION=""/channel.cgi"">" & vbCrLf
+                            compiledpage.AppendLine("<FORM METHOD=""GET"" ACTION=""/channel.cgi"">")
 
                             If vid_offset <> 0 Then
-                                compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;"
+                                compiledpage.Append("<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;")
                             Else
-                                compiledpage &= "<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;"
+                                compiledpage.Append("<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;")
                             End If
 
                             If vid_offset <> max_page - 1 Then
-                                compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;"
+                                compiledpage.Append("<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;")
                             Else
-                                compiledpage &= "<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;"
+                                compiledpage.Append("<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;")
                             End If
 
-                            compiledpage &= "<LABEL>Page " & CInt(vid_offset + 1).ToString & " sur " & max_page.ToString & "&nbsp;|&nbsp;Aller à la page: </LABEL>" & vbCrLf
-                            compiledpage &= " <INPUT NAME=""id"" TYPE=""hidden"" VALUE=""" & arg1 & """ />" & vbCrLf
-                            compiledpage &= " <INPUT NAME=""section"" TYPE=""hidden"" VALUE=""" & vid_section & """ />" & vbCrLf
-                            compiledpage &= " <INPUT NAME=""page"" VALUE=""1"" MAXLENGTH=12 SIZE=3 />" & vbCrLf
-                            compiledpage &= " <INPUT TYPE=""submit"" VALUE=""OK"" CLASS=""red_button"" STYLE=""width: 32px;"" />" & vbCrLf
-                            compiledpage &= "</FORM>" & vbCrLf
-
-                            compiledpage &= "</P></CENTER><BR><BR>" & vbCrLf & vbCrLf
+                            compiledpage.AppendLine("<LABEL>Page " & CInt(vid_offset + 1).ToString & " sur " & max_page.ToString & "&nbsp;|&nbsp;Aller à la page: </LABEL>")
+                            compiledpage.AppendLine(" <INPUT NAME=""id"" TYPE=""hidden"" VALUE=""" & arg1 & """ />")
+                            compiledpage.AppendLine(" <INPUT NAME=""section"" TYPE=""hidden"" VALUE=""" & vid_section & """ />")
+                            compiledpage.AppendLine(" <INPUT NAME=""page"" VALUE=""1"" MAXLENGTH=12 SIZE=3 />")
+                            compiledpage.AppendLine(" <INPUT TYPE=""submit"" VALUE=""OK"" CLASS=""red_button"" STYLE=""width: 32px;"" />")
+                            compiledpage.AppendLine("</FORM>")
+                            compiledpage.AppendLine("</P></CENTER><BR><BR>")
+                            compiledpage.AppendLine()
                         End If
                     End If
                 Else
@@ -5036,8 +5534,8 @@ Module Program
 
                     Dim vc As Integer = 0
 
-                    compiledpage &= "<CENTER><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=24 CELLSPACING=0>" & vbCrLf
-                    compiledpage &= " <TR>" & vbCrLf
+                    compiledpage.AppendLine("<CENTER><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=24 CELLSPACING=0>")
+                    compiledpage.AppendLine(" <TR>")
 
                     For i As Integer = vid_offset * disp_vids_per_channel To vid_offset * disp_vids_per_channel + disp_vids_per_channel - 1
                         Dim tmp_prop As New VideoProperties
@@ -5045,7 +5543,7 @@ Module Program
                         If i < channel_num_vids Then
                             vid_identifiers(i) = vid_identifiers(i).Replace(vbLf, String.Empty)
 
-                            If vid_identifiers(i).Length = 11 Then
+                            If LooksLikeYoutubeID(vid_identifiers(i)) Then
                                 Dim watcharg As String = vid_identifiers(i)
 
                                 SyncLock video_props
@@ -5056,28 +5554,13 @@ Module Program
                                     End If
 
                                     If Not video_props.ContainsKey(watcharg) Then
-                                        If IO.File.Exists("cookies.txt") Then
-                                            add_cookie &= " --cookies cookies.txt"
-                                            WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                                        End If
 
-                                        Dim psi3 As New ProcessStartInfo()
-                                        psi3.FileName = "yt-dlp.exe"
-                                        psi3.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s"" --no-warnings ""https://www.youtube.com/watch?v=" & watcharg & """ --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-
-                                        psi3.UseShellExecute = False
-                                        psi3.RedirectStandardOutput = True
-                                        psi3.RedirectStandardError = True
-                                        psi3.CreateNoWindow = True
-                                        psi3.StandardOutputEncoding = Encoding.UTF8
-                                        psi3.StandardErrorEncoding = Encoding.UTF8
-
-                                        Dim p3 As Process = Process.Start(psi3)
-                                        Dim output3 As String = p3.StandardOutput.ReadToEnd()
+                                        Dim op_get_vid As OutputResponse = LaunchProcess("--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s"" --no-warnings ""https://www.youtube.com/watch?v=" & watcharg & """")
+                                        Dim output3 As String = op_get_vid.OutputData
                                         output3 = output3.Replace(vbLf, String.Empty)
                                         output3 = output3.Replace(vbCr, String.Empty)
                                         If output3.EndsWith("<|>") Then output3 = output3.Remove(output3.Length - 3, 3)
-                                        Dim err3 As String = p3.StandardError.ReadToEnd()
+                                        Dim err3 As String = op_get_vid.ErrorData
 
                                         If Not String.IsNullOrEmpty(output3) Then
                                             Dim output_elements() As String = Nothing
@@ -5106,9 +5589,9 @@ Module Program
                                                 tmp_prop.Dislike_Count = output_elements(12)
 
                                                 If LCase(output_elements(6)) = "na" Then
-                                                    tmp_prop.Duration = "?:??"
+                                                    tmp_prop.Duration = -1
                                                 Else
-                                                    tmp_prop.Duration = GetDuration(output_elements(6))
+                                                    tmp_prop.Duration = CInt(output_elements(6))
                                                 End If
 
                                                 tmp_prop.Dimensions = IIf(IsNumeric(output_elements(7)), output_elements(7), 640) & ":" & IIf(IsNumeric(output_elements(8)), output_elements(8), 480)
@@ -5123,7 +5606,6 @@ Module Program
                                             'Aucune vidéo obtenue, je laisse aller le code, ça va juste afficher une vidéo avec "Titre inconnu".
                                         End If
 
-                                        p3.WaitForExit()
                                     Else
                                         tmp_prop = video_props(watcharg)
                                     End If
@@ -5131,7 +5613,7 @@ Module Program
 
                                 vc += 1
 
-                                compiledpage &= "  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">" & vbCrLf
+                                compiledpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">")
 
                                 'If vid_section = "shorts" Then
                                 '    patternpage &= "   <CENTER><A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&type=short"" ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=100 HEIGHT=180 CLASS=""thumbshort"" /></A></CENTER><BR>" & vbCrLf
@@ -5139,91 +5621,105 @@ Module Program
                                 'End If
 
                                 If String.IsNullOrEmpty(tmp_prop.ID) OrElse tmp_prop.ID.Length = 0 Then
-                                    compiledpage &= "   <IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /><BR>" & vbCrLf
-                                    compiledpage &= "   <P>" & tmp_prop.Title & "<BR>" & vbCrLf
-                                    compiledpage &= "Date:&nbsp;" & tmp_prop.DateOfRelease & "<BR>Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>" & vbCrLf
-                                    compiledpage &= "  </TD>" & vbCrLf
+                                    compiledpage.AppendLine("   <IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" />")
+                                    compiledpage.AppendLine("   <P><B>" & tmp_prop.Title & "</B><BR>")
+                                    compiledpage.AppendLine("Date:&nbsp;" & tmp_prop.DateOfRelease & "<BR>Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>")
+                                    compiledpage.AppendLine("  </TD>")
                                 Else
-                                    compiledpage &= "   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>" & vbCrLf
-                                    compiledpage &= "   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>"
-                                    If display_stream_button Then compiledpage &= " <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>"
-                                    compiledpage &= "<BR>" & vbCrLf
-                                    compiledpage &= "Date:&nbsp;" & tmp_prop.DateOfRelease & "<BR>Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>" & vbCrLf
-                                    compiledpage &= "  </TD>" & vbCrLf
+                                    If vid_section = "shorts" Then
+                                        compiledpage.AppendLine("   <A HREF=""/short?v=" & tmp_prop.ID & "&amp;list=" & arg1 & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A>")
+                                        compiledpage.Append("   <P><A HREF=""/short?v=" & tmp_prop.ID & "&amp;list=" & arg1 & """>" & tmp_prop.Title & "</A>")
+                                    Else
+                                        compiledpage.AppendLine("   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A>")
+                                        compiledpage.Append("   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>")
+                                    End If
+
+                                    If display_stream_button Then compiledpage.Append(" <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>")
+                                    compiledpage.AppendLine()
+                                    compiledpage.AppendLine("<BR>")
+                                    compiledpage.AppendLine("Date:&nbsp;" & tmp_prop.DateOfRelease & "<BR>Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>")
+                                    compiledpage.AppendLine("  </TD>")
                                 End If
 
-                                If (vc Mod 3 = 0) Then compiledpage &= " </TR>" & vbCrLf & vbCrLf & "  <TR>" & vbCrLf
+                                If (vc Mod 3 = 0) Then compiledpage.AppendLine(" </TR>" & vbCrLf & vbCrLf & "  <TR>")
                             Else
                                 vc += 1
-                                compiledpage &= "  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">" & vbCrLf
-                                compiledpage &= "   <!-- Data error: VID_ID.Length=" & vid_identifiers.Length.ToString & " -->" & vbCrLf
-                                compiledpage &= "  </TD>" & vbCrLf
-                                If (vc Mod 3 = 0) Then compiledpage &= " </TR>" & vbCrLf & vbCrLf & "  <TR>" & vbCrLf
+                                compiledpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">")
+                                compiledpage.AppendLine("   <!-- Data error: VID_ID.Length=" & vid_identifiers.Length.ToString & " -->")
+                                compiledpage.AppendLine("  </TD>")
+                                If (vc Mod 3 = 0) Then compiledpage.AppendLine(" </TR>" & vbCrLf & vbCrLf & "  <TR>")
                             End If
                         End If
                     Next
 
-                    compiledpage &= "</TABLE></CENTER><BR><BR>" & vbCrLf
+                    compiledpage.AppendLine("</TABLE></CENTER><BR><BR>")
 
                     If channel_num_vids > disp_vids_per_channel Then
-                        compiledpage &= "<CENTER><P>" & vbCrLf
+                        compiledpage.Append("<CENTER><P>")
 
                         Dim max_page As Integer = CInt(Math.Ceiling(CDbl(channel_num_vids) / CDbl(disp_vids_per_channel)))
 
-                        compiledpage &= "<FORM METHOD=""GET"" ACTION=""/channel.cgi"">" & vbCrLf
+                        compiledpage.AppendLine("<FORM METHOD=""GET"" ACTION=""/channel.cgi"">")
 
                         If vid_offset <> 0 Then
-                            compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;"
+                            compiledpage.Append("<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;")
                         Else
-                            compiledpage &= "<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;"
+                            compiledpage.AppendLine("<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;")
                         End If
 
                         If vid_offset <> max_page - 1 Then
-                            compiledpage &= "<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;"
+                            compiledpage.AppendLine("<LABEL><A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=" & vid_section & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;")
                         Else
-                            compiledpage &= "<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;"
+                            compiledpage.AppendLine("<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;")
                         End If
 
-                        compiledpage &= "<LABEL>Page " & CInt(vid_offset + 1).ToString & " sur " & max_page.ToString & "&nbsp;|&nbsp;Aller à la page: </LABEL>" & vbCrLf
-                        compiledpage &= " <INPUT NAME=""id"" TYPE=""hidden"" VALUE=""" & arg1 & """ />" & vbCrLf
-                        compiledpage &= " <INPUT NAME=""section"" TYPE=""hidden"" VALUE=""" & vid_section & """ />" & vbCrLf
-                        compiledpage &= " <INPUT NAME=""page"" VALUE=""1"" MAXLENGTH=12 SIZE=3 />" & vbCrLf
-                        compiledpage &= " <INPUT TYPE=""submit"" VALUE=""OK"" CLASS=""red_button"" STYLE=""width: 32px;"" />" & vbCrLf
-                        compiledpage &= "</FORM>" & vbCrLf
+                        compiledpage.AppendLine("<LABEL>Page " & CInt(vid_offset + 1).ToString & " sur " & max_page.ToString & "&nbsp;|&nbsp;Aller à la page: </LABEL>")
+                        compiledpage.AppendLine(" <INPUT NAME=""id"" TYPE=""hidden"" VALUE=""" & arg1 & """ />")
+                        compiledpage.AppendLine(" <INPUT NAME=""section"" TYPE=""hidden"" VALUE=""" & vid_section & """ />")
+                        compiledpage.AppendLine(" <INPUT NAME=""page"" VALUE=""1"" MAXLENGTH=12 SIZE=3 />")
+                        compiledpage.AppendLine(" <INPUT TYPE=""submit"" VALUE=""OK"" CLASS=""red_button"" STYLE=""width: 32px;"" />")
+                        compiledpage.AppendLine("</FORM>")
 
-                        compiledpage &= "</P></CENTER><BR><BR>" & vbCrLf & vbCrLf
+                        compiledpage.AppendLine("</P></CENTER><BR><BR>")
+                        compiledpage.AppendLine()
                     End If
                 End If
 
                 Select Case vid_section
                     Case "shorts"
-                        patternpage.AppendLine("   <P><BR>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; " & GetThousands(channel_num_vids) & " short(s)</P>")
+                        patternpage.AppendLine("   <P><B>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; " & GetThousands(channel_num_vids) & " short(s)</B></P>")
                     Case "playlists"
-                        patternpage.AppendLine("   <P><BR>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; " & GetThousands(f_counter) & " playlist(s)</P>")
+                        patternpage.AppendLine("   <P><B>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; " & GetThousands(f_counter) & " playlist(s)</B></P>")
+                    Case "streams"
+                        patternpage.AppendLine("   <P><B>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; " & GetThousands(channel_num_vids) & " vidéo(s) en live</B></P>")
                     Case Else
-                        patternpage.AppendLine("   <P><BR>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; " & GetThousands(channel_num_vids) & " vidéo(s)</P>")
+                        patternpage.AppendLine("   <P><B>@" & channel_upid & " &bull; " & GetThousands(channel_followers) & " abonné(s) &bull; " & GetThousands(channel_num_vids) & " vidéo(s)</B></P>")
                 End Select
 
                 patternpage.AppendLine("   <P>" & UnicodeJson(channel_desc) & "</P><BR>")
                 patternpage.AppendLine("  </TD>")
                 patternpage.AppendLine(" </TR>")
                 patternpage.AppendLine(" <TR>")
-                patternpage.Append("  <TD COLSPAN=3><CENTER><B>Sections disponibles à la navigation:</B> ")
+                patternpage.Append("  <TD COLSPAN=3><CENTER><H2 CLASS=""black_label""><B>Sections de la chaîne :</B></H1>")
 
                 Select Case vid_section
                     Case "videos"
-                        patternpage.AppendLine("<B>VID&Eacute;OS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A></CENTER></TD>")
+                        patternpage.AppendLine("<B>VID&Eacute;OS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=streams"">LIVES</A></CENTER></TD>")
                     Case "shorts"
-                        patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <B>SHORTS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A></CENTER></TD>")
+                        patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <B>SHORTS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=streams"">LIVES</A></CENTER></TD>")
                     Case "playlists"
-                        patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <B>PLAYLISTS</B></CENTER></TD>")
+                        patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <B>PLAYLISTS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=streams"">LIVES</A></CENTER></TD>")
+                    Case "streams"
+                        patternpage.AppendLine("<A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=videos"">VID&Eacute;OS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A> - <B>LIVES</B></CENTER></TD>")
+                    Case Else
+                        patternpage.AppendLine("<B>VID&Eacute;OS</B> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=shorts"">SHORTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=playlists"">PLAYLISTS</A> - <A HREF=""/channel.cgi?id=" & arg1 & "&amp;section=streams"">LIVES</A></CENTER></TD>")
                 End Select
 
                 patternpage.AppendLine(" </TR>")
                 patternpage.AppendLine("</TABLE></CENTER><BR>")
 
                 'Ajouter ce qui a été trouvé auparavant
-                patternpage.AppendLine(compiledpage)
+                patternpage.AppendLine(compiledpage.ToString)
 
                 patternpage.AppendLine(footer)
 
@@ -5249,7 +5745,6 @@ Module Program
             End If
         ElseIf request.StartsWith("GET /playlist.cgi?id=") Then
             'Afficher une playlist *****************************************************************************************************************************************************
-
             Dim arg1 As String = Nothing
             Dim vid_offset As Integer = 0
             Dim error_encountered As Boolean = False
@@ -5264,7 +5759,7 @@ Module Program
             If error_encountered OrElse String.IsNullOrEmpty(arg1) OrElse arg1.Length = 0 Then
                 WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
 
-                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Impossible d'afficher la liste de lecture demandée, car aucun identifiant de playlist n'a été spécifié.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+                Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Impossible d'afficher la liste de lecture demandée, car aucun identifiant de playlist n'a été spécifié.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
                 Try
                     stream.Write(baddata, 0, baddata.Length)
@@ -5277,9 +5772,7 @@ Module Program
                 WriteLog("Une playlist a été demandée, mais aucun identifiant n'a été communiqué.", ConsoleColor.Red, client)
                 client.Close()
             Else
-                Dim psi4 As New ProcessStartInfo()
                 Dim url_params() As String
-                psi4.FileName = "yt-dlp.exe"
 
                 If arg1.EndsWith("&") Then
                     arg1 = arg1.Remove(arg1.Length - 1, 1)
@@ -5299,7 +5792,7 @@ Module Program
                                 Case "page"
                                     If IsNumeric(sub_params(1)) Then
                                         Try
-                                            vid_offset = sub_params(1)
+                                            vid_offset = CInt(sub_params(1)) - 1
                                         Catch ex As Exception
                                             vid_offset = 0
                                         End Try
@@ -5313,25 +5806,9 @@ Module Program
 
                 WriteLog("Consultation de la playlist " & arg1 & IIf(vid_offset = 0, String.Empty, ", page " & CStr(vid_offset + 1)) & "...", ConsoleColor.Blue, client)
 
-                Dim add_cookie As String = String.Empty
-
-                If IO.File.Exists("cookies.txt") Then
-                    add_cookie &= " --cookies cookies.txt"
-                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                End If
-
-                psi4.Arguments = "-J --playlist-items 1 ""https://www.youtube.com/playlist?list=" & arg1 & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-                psi4.UseShellExecute = False
-                psi4.RedirectStandardOutput = True
-                psi4.RedirectStandardError = True
-                psi4.CreateNoWindow = True
-                psi4.StandardOutputEncoding = Encoding.UTF8
-                psi4.StandardErrorEncoding = Encoding.UTF8
-
-                Dim p4 As Process = Process.Start(psi4)
-                Dim output4 As String = p4.StandardOutput.ReadToEnd()
-                Dim err4 As String = p4.StandardError.ReadToEnd()
-                p4.WaitForExit()
+                Dim op_playlist As OutputResponse = LaunchProcess("-J --playlist-items 1 ""https://www.youtube.com/playlist?list=" & arg1 & """")
+                Dim output4 As String = op_playlist.OutputData
+                Dim err4 As String = op_playlist.ErrorData
 
                 Dim playlist_name As String = "&lt;Nom de playlist inconnu&gt;"
                 Dim playlist_desc As String = "&lt;Aucune description disponible&gt;"
@@ -5340,7 +5817,7 @@ Module Program
                 Dim channel_url As String = "about:blank"
 
                 If String.IsNullOrEmpty(output4) OrElse output4.StartsWith("null") Then
-                    Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne</H1>" & vbCrLf & "<P>La playlist demandée n'existe pas selon les serveurs YouTube, ou ne peut être traitée pour l'instant.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+                    Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>La playlist demandée n'existe pas selon les serveurs YouTube, ou ne peut être traitée pour l'instant.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
                     Try
                         stream.Write(baddata, 0, baddata.Length)
@@ -5381,6 +5858,17 @@ Module Program
                     playlist_name = playlist_name.Replace("""", String.Empty)
                 End If
 
+                'Gestion des playlists gardées en mémoire
+                If playlist_list.Count > 1000 Then
+                    Do Until playlist_list.Count = 1000
+                        playlist_list.Remove(playlist_list.Keys(0))
+                    Loop
+                End If
+
+                If Not playlist_list.ContainsKey(arg1) Then
+                    playlist_list.Add(arg1, playlist_name)
+                End If
+
                 param1 = output4.IndexOf("""thumbnails"": [{""url"": """)
                 If param1 > -1 Then
                     param2 = output4.IndexOf("""", param1 + 24)
@@ -5393,33 +5881,16 @@ Module Program
                     channel_url = output4.Substring(param1 + 15, param2 - param1 - 15)
                 End If
 
-                'Liste des vidéos de la chaîne
-                Dim psi5 As New ProcessStartInfo()
-                psi5.FileName = "yt-dlp.exe"
-
-                If IO.File.Exists("cookies.txt") Then
-                    add_cookie = " --cookies cookies.txt"
-                    WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                End If
-
-                psi5.Arguments = "--flat-playlist --print ""%(id)s<|>"" ""https://www.youtube.com/playlist?list=" & arg1 & """ --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-                psi5.UseShellExecute = False
-                psi5.RedirectStandardOutput = True
-                psi5.RedirectStandardError = True
-                psi5.CreateNoWindow = True
-                psi5.StandardOutputEncoding = Encoding.UTF8
-                psi5.StandardErrorEncoding = Encoding.UTF8
-
-                Dim p5 As Process = Process.Start(psi5)
-                Dim output5 As String = p5.StandardOutput.ReadToEnd()
+                'Liste des vidéos de la playlist
+                Dim op_playlist_2 As OutputResponse = LaunchProcess("--flat-playlist --print ""%(id)s<|>"" ""https://www.youtube.com/playlist?list=" & arg1 & """")
+                Dim output5 As String = op_playlist_2.OutputData
                 output5 = output5.Replace(vbLf, String.Empty)
                 output5 = output5.Replace(vbCr, String.Empty)
                 If output5.EndsWith("<|>") Then output5 = output5.Remove(output5.Length - 3, 3)
-                Dim err5 As String = p5.StandardError.ReadToEnd()
-                p5.WaitForExit()
+                Dim err5 As String = op_playlist_2.ErrorData
 
                 If String.IsNullOrEmpty(output5) OrElse output5.Length = 0 OrElse output5.StartsWith("null") Then
-                    Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne</H1>" & vbCrLf & "<P>La playlist demandée n'existe pas selon les serveurs YouTube, ou ne contient pas d'informations traitables.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+                    Dim baddata As Byte() = GetHTTPBytes(500, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>La playlist demandée n'existe pas selon les serveurs YouTube, ou ne contient pas d'informations traitables.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
                     Try
                         stream.Write(baddata, 0, baddata.Length)
@@ -5437,6 +5908,7 @@ Module Program
                 playlist_num_vids = vid_identifiers.Count
                 patternpage.AppendLine(InitValues("Liste de lecture '" & playlist_name & "'", , wanted_skin, , used_player))
 
+                patternpage.AppendLine(" <CENTER><H1 CLASS=""black_label"">Liste de lecture</H1></CENTER>")
                 patternpage.AppendLine("<BR><CENTER><TABLE BORDER=0 ALIGN=CENTER WIDTH=600 CELLPADDING=16 CELLSPACING=0>")
                 patternpage.AppendLine(" <TR CLASS=""survol"">")
                 patternpage.AppendLine("  <TD WIDTH=92 VALIGN=TOP><BR>")
@@ -5444,117 +5916,48 @@ Module Program
                 patternpage.AppendLine("   <IMG SRC=""/getpic.cgi?url=" & playlist_thumbnail & "&amp;type=thumbnail"" ALT=""Playlist de " & channel_title & """ WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" STYLE=""border: 1px solid black; border-radius: 0px; position: relative; top: -2px;"" />")
                 patternpage.AppendLine("  </TD>")
                 patternpage.AppendLine("  <TD WIDTH=* VALIGN=TOP>")
-                patternpage.AppendLine("   <P><B>Playlist '" & UnicodeJson(playlist_name) & "' de <A HREF=""/channel.cgi?id=" & channel_url & """>" & UnicodeJson(channel_title) & "</A> (" & CStr(playlist_num_vids) & " vidéo" & IIf(playlist_num_vids > 1, "s", String.Empty) & ")</B></P>")
+                patternpage.AppendLine("   <P><BR><B>Playlist '" & UnicodeJson(playlist_name) & "' de <A HREF=""/channel.cgi?id=" & channel_url & """>" & UnicodeJson(channel_title) & "</A> (" & CStr(playlist_num_vids) & " vidéo" & IIf(playlist_num_vids > 1, "s", String.Empty) & ")</B></P>")
                 patternpage.AppendLine("   <P><B>Description:</B> " & UnicodeJson(playlist_desc) & "</P>")
                 patternpage.AppendLine("  </TD>")
                 patternpage.AppendLine(" </TR>")
                 patternpage.AppendLine("</TABLE></CENTER><BR>")
 
-                If vid_offset * disp_vids_per_channel > Math.Ceiling(playlist_num_vids / disp_vids_per_channel) Then
-                    vid_offset = 0 'Si l'offset dépasse le nombre de vidéos
-                End If
+                'If vid_offset * disp_vids_per_channel > Math.Ceiling(playlist_num_vids / disp_vids_per_channel) Then
+                '    vid_offset = 0 'Si l'offset dépasse le nombre de vidéos
+                'End If
 
                 Dim vc As Integer = 0
+                Dim found_videos As Integer = 0
 
                 patternpage.AppendLine("<CENTER><TABLE BORDER=0 ALIGN=CENTER CELLPADDING=24 CELLSPACING=0>")
                 patternpage.AppendLine(" <TR>")
 
                 For i As Integer = vid_offset * disp_vids_per_channel To vid_offset * disp_vids_per_channel + disp_vids_per_channel - 1
-                    Dim tmp_prop As New VideoProperties
+                    Dim tmp_prop As VideoProperties
 
                     If i < playlist_num_vids Then
                         vid_identifiers(i) = vid_identifiers(i).Replace(vbLf, String.Empty)
 
-                        If vid_identifiers(i).Length = 11 Then
+                        If LooksLikeYoutubeID(vid_identifiers(i)) Then
                             Dim watcharg As String = vid_identifiers(i)
+                            found_videos += 1
 
-                            SyncLock video_props
-                                If video_props.Count > 1000 Then
-                                    Do Until video_props.Count = 1000
-                                        video_props.Remove(video_props.Keys(0))
-                                    Loop
-                                End If
-
-                                If Not video_props.ContainsKey(watcharg) Then
-                                    If IO.File.Exists("cookies.txt") Then
-                                        add_cookie &= " --cookies cookies.txt"
-                                        WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur pour récupérer les commentaires.", ConsoleColor.Magenta)
-                                    End If
-
-                                    Dim psi3 As New ProcessStartInfo()
-                                    psi3.FileName = "yt-dlp.exe"
-                                    psi3.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s"" --no-warnings ""https://www.youtube.com/watch?v=" & watcharg & """ --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-
-                                    psi3.UseShellExecute = False
-                                    psi3.RedirectStandardOutput = True
-                                    psi3.RedirectStandardError = True
-                                    psi3.CreateNoWindow = True
-                                    psi3.StandardOutputEncoding = Encoding.UTF8
-                                    psi3.StandardErrorEncoding = Encoding.UTF8
-
-                                    Dim p3 As Process = Process.Start(psi3)
-                                    Dim output3 As String = p3.StandardOutput.ReadToEnd()
-                                    output3 = output3.Replace(vbLf, String.Empty)
-                                    output3 = output3.Replace(vbCr, String.Empty)
-                                    If output3.EndsWith("<|>") Then output3 = output3.Remove(output3.Length - 3, 3)
-                                    Dim err3 As String = p3.StandardError.ReadToEnd()
-
-                                    If Not String.IsNullOrEmpty(output3) Then
-                                        Dim output_elements() As String = Nothing
-
-                                        Try
-                                            output_elements = output3.Split("<|>")
-
-                                            For j As Integer = 0 To output_elements.Count - 1
-                                                For k As Integer = 0 To &H1F
-                                                    output_elements(j) = output_elements(j).Replace(Chr(k), String.Empty)
-                                                Next
-                                            Next
-
-                                            output_elements(9) = output_elements(9).Replace(vbCrLf, "<BR>")
-                                            output_elements(9) = output_elements(9).Replace(vbCr, "<BR>")
-                                            output_elements(9) = output_elements(9).Replace(vbLf, "<BR>")
-
-                                            tmp_prop.ID = output_elements(0)
-                                            tmp_prop.Title = CleanText(output_elements(1))
-                                            tmp_prop.Views = IIf(LCase(output_elements(2)) = "na", "0", GetThousands(output_elements(2)))
-                                            tmp_prop.DateOfRelease = GetDate(output_elements(3))
-                                            tmp_prop.Creator = CleanText(output_elements(4))
-                                            tmp_prop.Thumbnail = output_elements(5)
-                                            tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(output_elements(10))
-                                            tmp_prop.Like_Count = output_elements(11)
-                                            tmp_prop.Dislike_Count = output_elements(12)
-
-                                            If LCase(output_elements(6)) = "na" Then
-                                                tmp_prop.Duration = "?:??"
-                                            Else
-                                                tmp_prop.Duration = GetDuration(output_elements(6))
-                                            End If
-
-                                            tmp_prop.Dimensions = IIf(IsNumeric(output_elements(7)), output_elements(7), 640) & ":" & IIf(IsNumeric(output_elements(8)), output_elements(8), 480)
-                                            tmp_prop.Description = CleanText(output_elements(9))
-                                            tmp_prop.DateAdded = Now
-
-                                            video_props.Add(watcharg, tmp_prop)
-                                        Catch ex As Exception
-
-                                        End Try
-                                    Else
-                                        'Aucune vidéo obtenue, je laisse aller le code, ça va juste afficher une vidéo avec "Titre inconnu".
-                                    End If
-
-                                    p3.WaitForExit()
-                                Else
-                                    tmp_prop = video_props(watcharg)
-                                End If
-                            End SyncLock
+                            tmp_prop = GetVideo(watcharg)
 
                             vc += 1
 
                             patternpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">")
-                            patternpage.AppendLine("   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>")
-                            patternpage.Append("   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>")
+
+                            If String.IsNullOrEmpty(tmp_prop.ID) Then
+                                patternpage.AppendLine("   <IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" />")
+                                patternpage.Append("   <P><B>" & tmp_prop.Title & "</B>")
+                            Else
+                                patternpage.AppendLine("   <A HREF=""/watch?v=" & tmp_prop.ID & "&amp;list=" & arg1 & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A>")
+                                patternpage.Append("   <P><A HREF=""/watch?v=" & tmp_prop.ID & "&amp;list=" & arg1 & """>" & tmp_prop.Title & "</A>")
+                            End If
+
                             If display_stream_button Then patternpage.AppendLine(" <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>")
+
                             patternpage.AppendLine()
                             patternpage.AppendLine("<BR>Date:&nbsp;" & tmp_prop.DateOfRelease & "<BR>Vues:&nbsp;" & tmp_prop.Views.Replace(" ", "&nbsp;") & "</P>")
                             patternpage.AppendLine("  </TD>")
@@ -5569,9 +5972,13 @@ Module Program
                     End If
                 Next
 
+                If found_videos = 0 Then
+                    patternpage.AppendLine("<TR><TD><CENTER><P ALIGN=CENTER><H2>Aucune vidéo trouvée dans cette liste, ou numéro de page invalide.</H2></P></CENTER><DIV CLASS=bodysep></DIV></TD></TR>")
+                End If
+
                 patternpage.AppendLine("</TABLE></CENTER><BR><BR>")
 
-                If playlist_num_vids > disp_vids_per_channel Then
+                If playlist_num_vids > disp_vids_per_channel And found_videos > 0 Then
                     patternpage.AppendLine("<CENTER><P>")
 
                     Dim max_page As Integer = CInt(Math.Ceiling(CDbl(playlist_num_vids) / CDbl(disp_vids_per_channel)))
@@ -5579,22 +5986,18 @@ Module Program
                     patternpage.AppendLine("<FORM METHOD=""GET"" ACTION=""/playlist.cgi"">")
 
                     If vid_offset <> 0 Then
-                        'patternpage &= "<LABEL><A HREF=""/playlist.cgi?id=" & arg1 & """>&lt;&lt; Première page</A></LABEL>&nbsp;|&nbsp;"
                         patternpage.Append("<LABEL><A HREF=""/playlist.cgi?id=" & arg1 & "&amp;page=" & CStr(CInt(vid_offset)) & """>&lt; Page précédente</A></LABEL>&nbsp;|&nbsp;")
                     Else
-                        'patternpage &= "<LABEL>&lt;&lt; Première page</LABEL>&nbsp;|&nbsp;"
                         patternpage.Append("<LABEL>&lt; Page précédente</LABEL>&nbsp;|&nbsp;")
                     End If
 
                     If vid_offset <> max_page - 1 Then
-                        patternpage.Append("<LABEL><A HREF=""/playlist.cgi?id=" & arg1 & "&amp;page=" & CStr(CInt(vid_offset + 1)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;")
-                        'patternpage &= "<LABEL><A HREF=""/playlist.cgi?id=" & arg1 & "&amp;page=" & max_page.ToString & """>Dernière page &gt;&gt;</A></LABEL>"
+                        patternpage.Append("<LABEL><A HREF=""/playlist.cgi?id=" & arg1 & "&amp;page=" & CStr(CInt(vid_offset + 2)) & """>Page suivante &gt;</A></LABEL>&nbsp;|&nbsp;")
                     Else
                         patternpage.Append("<LABEL>Page suivante &gt;</LABEL>&nbsp;|&nbsp;")
-                        'patternpage &= "<LABEL>Dernière page &gt;&gt;</LABEL>"
                     End If
 
-                    patternpage.AppendLine("<LABEL>Page " & CInt(vid_offset + 1).ToString & " sur " & CInt(max_page - 1).ToString & "&nbsp;|&nbsp;Aller  à la page: </LABEL>")
+                    patternpage.AppendLine("<LABEL>Page " & CInt(vid_offset + 1).ToString & " sur " & max_page.ToString & "&nbsp;|&nbsp;Aller à la page: </LABEL>")
                     patternpage.AppendLine(" <INPUT NAME=""id"" TYPE=""hidden"" VALUE=""" & arg1 & """ />")
                     patternpage.AppendLine(" <INPUT NAME=""page"" VALUE=""1"" MAXLENGTH=12 SIZE=3 />")
                     patternpage.AppendLine(" <INPUT TYPE=""submit"" VALUE=""OK"" CLASS=""red_button"" STYLE=""width: 32px;"" />")
@@ -5622,14 +6025,13 @@ Module Program
                 Catch ex As Exception
                     WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
                 End Try
-
                 client.Close()
             End If
         ElseIf request.StartsWith("GET /playlist.cgi") Then
             'Les requêtes directes sur playlist.cgi entraînent une erreur 400 (requête invalide).
             WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Vous devez spécifier l'identifiant de playlist que vous voulez consulter (avec <I>id=PLxxxxxxxxxxx</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Vous devez spécifier l'identifiant de playlist que vous voulez consulter (avec <I>id=PLxxxxxxxxxxx</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
@@ -5644,7 +6046,7 @@ Module Program
             'Les requêtes directes sur channel.cgi entraînent une erreur 400 (requête invalide).
             WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Vous devez spécifier la chaîne sur laquelle vous voulez naviguer (avec <I>id=UCxxxxxxxxxxxx</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Vous devez spécifier la chaîne sur laquelle vous voulez naviguer (avec <I>id=UCxxxxxxxxxxxx</I>).<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
@@ -5656,7 +6058,7 @@ Module Program
 
             client.Close()
         ElseIf request.StartsWith("GET /cache.cgi") Then
-            patternpage.AppendLine(InitValues("Vidéos en cache", , wanted_skin, , used_player))
+            patternpage.AppendLine(InitValues("Vidéos en cache", , wanted_skin, , used_player, , True))
 
             Dim allowed_ip As Boolean = False
             Dim arg1 As String = Split(request)(1)
@@ -5690,13 +6092,20 @@ Module Program
                     current_offset = 0
                 End If
 
+                patternpage.AppendLine("<H2 CLASS=""black_label"" STYLE=""width: 800px;"">Cache mémoire des vidéos</H2><BR>")
+
                 If video_props.Count = 0 Then
-                    patternpage.AppendLine("<CENTER><H1>Le cache mémoire est vide! Aucune vidéo n'est dedans pour l'instant.</H1></CENTER><BR>")
+                    patternpage.AppendLine("<CENTER><P><B><FONT SIZE=3>Il n'y a actuellement aucune vidéo dans le cache mémoire.<BR>Veuillez naviguer sur RetroYT pour enrichir le cache vidéo du proxy.</FONT></B></P></CENTER><BR>")
                     patternpage.AppendLine("<DIV CLASS=bodysep>&nbsp;</DIV>")
                     WriteLog("Cache des vidéos demandé. Il n'y a actuellement aucune vidéo en cache.", ConsoleColor.Blue, client)
                 Else
-                    patternpage.AppendLine("<CENTER><H1>Il y a actuellement " & video_props.Count.ToString & " vidéo(s) en cache mémoire :</H1></CENTER><BR>")
-                    patternpage.AppendLine("<BR><CENTER><TABLE BORDER=1 ALIGN=CENTER CELLPADDING=4 CELLSPACING=0>")
+                    patternpage.AppendLine("<CENTER><P><B><FONT SIZE=3>Il y a actuellement " & video_props.Count.ToString & " vidéo(s) dans le cache mémoire. Voici le tableau :</FONT></B></P></CENTER><BR>")
+                    patternpage.AppendLine("<BR><CENTER><TABLE BORDER=1 WIDTH=800 ALIGN=CENTER CELLPADDING=4 CELLSPACING=0>")
+                    patternpage.AppendLine(" <TR>")
+                    patternpage.AppendLine("  <TD BGCOLOR=BLACK ALIGN=CENTER><B><FONT COLOR=WHITE>Identifiant vidéo</FONT></B></TD>")
+                    patternpage.AppendLine("  <TD BGCOLOR=BLACK ALIGN=CENTER><B><FONT COLOR=WHITE>Titre de la vidéo</FONT></B></TD>")
+                    patternpage.AppendLine("  <TD BGCOLOR=BLACK ALIGN=CENTER><B><FONT COLOR=WHITE>Date d'ajout</FONT></B></TD>")
+                    patternpage.AppendLine(" </TR>")
 
                     Dim j As String() = video_props.Keys.ToArray
                     Dim max_page As Integer = Math.Ceiling(video_props.Count / 50)
@@ -5712,6 +6121,7 @@ Module Program
                         Next
 
                         patternpage.AppendLine("</TABLE></CENTER><BR><BR>")
+                        patternpage.AppendLine("<DIV CLASS=bodysep>&nbsp;</DIV>")
                     Else
                         For i As Integer = current_offset To Math.Min(video_props.Count, current_offset + 50) - 1 '0 To j.Count - 1
                             Dim found_video As VideoProperties = video_props(j(i))
@@ -5737,9 +6147,9 @@ Module Program
                         patternpage.AppendLine("</P><BR><BR>")
                         patternpage.AppendLine()
                     End If
-                End If
 
-                WriteLog("Cache des vidéos demandé. Il y a " & video_props.Count.ToString & " vidéo(s) en cache." & IIf(current_offset > 0, " Lecture à l'offset " & current_offset.ToString & ".", String.Empty), ConsoleColor.Blue, client)
+                    WriteLog("Cache des vidéos demandé. Il y a " & video_props.Count.ToString & " vidéo(s) en cache." & IIf(current_offset > 0, " Lecture à l'offset " & current_offset.ToString & ".", String.Empty), ConsoleColor.Blue, client)
+                End If
 
                 patternpage.AppendLine(footer)
 
@@ -5763,7 +6173,7 @@ Module Program
                 'Les autres requêtes entraînent une erreur 400 (requête invalide).
                 WriteLog("Erreur HTTP #401: Non autorisé.", , client)
 
-                Dim baddata As Byte() = GetHTTPBytes(401, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 401 - Accès non autorisé</H1>" & vbCrLf & "<P>Vous n'avez pas accès à cette page, seul l'administrateur ou un utilisateur du réseau local peut y accéder.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+                Dim baddata As Byte() = GetHTTPBytes(401, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 401 - Accès non autorisé</H1>" & vbCrLf & "<P>Vous n'avez pas accès à cette page, seul l'administrateur ou un utilisateur du réseau local peut y accéder.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
                 Try
                     stream.Write(baddata, 0, baddata.Length)
@@ -5777,17 +6187,17 @@ Module Program
             End If
         ElseIf request.StartsWith("GET /about.htm") Then
             'Afficher le "à propos" du proxy
-            patternpage.AppendLine(InitValues("À propos de RetroYT", , wanted_skin, , used_player))
+            patternpage.AppendLine(InitValues("À propos de RetroYT", , wanted_skin, , used_player, , True))
             WriteLog("Page des informations sur le logiciel envoyée.", , client)
 
-            patternpage.AppendLine("<BR><CENTER><H1 CLASS=""black_label"">Documentation de RetroYT</H1></CENTER>")
-            patternpage.AppendLine("<BR><BR><CENTER><DIV STYLE=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;""><B>RetroYT</B> est un proxy multimédia pour YouTube développé en Visual Basic .NET 2022 par Monokeros. La version actuelle, la Bêta 8.0, a été publiée le 20 juin 2026. Ce projet est distribué gratuitement (sous la licence «&nbsp;freeware&nbsp;»), sans aucune garantie explicite ou implicite. L'auteur ne pourra être tenu responsable d'éventuels dommages matériels, logiciels, des éventuelles pertes de données, ou dysfonctionnements résultant de son utilisation, y compris dans un cadre normal.<BR>")
+            patternpage.AppendLine("<BR><CENTER><H1 CLASS=""black_label"" STYLE=""width: 780px;"">Documentation de RetroYT</H1></CENTER>")
+            patternpage.AppendLine("<BR><BR><CENTER><DIV STYLE=""display: block; width: 780px; margin-left: auto; margin-right: auto; text-align: left; text-align: justify;""><B>RetroYT</B> est un proxy multimédia pour YouTube développé en Visual Basic .NET 2022 par Monokeros. La version actuelle, la Bêta 9.0, a été publiée le 2 juillet 2026. Ce projet est distribué gratuitement (sous la licence «&nbsp;freeware&nbsp;»), sans aucune garantie explicite ou implicite. L'auteur ne pourra être tenu responsable d'éventuels dommages matériels, logiciels, des éventuelles pertes de données, ou dysfonctionnements résultant de son utilisation, y compris dans un cadre normal.<BR>")
             patternpage.AppendLine("Le projet vise principalement à restaurer la compatibilité de YouTube avec des systèmes d'exploitation, navigateurs web et lecteurs multimédia anciens ou obsolètes, à travers le relais de connexions, formatage vers un code HTML, et l'intégration de formats vidéo historiques, lisible par les navigateurs de toute époque. Aussi, le temps de chargement entre les pages peut être assez long. Puisque RetroYT fait usage de yt-dlp, les temps d'attente sont allongés pour les recherches YouTube effectuées avec des clients non-officiels. De plus, l'obtention du contenu et sa conversion peuvent également prendre du temps.")
             patternpage.AppendLine("<BR><BR><BR>")
 
             patternpage.AppendLine("<DIV STYLE=""display: block; border-radius: 8px; margin-left: 225px; border: 1px solid " & IIf(wanted_skin = "dark", "white", "black") & "; padding: 8px 8px 8px 8px; width: 40%;""><BR><CENTER><BIG><BIG><B>Sommaire: </B></BIG></BIG></CENTER><BR>")
             patternpage.AppendLine("<A HREF=""#introduction"">I. Introduction</A><BR>")
-            patternpage.AppendLine("<A HREF=""#parameters"">II. Paramètres</A><BR>")
+            patternpage.AppendLine("<A HREF=""#parameters"">II. Fonctionnalités</A><BR>")
             patternpage.AppendLine("<A HREF=""#precautions"">III. Précautions</A><BR>")
             patternpage.AppendLine("<A HREF=""#configuration"">IV. Configuration</A><BR>")
             patternpage.AppendLine("<A HREF=""#useget"">V. Utilisation du paramètre GET</A><BR>")
@@ -5795,10 +6205,19 @@ Module Program
             patternpage.AppendLine("<A HREF=""#credits"">VII. Remerciements</A><BR>&nbsp;</DIV><BR><BR>")
             patternpage.AppendLine()
 
-            patternpage.AppendLine("<CENTER><H2><A NAME=""introduction"">I. Introduction</A></H2></CENTER><BR><BR>")
-            patternpage.AppendLine("Le nom «&nbsp;RetroYT&nbsp;» provient du terme «&nbsp;rétro&nbsp;», désignant de manière générale quelque chose d'ancien, de classique ou «&nbsp;à l'ancienne&nbsp;». Le logiciel repose sur un serveur Web codé directement dans l'application (dit «&nbsp;hardcodé&nbsp;»), servant d'intermédiaire entre YouTube et le navigateur client utilisé par l'utilisateur. L'objectif principal du projet est de restaurer un accès fonctionnel à YouTube sur des navigateurs et systèmes d'exploitation devenus trop anciens pour prendre en charge la version moderne du site. Bien que RetroYT puisse également être utilisé depuis un navigateur récent comme un proxy classique, pour fournir une version allégée du site, ce n'est pas sa vocation première. De nombreux proxies YouTube modernes existent déjà et offrent généralement de meilleures performances et une compatibilité plus étendue avec les standards Web actuels.<BR><B>RetroYT</B> vise avant tout à permettre la recherche et la lecture de vidéos YouTube depuis des environnements anciens ou obsolètes, tels que Windows 3.11, Windows 95, Windows 98, Windows NT 4.0, Windows 2000, certaines anciennes versions de MacOS, ainsi que divers systèmes UNIX/Linux historiques. La solution a également été testée sous Windows XP et Windows 11 avec succès. &Eacute;tant donné l'identité rétrocompatible de ce projet, il est donc parfaitement normal de retrouver, au sein de ce projet, du code HTML volontairement ancien, des méthodes d'intégration multimédia historiques, ou encore l'utilisation de technologies aujourd'hui abandonnées comme ActiveX, RealPlayer, des anciennes versions de QuickTime, Flash Player, ou les plugins NPAPI. L'ensemble du projet cherche à reproduire, autant que possible, une expérience cohérente avec les capacités techniques du Web des années 1990 et du début des années 2000, tout en offrant une expérience de navigation proche des services Internet actuels. Pour cela, la prise en charge des émojis a également été ajoutée dans la Bêta 8.0.<BR><BR>")
+            If wanted_skin = "dark" Then
+                patternpage.AppendLine("<CENTER><H2><A NAME=""introduction"" STYLE=""color: red;"">I. Introduction</A></H2></CENTER><BR><BR>")
+            Else
+                patternpage.AppendLine("<CENTER><H2><A NAME=""introduction"" STYLE=""color: black;"">I. Introduction</A></H2></CENTER><BR><BR>")
+            End If
 
-            patternpage.AppendLine("<BR><CENTER><H2><A NAME=""parameters"">II. Paramètres</A></H2></CENTER><BR><BR>")
+            patternpage.AppendLine("Le nom «&nbsp;RetroYT&nbsp;» provient du terme «&nbsp;rétro&nbsp;», désignant de manière générale quelque chose d'ancien, de classique ou «&nbsp;à l'ancienne&nbsp;». Le logiciel repose sur un serveur Web codé directement dans l'application (dit «&nbsp;hardcodé&nbsp;»), servant d'intermédiaire entre YouTube et le navigateur client utilisé par l'utilisateur. L'objectif principal du projet est de restaurer un accès fonctionnel à YouTube sur des navigateurs et systèmes d'exploitation devenus trop anciens pour prendre en charge la version moderne du site. Bien que RetroYT puisse également être utilisé depuis un navigateur récent comme un proxy classique, pour fournir une version allégée du site, ce n'est pas sa vocation première. De nombreux proxies YouTube modernes existent déjà et offrent généralement de meilleures performances et une compatibilité plus étendue avec les standards Web actuels.<BR><B>RetroYT</B> vise avant tout à permettre la recherche et la lecture de vidéos YouTube depuis des environnements anciens ou désuets, tels que Windows 3.11, Windows 95, Windows 98, Windows NT 4.0, Windows 2000, certaines anciennes versions de MacOS, ainsi que divers systèmes UNIX/Linux historiques. La solution a également été testée sous Windows XP et Windows 11 avec succès. &Eacute;tant donné l'identité rétrocompatible de ce projet, il est donc parfaitement normal de retrouver, au sein de ce projet, du code HTML volontairement ancien, des méthodes d'intégration multimédia historiques, ou encore l'utilisation de technologies aujourd'hui abandonnées comme ActiveX, RealPlayer, des anciennes versions de QuickTime, Flash Player, ou les plugins NPAPI. L'ensemble du projet cherche à reproduire, autant que possible, une expérience cohérente avec les capacités techniques du Web des années 1990 et du début des années 2000, tout en offrant une expérience de navigation proche des services Internet actuels. Pour cela, la prise en charge des émojis a également été ajoutée dans la Bêta 8.0.<BR><BR>")
+
+            If wanted_skin = "dark" Then
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""parameters"" STYLE=""color: red;"">II. Fonctionnalités</A></H2></CENTER><BR><BR>")
+            Else
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""parameters"" STYLE=""color: black;"">II. Fonctionnalités</A></H2></CENTER><BR><BR>")
+            End If
 
             patternpage.AppendLine("<B>RetroYT</B> propose un ensemble de paramètres permettant d'adapter le fonctionnement du proxy aux capacités matérielles et logicielles du système cible. La méthode de récupération des fichiers depuis YouTube est agnostique. En d'autres termes, le proxy prendra le premier format venu, il peut être en extension MP4, WebM, ou MKV, etc. avec un encodage comme VP8, VP9, AV1, AV2, H.264, etc. Pour le fichier de destination, un second cache existe et permet de convertir dans un autre format compatible avec les anciennes configurations. Ces formats sont entièrement configurables depuis le navigateur client. L'utilisateur peut notamment choisir la taille du lecteur vidéo, le format et les codecs employés pour la conversion, ainsi que le nombre d'images par seconde. Pour les systèmes les plus anciens, comme Windows 95 ou Windows NT 4.0, l'utilisation des codecs MSVideo1 (Microsoft Video 1), MPEG-1 ou WMV1 est fortement recommandée, en raison de leur excellente compatibilité avec les anciennes versions de Windows. Comme beaucoup de codecs historiques, celui-ci produit toutefois des fichiers assez volumineux, en particulier pour les vidéos dépassant plusieurs minutes. Le codec Cinepak est aussi très rétrocompatible, mais peut mettre beaucoup de temps à être encodé. Pour les systèmes Apple, le format MOV avec les codecs RPZA ou Sorenson sont vivement conseillés. Les systèmes Linux étant très compatibles avec les formats PC, je conseille le format AVI MPEG-4 pour la lecture, et le format MP4 pour les systèmes plus récents, y compris ceux de Microsoft et Apple.<BR>Selon la puissance de votre machine, votre quantité de mémoire disponible ou la vitesse de votre connexion réseau, le transfert et la lecture des vidéos peuvent devenir plus difficiles. La résolution vidéo peut être choisie parmi un certain nombre de valeurs prédéfinies (96p, 120p, 144p, 240p, 360p, 480p, 720p et 1080p), ou laissée en mode automatique afin que le serveur sélectionne lui-même le format le plus approprié. Certains codecs anciens possèdent volontairement des limitations de résolution ou de format d'image, principalement pour des raisons de compatibilité avec les anciens lecteurs multimédia ou les contraintes matérielles des systèmes ciblés. Pareil pour le nombre d'images. Sélectionner le mode 60 images par seconde sur un format tel AVI Cinepak va immédiatement ramener à 30 images par seconde. Les vidéos de plus de 3 heures ne sont pas disponibles à la lecture. Celles de 1 heure peuvent être ignorées dans les paramètres du client.<BR><BR>")
             patternpage.AppendLine()
@@ -5830,12 +6249,17 @@ Module Program
             patternpage.AppendLine("</UL>")
             patternpage.AppendLine()
 
-            patternpage.AppendLine("Ces options permettent d'adapter RetroYT aussi bien à des machines très anciennes qu'à des systèmes plus récents, tout en conservant une esthétique cohérente avec les différentes époques du Web. Il est intéressant de noter qu'on peut lire aussi des flux vidéo depuis un lecteur externe, sans passer par l'interface Web. Il suffit pour cela de naviguer sur <I>http://adresse_serveur/stream?v=id_video</I> pour lire directement dans un lecteur externe comme VLC. Vous pouvez aussi chercher et lire la première vidéo trouvée de façon immédiate en naviguant sur <I>http://adresse_serveur/lucky?q=motclef</I>. Par défaut, le format permutera automatiquement sur MP4 si vous utilisez VLC. Notez bien que vous pouvez utiliser les paramètres GET documentés dans la <A HREF=""useget"">partie V</A> de cette documentation.<BR><BR>")
+            patternpage.AppendLine("Ces options permettent d'adapter RetroYT aussi bien à des machines très anciennes qu'à des systèmes plus récents, tout en conservant une esthétique cohérente avec les différentes époques du Web. Il est intéressant de noter qu'on peut lire aussi des flux vidéo depuis un lecteur externe, sans passer par l'interface Web. Il suffit pour cela de naviguer sur <I>http://adresse_serveur/stream?v=id_video</I> pour lire directement dans un lecteur externe comme VLC. Vous pouvez aussi chercher et lire la première vidéo trouvée de façon immédiate en naviguant sur <I>http://adresse_serveur/lucky?q=motclef</I>. Par défaut, le format permutera automatiquement sur MP4 si vous utilisez VLC. Notez bien que vous pouvez utiliser les paramètres GET documentés dans la <A HREF=""about.htm#useget"">partie V</A> de cette documentation.<BR><BR>")
             patternpage.AppendLine()
 
             patternpage.AppendLine("Il est également possible de naviguer dans les chaînes YouTube, et d'explorer leur contenu. Les URLs pointant vers les chaînes ressemblent à http://serveur/channel.cgi?id=UCxxxx où UCxxxx est l'identifiant unique de la chaîne. Vous pouvez consulter les vidéos qui sont affichées sous forme de pages, par groupe de 9, 18 ou 27 selon les paramètres du client. L'affichage est paramétré sur 18 vidéos par défaut, mais je conseille de mettre sur 9 vidéos pour les très anciennes configurations. L'affichage de 27 vidéos peut prendre un certain temps à être chargé. Il y a aussi un volet de suggestions à droite de la vidéo en cours de lecture, et une liste de commentaires en dessous, comme sous le vrai YouTube. Vous pouvez consulter tous les commentaires en cliquant sur le lien intitulé""Afficher tous les commentaires"" sous la section éponyme. Le lien pointe vers une URI ressemblant à http://serveur/com.cgi?v=xxxxxxxxxxx, qui sera ouverte dans un nouvel onglet/fenêtre. Vous pourrez également naviguer entre les pages de commentaires, qui sont affichés par groupes de 10, 20, 50 ou 100 commentaires.<BR><BR>")
 
-            patternpage.AppendLine("<BR><CENTER><H2><A NAME=""precautions"">III. Précautions</A></H2></CENTER><BR><BR>")
+            If wanted_skin = "dark" Then
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""precautions"" STYLE=""color: red;"">III. Précautions</A></H2></CENTER><BR><BR>")
+            Else
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""precautions"" STYLE=""color: black;"">III. Précautions</A></H2></CENTER><BR><BR>")
+            End If
+
             patternpage.AppendLine("<B>RetroYT</B> est distribué sous licence freeware/open source et ne doit pas être revendu sans l'autorisation explicite de son auteur. Afin de conserver une compatibilité maximale avec les anciens navigateurs Web et systèmes d'exploitation, le proxy ne met volontairement pas en œuvre certaines technologies modernes de sécurisation des communications, notamment SSL/TLS côté client. Les échanges entre RetroYT et YouTube utilisent bien des connexions sécurisées modernes, mais les communications entre le client et le proxy restent, quant à elles, entièrement non chiffrées. En effet, nombre d'anciens navigateurs ne prennent pas en charge SSL/TLS, surtout dans leurs dernières versions. Le HTTP sans chiffrement est une solution universelle pour se connecter au serveur.<BR>Pour cette raison, RetroYT est principalement destiné à une utilisation au sein d'un réseau local (LAN), sur une machine personnelle ou dans un environnement contrôlé. Il est fortement déconseillé d'exposer directement le proxy sur Internet ou de l'utiliser sur un réseau public non sécurisé, sauf si vous utilisez des solutions complémentaires de protection telles qu'un VPN ou un tunnel sécurisé.<BR><BR>")
             patternpage.AppendLine("RetroYT utilise également un système de cache local afin d'améliorer les performances et limiter les téléchargements répétés. Six dossiers principaux sont utilisés&nbsp;:")
             patternpage.AppendLine()
@@ -5861,7 +6285,7 @@ Module Program
             patternpage.AppendLine(" <LI>Les fichiers <I>YTSrv.dll</I> et <I>YTSrv.pdb</I>, générés par Visual Basic .NET et indispensables au fonctionnement du logiciel ;</LI>")
             patternpage.AppendLine(" <LI><I>ffmpeg.exe</I> mis par les soins de l'utilisateur dans le dossier du proxy. Il s'agit d'un programme crucial qui permet de convertir à la volée les fichiers vidéo téléchargés vers un format compatible avec les anciennes configurations ;</LI>")
             patternpage.AppendLine(" <LI><I>yt-dlp.exe</I> mis par les soins de l'utilisateur, également dans le dossier du proxy. Il permet d'obtenir des vidéos depuis YouTube ;</LI>")
-            patternpage.AppendLine(" <LI><I>ImageT.deps.json</I>, <I>ImageT.dll</I>, <I>ImageT.pdb</I>, <I>ImageT.runtimeconfig.json</I>, et <I>ImageTool.exe</I> sont nécessaires pour traiter les miniatures en cache, ajouter du texte dessus (comme le compteur de durée) et les redimensionner ;</LI>")
+            patternpage.AppendLine(" <LI><I>ImageTool.exe</I>, <I>ImageT.deps.json</I>, <I>ImageT.dll</I>, <I>ImageT.pdb</I>, et <I>ImageT.runtimeconfig.json</I> sont nécessaires pour traiter les miniatures en cache, ajouter du texte dessus (comme le compteur de durée) et les redimensionner ;</LI>")
             patternpage.AppendLine(" <LI><I>RetroYT.exe</I> qui est le fichier binaire de lancement du logiciel lui-même.</LI>")
             patternpage.AppendLine("</UL>")
             patternpage.AppendLine()
@@ -5872,7 +6296,12 @@ Module Program
             patternpage.AppendLine("Si, côté client, les recherches n'affichent aucun résultat quel que soit le mot-clé renseigné, cela peut venir du fait que yt-dlp n'est pas reconnu par YouTube comme un navigateur web classique, mais comme un trafic automatisé (un «&nbsp;bot&nbsp;»). Dans ce cas, YouTube peut limiter ou bloquer les requêtes de recherche effectuées de façon anonyme. Pour contourner ce problème, vous pouvez ajouter un fichier ""cookies.txt"" dans le dossier de RetroYT. Celui-ci permet à YT-DLP d'utiliser une session YouTube existante afin d'effectuer les recherches comme si elles provenaient d'un utilisateur déjà connecté, plutôt que d'une session anonyme pouvant être plus limitée. Le fichier cookies.txt peut être exporté depuis votre navigateur web (Firefox, Chrome, Edge, etc.) à l'aide d'une extension dédiée comme «&nbsp;Get cookies.txt LOCALLY&nbsp;». Il ne s'agit pas simplement de copier les fichiers internes du profil Firefox, car leur format n'est pas directement exploitable par YT-DLP. <B>Attention toutefois:</B> si vous partagez ce proxy avec d'autres utilisateurs, ceux-ci n'auront pas accès à votre compte Google ni à vos données personnelles directement, mais les résultats de recherche pourront être influencés par l'activité de votre compte YouTube (historique, préférences, recommandations, personnalisation, etc.). En d'autres termes, les résultats affichés risquent d'être partiellement biaisés par votre propre utilisation préalable de YouTube, et avoir des vidéos adaptées à votre propre activité.<BR><BR>")
             patternpage.AppendLine()
 
-            patternpage.AppendLine("<BR><CENTER><H2><A NAME=""configuration"">IV. Configuration</A></H2></CENTER><BR><BR>")
+            If wanted_skin = "dark" Then
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""configuration"" STYLE=""color: red;"">IV. Configuration</A></H2></CENTER><BR><BR>")
+            Else
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""configuration"" STYLE=""color: black;"">IV. Configuration</A></H2></CENTER><BR><BR>")
+            End If
+
             patternpage.AppendLine("Du côté du serveur, il est recommandé d'exécuter RetroYT sur une machine relativement performante. Une connexion Internet stable et rapide est également recommandé. Le transcodage vidéo effectué par FFmpeg peut solliciter fortement le processeur, en particulier lors de l'utilisation de codecs anciens ou peu optimisés comme Cinepak ou MSVideo1. Windows 10 et Windows 11 sont actuellement les systèmes les plus recommandés pour héberger le proxy. Le logiciel nécessite l'environnement .NET 6.0 ou plus, afin de fonctionner correctement. Du côté client, RetroYT a été conçu pour rester accessible à des navigateurs et systèmes beaucoup plus anciens. La navigation sur le proxy ainsi que la lecture vidéo intégrée ont notamment été testées avec succès sur les configurations suivantes&nbsp;:<BR><BR>")
             patternpage.AppendLine()
 
@@ -5892,26 +6321,38 @@ Module Program
             patternpage.AppendLine("</UL><BR>")
             patternpage.AppendLine()
 
-            patternpage.AppendLine("Veillez à autoriser l'exécution des contrôles ActiveX, si vous utilisez un système d'exploitation de Microsoft. Veillez aussi à avoir un ou plusieurs lecteurs multimédias installés, et les cookies activés sur votre navigateur. En effet, RetroYT fait usage d'un cookie pour mémoriser les paramètres du client. Si ce dernier ne semble pas prendre en charge les cookies, vous pourrez toujours faire usage des paramètres GET dans l'URL de /watch, /lucky, ou /stream. Pour les très anciennes versions de Windows, faire usage du codec AVI MSVideo1 depuis la section ""Paramètres"" est recommandé, en résolution 240p et en 15 images/s, tout en veillant à ce que les vidéos ne dépassent pas 10 minutes de longueur. Il s'agit d'un codec avec compression intégrée, totalement compatible avec Windows depuis sa version 3.1. Pour les navigateurs compatibles HTML5, vous pouvez activer l'utilisation du format vidéo MP4, et l'intégration multimédia via la balise &lt;video&gt;.<BR>")
+            patternpage.AppendLine("Veillez à autoriser l'exécution des contrôles ActiveX, si vous utilisez un système d'exploitation de Microsoft. Veillez aussi à avoir un ou plusieurs lecteurs multimédias installés, et les cookies activés sur votre navigateur. En effet, RetroYT fait usage d'un cookie pour mémoriser les paramètres du client. Si ce dernier ne semble pas prendre en charge les cookies, vous pourrez toujours faire usage des paramètres GET dans l'URL de /watch, /lucky, /short ou /stream. Pour les très anciennes versions de Windows, faire usage du codec MPEG-1, MSVideo1 ou RealMedia depuis la section ""Paramètres"" est recommandé, en résolution 240p et en 15 images/s, tout en veillant à ce que les vidéos ne dépassent pas 10 minutes de longueur. Il s'agit d'un codec avec compression intégrée, totalement compatible avec Windows depuis sa version 3.1. Pour les navigateurs compatibles HTML5, vous pouvez activer l'utilisation du format vidéo MP4, et l'intégration multimédia via la balise &lt;video&gt;.<BR>")
             patternpage.AppendLine("Si vous activez le lecteur Flash Player, seul le format FLV (Flash Video) pourra être lu. Pareil pour Real Player, seul le format Real Media sera lu. Si par malheur aucune de ces options ne fonctionne, vous pouvez également cliquer sur le lien pour lire le flux vidéo directement (lien présent sous le lecteur, si présent). Le navigateur ouvrira un lecteur externe, ou vous proposera de télécharger le fichier pour le lire après. Mais il s'agit d'une option de dernier recours. Concernant le lecteur Windows Media Player, notez bien que l'utilisation des URL n'est prise en charge qu'à partir de la version 6.4.<BR><BR>")
             patternpage.AppendLine()
 
-            patternpage.AppendLine("<BR><CENTER><H2><A NAME=""useget"">V. Utilisation du paramètre GET</A></H2></CENTER><BR><BR>")
+            If wanted_skin = "dark" Then
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""useget"" STYLE=""color: red;"">V. Utilisation du paramètre GET</A></H2></CENTER><BR><BR>")
+            Else
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""useget"" STYLE=""color: black;"">V. Utilisation du paramètre GET</A></H2></CENTER><BR><BR>")
+            End If
 
             patternpage.AppendLine("Pour savoir comment utiliser les paramètres GET, afin de pouvoir préciser les paramètres du client sans l'usage des cookies, via l'URL de lecture. Vous pouvez cliquer sur <A HREF=""/useget.htm"">ce lien</A> pour consulter la page dédiée à cette documentation.<BR><BR>")
             patternpage.AppendLine()
 
-            patternpage.AppendLine("<BR><CENTER><H2><A NAME=""playlists"">VI. Listes de lecture (Playlists)</A></H2></CENTER><BR><BR>")
+            If wanted_skin = "dark" Then
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""playlists"" STYLE=""color: red;"">VI. Listes de lecture (Playlists)</A></H2></CENTER><BR><BR>")
+            Else
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""playlists"" STYLE=""color: black;"">VI. Listes de lecture (Playlists)</A></H2></CENTER><BR><BR>")
+            End If
 
-            patternpage.AppendLine("Les premières versions de RetroYT ne servaient qu'à lire des vidéos YouTube via des flux. Une interface Web a été ajoutée, puis un système de recherche recherche, et une page de <A HREF=""config.cgi"">paramètres</A>. D'autres fonctionnalités ont été ajoutées, en plus d'avoir corrigé des bugs. En plus de pouvoir afficher les chaînes YouTube, avec les flux vidéo, les shorts et les commentaires, RetroYT peut désormais afficher les playlists d'une chaîne voulue. Si vous avez l'identifiant d'une playlist, c'est également faisable. Il suffit d'utiliser playlist.cgi, suivi du paramètre de l'identifiant unique de la playlist, par exemple: <I>http://serveur/playlist.cgi?id=PL5c8gysZPLlm8TqVL5VKX1kqdgT1LUb8_</I><BR><BR>")
+            patternpage.AppendLine("Les premières versions de RetroYT ne servaient qu'à lire des vidéos YouTube via des flux. Une interface Web a été ajoutée, puis un système de recherche, et une page de <A HREF=""config.cgi"">paramètres</A>. D'autres fonctionnalités ont été ajoutées, en plus d'avoir corrigé des bugs. En plus de pouvoir afficher les chaînes YouTube, avec les flux vidéo, les shorts et les commentaires, RetroYT peut désormais afficher les playlists d'une chaîne voulue. Si vous avez l'identifiant d'une playlist, c'est également faisable. Il suffit d'utiliser playlist.cgi, suivi du paramètre de l'identifiant unique de la playlist, par exemple: <I>http://serveur/playlist.cgi?id=PL5c8gysZPLlm8TqVL5VKX1kqdgT1LUb8_</I><BR><BR>")
 
-            patternpage.AppendLine("<BR><CENTER><H2><A NAME=""credits"">VII. Remerciements</A></H2></CENTER><BR><BR>")
+            If wanted_skin = "dark" Then
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""credits"" STYLE=""color: red;"">VII. Remerciements</A></H2></CENTER><BR><BR>")
+            Else
+                patternpage.AppendLine("<BR><CENTER><H2><A NAME=""credits"" STYLE=""color: black;"">VII. Remerciements</A></H2></CENTER><BR><BR>")
+            End If
+
             patternpage.AppendLine("YouTube est une propriété de Google. Il s'agit d'une plateforme de diffusion de vidéos en direct, ou en différé. Ce projet de proxy n'est pas affilié à Google, ni à YouTube.")
             patternpage.AppendLine("Ce logiciel a été développé sous Microsoft Visual Basic .NET 2022. Il fait usage des librairies et binaires ffmpeg, et du projet yt-dlp, que l'utilisateur doit intégrer manuellement au dossier (ils ne sont pas livrés par défaut pour éviter des problèmes de droit d'auteur avec leurs créateurs respectifs, et pour des raisons d'espace de stockage utilisé). En revanche, SWFObject est inclus au projet directement, car sous licence MIT. Il est donc libre de le redistribuer, et permet la lecture des vidéos au format Macromedia Flash lorsque l'utilisateur active cette fonctionnalité. Merci à ceux qui l'ont programmé !<BR>Merci aussi à ChatGPT pour ses astuces de programmation. Sans lui, ce projet n'aurait peut-être jamais vu le jour. Je remercie également LeJarb pour le code d'intégration de Real Player, le code d'intégration pour les anciennes versions d'Android, et pour les consoles de salon/portatives de Nintendo et SONY. Il a aussi participé à l'optimisation de l'usage des codecs (en s'aidant de Léo AI). Je le remercie aussi pour ses divers feedbacks, et pour sa participation active dans l'amélioration du projet. Je remercie aussi Val pour ses tests du logiciel sur des configurations réelles, ainsi qu'à tous ceux qui ont aussi testé sur des configurations anciennes, que je les connaisse ou non. Merci également à vous, l'utilisateur, pour avoir utilisé RetroYT, en espérant qu'il fonctionnera parfaitement sur votre configuration, et qu'il vous procurera entière satisfaction dans l'usage du service YouTube depuis d'anciens systèmes. Voici la page de débug du projet, pour consulter les paramètres du client: <A HREF=""/debug.cgi"">Cliquez ici</A>. Une page pour consulter le cache (uniquement disponible pour les adresses IP locales) est également disponible ici: <A HREF=""/cache.cgi"">Cliquez ici</A>.<BR><BR><I>L'auteur.</I><BR><BR>")
             patternpage.AppendLine()
-            patternpage.AppendLine("<A HREF=""/"">Cliquez ici pour retourner à l'index</A><BR><BR>")
+            patternpage.AppendLine("<A HREF=""/feed"">Cliquez ici pour retourner à l'index</A><BR><BR>")
             patternpage.AppendLine("</DIV></CENTER><DIV CLASS=bodysep></DIV>" & footer)
-
 
             Dim index_resp As String =
                 "HTTP/" & http_ver & " 200 OK" & vbCrLf &
@@ -5931,7 +6372,7 @@ Module Program
             client.Close()
         ElseIf request.StartsWith("GET /useget.htm") Then
             'Afficher la section "Comment utiliser GET" du proxy
-            patternpage.AppendLine(InitValues("Utiliser les paramètres GET", , wanted_skin, , used_player))
+            patternpage.AppendLine(InitValues("Utiliser les paramètres GET", , wanted_skin, , used_player, , True))
             WriteLog("Page des informations sur le paramétrage de GET demandée.", , client)
 
             patternpage.AppendLine("<BR><CENTER><H1 CLASS=""black_label"">Comment utiliser les paramètres GET</H1></CENTER><BR>")
@@ -5974,8 +6415,18 @@ Module Program
             patternpage.AppendLine(" <TR><TD>fullscreen</TD><TD>Taille du lecteur sur toute la fenêtre (avec HTML)</TD></TR>")
             patternpage.AppendLine(" <TR><TD>fulljs</TD><TD>Taille du lecteur sur toute la zone visible (avec Javascript)</TD></TR>")
             patternpage.AppendLine(" <TR><TD>cs</TD><TD>La taille du lecteur classique YouTube en 480x360 pixels (Taille par défaut)</TD></TR>")
-            patternpage.AppendLine(" <TR><TD>vertical1</TD><TD>Taille verticale, en 360x480 pixels</TD></TR>")
-            patternpage.AppendLine(" <TR><TD>vertical2</TD><TD>Taille verticale, en 720x1280 pixels</TD></TR>")
+            patternpage.AppendLine(" <TR><TD>vertical1</TD><TD>Taille verticale petite, en 270x480 pixels, format 9:16</TD></TR>")
+            patternpage.AppendLine(" <TR><TD>vertical2</TD><TD>Taille verticale moyenne, en 360x640 pixels, format 9:16</TD></TR>")
+            patternpage.AppendLine(" <TR><TD>vertical3</TD><TD>Taille verticale grande, en 720x1280 pixels, format 9:16</TD></TR>")
+            patternpage.AppendLine("</TABLE></CENTER><BR><BR>")
+            patternpage.AppendLine()
+
+            patternpage.AppendLine("<CENTER><B>La taille du lecteur multimédia vertical intégré dans la page de lecture des vidéos de type ""shorts"" se règle avec l'entête <I>vsize</I>, suivi par un des paramètres suivants (à noter qu'aucun format 4:3, 16:9 ou 3:4 n'est disponible). La lecture verticale est indisponible pour les codecs suivants: MSVideo1, MPEG-1 100% compatible (la variante dite ""récente"" est compatible), et Cinepak. Le codec RealMedia est disponible pour la lecture des shorts uniquement en résolution 144x256, rendant la navigation possible dans les shorts sous Windows 3.11 :</B><BR><BR>")
+            patternpage.AppendLine("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 ALIGN=CENTER>")
+            patternpage.AppendLine(" <TR><TD>vert0</TD><TD>Taille verticale micro en 9:16 (144x256)</TD></TR>")
+            patternpage.AppendLine(" <TR><TD>vert1</TD><TD>Taille verticale classique en 9:16 (270x480)</TD></TR>")
+            patternpage.AppendLine(" <TR><TD>vert2</TD><TD>Taille verticale moyenne 9:16 (360x640)</TD></TR>")
+            patternpage.AppendLine(" <TR><TD>vert3</TD><TD>Taille verticale grande 9:16 (720x1280)</TD></TR>")
             patternpage.AppendLine("</TABLE></CENTER><BR><BR>")
             patternpage.AppendLine()
 
@@ -5985,9 +6436,9 @@ Module Program
             patternpage.AppendLine(" <TR><TD>recent_mpeg1</TD><TD>Choix du format MPEG, codec vidéo MPEG-1, codec audio MP2. Format plus léger que le premier en MPEG-1, mais toujours très rétrocompatible.</TD></TR>")
             patternpage.AppendLine(" <TR><TD>avi_mpeg4</TD><TD>Choix du format AVI (Microsoft), codec vidéo MPEG-4, codec audio MP3. Conseillé sous Windows 98SE.</TD></TR>")
             patternpage.AppendLine(" <TR><TD>avi_msvideo1</TD><TD>Choix du format AVI (Microsoft), codec vidéo MSVideo1, codec audio PCM. Conseillé sous Windows 95, NT, 98, etc.</TD></TR>")
-            patternpage.AppendLine(" <TR><TD>avi_cinepak</TD><TD>Choix du format AVI (Microsoft), codec vidéo Cinepak, codec audio PCM. Lent à encoder.</TD></TR>")
+            patternpage.AppendLine(" <TR><TD>avi_cinepak</TD><TD>Choix du format AVI (Microsoft), codec vidéo Cinepak, codec audio PCM. Lent à encoder mais très compatible.</TD></TR>")
             patternpage.AppendLine(" <TR><TD>avi_mjpeg</TD><TD>Choix du format AVI (Microsoft), codec vidéo MJPEG, codec audio PCM. Un format ancien un peu lourd, mais très compatible.</TD></TR>")
-            patternpage.AppendLine(" <TR><TD>avi_yuv</TD><TD>Choix du format AVI (Microsoft), vidéo en YUV, codec audio PCM. Format très brut et très lourd, ne pas dépasser quelques minutes de lecture.</TD></TR>")
+            patternpage.AppendLine(" <TR><TD>avi_yuv</TD><TD>Choix du format AVI (Microsoft), vidéo en YUV, codec audio PCM. Format très brut et très lourd, il est vivement recommandé de ne pas dépasser quelques minutes de lecture.</TD></TR>")
             patternpage.AppendLine(" <TR><TD>mp4</TD><TD>Choix du format MP4, codec vidéo H.264, codec audio AAC. Compatible avec tous les systèmes à partir du début des années 2000.</TD></TR>")
             patternpage.AppendLine(" <TR><TD>legacy_mp4</TD><TD>Choix du format MP4, codec vidéo H.264, codec audio AAC. Celui-ci est adapté pour les vieux lecteurs (comme celui sous Android 2.2).</TD></TR>")
             patternpage.AppendLine(" <TR><TD>wmv1</TD><TD>Choix du format WMV, codec vidéo WMV1, codec audio WMAv1. Conseillé pour Windows 95, 98, NT avec les codecs installés.</TD></TR>")
@@ -6040,7 +6491,7 @@ Module Program
             patternpage.AppendLine("Le tout en 240p, avec le nombre d'images par seconde par défaut. Le reste des paramètres utiliseront ceux par défaut également. Cette configuration reste assez typique de l'époque de Flash Player, dans les années 2000.<BR><BR>")
             patternpage.AppendLine("Si vous lisez depuis Windows 3.11 ou Windows NT 3.51, je vous conseille d'installer Real Player 5.0, qui rendra possible la lecture sous Internet Explorer 4 ou 5 via intégration ou ActiveX. Les paramètres à utiliser seront ainsi :<BR><BR>")
             patternpage.AppendLine("<I>http://127.0.0.1/watch?v=FuOhQZP821o&player=realplayer&codec=rm&resolution=240p&framerate=15</I><BR><BR>")
-            patternpage.AppendLine("Ce ne sont que des exemples, mais ils vous inspireront probablement pour votre configuration. Faites-en bon usage.<BR><BR>Cliquez <A HREF=""/"">ici</A> pour revenir à l'index, et <A HREF=""about.htm"">ici</A> pour revenir à la documentation principale.</DIV><BR><BR>")
+            patternpage.AppendLine("Ce ne sont que des exemples, mais ils vous inspireront probablement pour votre configuration. Faites-en bon usage.<BR><BR>Cliquez <A HREF=""/feed"">ici</A> pour revenir à l'index, et <A HREF=""about.htm"">ici</A> pour revenir à la documentation principale.</DIV><BR><BR>")
             patternpage.AppendLine()
             patternpage.AppendLine(footer)
 
@@ -6061,6 +6512,7 @@ Module Program
 
             client.Close()
         ElseIf request.StartsWith("GET /e_") Then
+            'Obtention des émojis
             request = request.Replace("../", String.Empty) 'Retirer les tentatives de consulter ce qui se situe dans le dossier parent
             request = request.Replace("./", String.Empty)
             request = request.Replace("/.", String.Empty)
@@ -6087,7 +6539,7 @@ Module Program
                 If Not IO.File.Exists(CurDir() & "\emojis\" & arg) Then
                     WriteLog("Ressource demandée introuvable: " & arg, , client)
 
-                    Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Le fichier '<I>/" & arg & "</I>' n'a pas été trouvé sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
+                    Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Le fichier '<I>/" & arg & "</I>' n'a pas été trouvé sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
 
                     Try
                         stream.Write(notfound_data, 0, notfound_data.Length)
@@ -6145,7 +6597,7 @@ Module Program
 
                 WriteLog("Ressource demandée introuvable: " & arg, , client)
 
-                Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Le fichier '<I>/" & arg & "</I>' n'a pas été trouvé sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
+                Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Le fichier '<I>/" & arg & "</I>' n'a pas été trouvé sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
 
                 Try
                     stream.Write(notfound_data, 0, notfound_data.Length)
@@ -6172,6 +6624,7 @@ Module Program
                 request = request.Replace(Chr(i), String.Empty)
             Next
 
+            Dim param As String = String.Empty
             Dim arg_o As String = Split(request)(1)
             arg_o = arg_o.Remove(0, 1)
 
@@ -6181,214 +6634,25 @@ Module Program
 
             If arg_o.Length = 0 Then
                 'Index du site
-                WriteLog("L'utilisateur demande l'index du site. Renvoi vers la page d'accueil.", , client)
-                patternpage.AppendLine(InitValues("Accueil", , wanted_skin, , used_player))
 
-                If Not display_trends Then
-                    patternpage.AppendLine(" <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez <A HREF=""/about.htm"">ici</A> pour plus d'informations. Cliquez <A HREF=""/about.htm"">ici</A> pour accéder aux paramètres.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>")
-                    patternpage.AppendLine()
-                    patternpage.AppendLine("<BR><BR>" & footer)
+                Dim result_page As String = "<TITLE>Found page</TITLE><BODY><H1>302 Page trouvée</H1><P>Pour vous rendre à l'index du site, veuillez cliquer <A HREF=""/feed"">ici</A>.</P></BODY>" & vbCrLf
 
-                    'Envoi du résultat à l'utilisateur via une réponse HTTP favorable.
-                    Dim req_resp As String =
-                        "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                Dim index_resp As String = "HTTP/1.1 302 Found" & vbCrLf &
                         "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
-                        "Content-Length: " & iso.GetBytes(patternpage.ToString).Length.ToString & vbCrLf &
-                        "Connection: close" & vbCrLf &
-                        "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage.ToString
+                        "Content-Length: " & iso.GetBytes(result_page).Length.ToString & vbCrLf &
+                        "Location: /feed" & vbCrLf &
+                        "Accept-Ranges: bytes" & vbCrLf & vbCrLf & result_page 'Petit message si le navigateur de l'utilisateur n'arrive pas à localiser
 
-                    'Conversion en octets, suivant le format ISO-8859-1.
-                    Dim req_data As Byte() = iso.GetBytes(req_resp)
+                Dim index_data As Byte() = iso.GetBytes(index_resp)
 
-                    Try
-                        'Ecriture dans le flux octal en direction du client.
-                        stream.Write(req_data, 0, req_data.Length)
-                    Catch ex As Exception
-                        WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
-                    End Try
+                Try
+                    stream.Write(index_data, 0, index_data.Length)
+                Catch ex As Exception
+                    WriteLog("Erreur d'envoi de la réponse: " & ex.Message, ConsoleColor.Red, client)
+                End Try
 
-                    client.Close()
-                    Exit Sub
-                Else
-                    If IsNetworkAvailable() Then
-                        WriteLog("Affichage des tendances activé. Envoi du flux principal...", ConsoleColor.Blue, client)
-                        Dim arg As String = Split(request)(1)
-
-                        'Les caractères systèmes sont retirés par sécurité
-                        For i As Integer = 0 To &H1F
-                            request = request.Replace(Chr(i), String.Empty)
-                        Next
-
-                        'Récupérer les 10 vidéos en rapport avec le mot-clef spécifié
-                        'Lancement de yt-dlp
-                        Dim psi As New ProcessStartInfo()
-                        Dim output As String = String.Empty
-
-                        If String.IsNullOrEmpty(main_stream) OrElse main_stream.Length = 0 Then
-                            psi.FileName = "yt-dlp.exe"
-
-                            Dim add_cookie As String = String.Empty
-
-                            If IO.File.Exists("cookies.txt") Then
-                                add_cookie &= " --cookies cookies.txt"
-                                WriteLog("Usage du fichier cookies.txt ajouté par l'administrateur du serveur.", ConsoleColor.Magenta)
-                            End If
-
-                            psi.Arguments = "--print ""%(id)s<|>%(title)s<|>%(view_count)s<|>%(upload_date)s<|>%(uploader)s<|>%(thumbnail)s<|>%(duration)s<|>%(width)s<|>%(height)s<|>%(description)s<|>%(channel_id)s<|>%(like_count)s<|>%(dislike_count)s<||>"" ""ytsearch" & disp_vids_per_channel.ToString & ":actualités"" --no-warnings --encoding utf-8 --user-agent ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136.0 Safari/537.36""" & add_cookie
-
-                            psi.UseShellExecute = False
-                            psi.RedirectStandardOutput = True
-                            psi.RedirectStandardError = True
-                            psi.CreateNoWindow = True
-                            psi.StandardOutputEncoding = Encoding.UTF8
-                            psi.StandardErrorEncoding = Encoding.UTF8
-
-                            Dim p As Process = Process.Start(psi)
-                            output = p.StandardOutput.ReadToEnd() 'Récupération des résultats
-                            output = output.Replace(vbLf, String.Empty)
-                            output = output.Replace(vbCr, String.Empty)
-                            If output.EndsWith("<||>") Then output = output.Remove(output.Length - 4, 4)
-                            main_stream = output
-                            Dim err As String = p.StandardError.ReadToEnd()
-
-                            p.WaitForExit(1200000)
-                        Else
-                            output = main_stream
-                        End If
-
-                        'Récupération des lignes
-                        If String.IsNullOrEmpty(output) Then
-                            patternpage.AppendLine(" <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez sur <A HREF=""/about.htm"">ce lien</A> pour obtenir plus d'informations sur le fonctionnement de RetroYT.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>")
-                            patternpage.AppendLine()
-                        Else
-                            output = output.Remove(output.Length - 4, 4)
-                            Dim lines As String() = output.Split("<||>", StringSplitOptions.RemoveEmptyEntries)
-
-                            If lines.Count = 0 Then
-                                'S'il n'y a aucune ligne retournée, on affiche l'ancien message.
-                                patternpage.AppendLine(" <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez sur <A HREF=""/about.htm"">ce lien</A> pour obtenir plus d'informations sur le fonctionnement de RetroYT.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>")
-                                patternpage.AppendLine()
-                            Else
-                                'Sinon, on affiche les résultats dans la page Web.
-                                patternpage.AppendLine(" <BR><CENTER><P ALIGN=CENTER CLASS=""black_label""><B><FONT SIZE=4>Actualités de YouTube :</FONT></B></P></CENTER><BR><BR>")
-                                patternpage.AppendLine()
-                                patternpage.AppendLine("  <CENTER><TABLE BORDER=0 CELLPADDING=8 CELLSPACING=0 WIDTH=600 ALIGN=CENTER>")
-
-                                Dim vc As Integer = 0
-
-                                For Each line In lines
-
-                                    line = line.Replace(vbLf, String.Empty)
-                                    line = line.Replace(vbCr, String.Empty)
-                                    If line.EndsWith("<|>") Then line = line.Substring(0, line.Length - 3)
-
-                                    Dim parts As String() = line.Split(New String() {"<|>"}, StringSplitOptions.None)
-
-                                    For i As Integer = 0 To parts.Length - 1
-                                        For j As Integer = 0 To &H1F
-                                            parts(i) = parts(i).Replace(Chr(j), String.Empty)
-                                        Next
-                                    Next
-
-                                    If parts.Length = 13 Then
-                                        Dim id As String = parts(0)
-                                        Dim title As String = parts(1)
-                                        Dim tmp_prop As New VideoProperties
-                                        title = CleanText(title)
-
-                                        tmp_prop.Title = CleanText(parts(1))
-
-                                        tmp_prop.ID = parts(0)
-                                        tmp_prop.Views = IIf(LCase(parts(2)) = "na", "0", GetThousands(parts(2)))
-                                        tmp_prop.DateOfRelease = GetDate(parts(3))
-                                        tmp_prop.Creator = CleanText(parts(4))
-                                        tmp_prop.Thumbnail = parts(5)
-                                        tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(parts(10))
-                                        tmp_prop.Like_Count = parts(11)
-                                        tmp_prop.Dislike_Count = parts(12)
-
-                                        If LCase(parts(6)) = "na" Then
-                                            tmp_prop.Duration = "?:??"
-                                        Else
-                                            tmp_prop.Duration = GetDuration(parts(6))
-                                        End If
-
-                                        tmp_prop.Dimensions = IIf(IsNumeric(parts(7)), parts(7), "640") & ":" & IIf(IsNumeric(parts(8)), parts(8), "480")
-
-                                        tmp_prop.Description = IIf(String.IsNullOrEmpty(parts(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(parts(9))))
-                                        If tmp_prop.Description.Length > 1024 Then tmp_prop.Description = tmp_prop.Description.Substring(0, 1024)
-                                        tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
-                                        tmp_prop.Description = tmp_prop.Description.Replace(vbCr, "<BR>")
-                                        tmp_prop.Description = tmp_prop.Description.Replace(vbLf, "<BR>")
-                                        tmp_prop.DateAdded = Now
-
-                                        SyncLock video_props
-                                            If Not video_props.ContainsKey(id) Then
-                                                Try
-                                                    If video_props.Count > 1000 Then
-                                                        Do Until video_props.Count = 1000
-                                                            video_props.Remove(video_props.Keys(0))
-                                                        Loop
-                                                    End If
-
-                                                    video_props.Add(id, tmp_prop)
-                                                Catch ex As Exception
-
-                                                End Try
-                                            End If
-                                        End SyncLock
-
-                                        vc += 1
-
-                                        'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
-                                        patternpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">")
-                                        patternpage.AppendLine("   <A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & tmp_prop.Duration.Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A><BR>")
-                                        patternpage.Append("   <A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>")
-                                        If display_stream_button Then patternpage.AppendLine(" <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>")
-                                        patternpage.AppendLine()
-                                        patternpage.AppendLine("<BR>Vidéo publiée par <A HREF=""" & tmp_prop.Channel_URL & """>" & tmp_prop.Creator & "</A><BR>" & tmp_prop.Views.Replace(" ", "&nbsp;") & " vue(s)")
-                                        patternpage.AppendLine("  </TD>")
-                                        If (vc Mod 3 = 0) Then patternpage.AppendLine(" </TR>" & vbCrLf & vbCrLf & "  <TR>")
-                                    End If
-                                Next
-
-                                patternpage.AppendLine("  </TABLE></CENTER>")
-                            End If
-                        End If
-
-                        patternpage.AppendLine("<BR><BR>" & footer)
-
-                        'Envoi du résultat à l'utilisateur via une réponse HTTP favorable.
-                        Dim req_resp As String =
-                            "HTTP/" & http_ver & " 200 OK" & vbCrLf &
-                            "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
-                            "Content-Length: " & iso.GetBytes(patternpage.ToString).Length.ToString & vbCrLf &
-                            "Connection: close" & vbCrLf &
-                            "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage.ToString
-
-                        'Conversion en octets, suivant le format ISO-8859-1.
-                        Dim req_data As Byte() = iso.GetBytes(req_resp)
-
-                        Try
-                            'Ecriture dans le flux octal en direction du client.
-                            stream.Write(req_data, 0, req_data.Length)
-                        Catch ex As Exception
-                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
-                        End Try
-
-                        client.Close()
-                    Else
-                        Dim notfound_data As Byte() = GetHTTPBytes(500, "<H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le serveur proxy n'est pas connecté à Internet, ainsi, la requête ne peut pas être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
-
-                        Try
-                            stream.Write(notfound_data, 0, notfound_data.Length)
-                        Catch ex As Exception
-                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
-                        End Try
-
-                        client.Close()
-                    End If
-                End If
+                client.Close()
+                Exit Sub
 
             Else
                 'Ressource hardcodée ou hébergée
@@ -6398,6 +6662,7 @@ Module Program
                 Dim sent_data As Byte()
 
                 If arg_o.Contains("?") Then
+                    param = arg_o.Remove(0, arg_o.IndexOf("?") + 1)
                     arg_o = arg_o.Substring(0, arg_o.IndexOf("?"))
                 End If
 
@@ -6412,7 +6677,247 @@ Module Program
                 If arg_o.Contains(".\") Then arg_o = arg_o.Replace(".\", String.Empty)
 
                 Select Case LCase(arg_o)
-                    Case "yt_logo2.gif", "yt_logo.gif", "yt_modrn.gif", "yt_dark.gif", "yt_rose.gif", "yt_aqua.gif", "yt_mono.gif", "yt_mint.gif", "yt_gold.gif", "cosmic.gif", "playbtn.gif", "th_up.gif", "th_down.gif", "playhead.gif"
+                    Case "feed"
+                        WriteLog("L'utilisateur demande l'index du site. Renvoi vers la page d'accueil.", , client)
+                        patternpage.AppendLine(InitValues("Accueil", , wanted_skin, , used_player))
+
+                        If Not display_trends Then
+                            patternpage.AppendLine(" <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez <A HREF=""/about.htm"">ici</A> pour plus d'informations. Cliquez <A HREF=""/about.htm"">ici</A> pour accéder aux paramètres.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>")
+                            patternpage.AppendLine()
+                            patternpage.AppendLine("<BR><BR>" & footer)
+
+                            'Envoi du résultat à l'utilisateur via une réponse HTTP favorable.
+                            Dim req_resp As String =
+                                "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                                "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                                "Content-Length: " & iso.GetBytes(patternpage.ToString).Length.ToString & vbCrLf &
+                                "Connection: close" & vbCrLf &
+                                "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage.ToString
+
+                            'Conversion en octets, suivant le format ISO-8859-1.
+                            Dim req_data As Byte() = iso.GetBytes(req_resp)
+
+                            Try
+                                'Ecriture dans le flux octal en direction du client.
+                                stream.Write(req_data, 0, req_data.Length)
+                            Catch ex As Exception
+                                WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                            End Try
+
+                            client.Close()
+                            Exit Sub
+                        Else
+                            If IsNetworkAvailable() Then
+                                WriteLog("Affichage des tendances activé. Envoi du flux principal...", ConsoleColor.Blue, client)
+                                Dim arg As String = Split(request)(1)
+
+                                'Les caractères systèmes sont retirés par sécurité
+                                For i As Integer = 0 To &H1F
+                                    request = request.Replace(Chr(i), String.Empty)
+                                Next
+
+                                'Récupérer les 10 vidéos en rapport avec le mot-clef spécifié
+                                'Lancement de yt-dlp
+                                Dim output As String = String.Empty
+
+                                Select Case param
+                                    Case "cat=music"
+                                        output = index_streams(VideoCategories.Musique)
+                                    Case "cat=sports"
+                                        output = index_streams(VideoCategories.Sports)
+                                    Case "cat=gaming"
+                                        output = index_streams(VideoCategories.Gaming)
+                                    Case "cat=education"
+                                        output = index_streams(VideoCategories.Education)
+                                    Case "cat=movies"
+                                        output = index_streams(VideoCategories.Films)
+                                    Case "cat=podcasts"
+                                        output = index_streams(VideoCategories.TVSeries)
+                                    Case "cat=news"
+                                        output = index_streams(VideoCategories.Nouvelles)
+                                    Case "cat=entertainment"
+                                        output = index_streams(VideoCategories.Divertissement)
+                                    Case Else
+                                        For i As Integer = 0 To disp_vids_per_channel - 1
+                                            Dim sub_video() As String = index_streams(CType(i Mod VideoCategories.Maximum, VideoCategories)).Split("<||>")
+
+                                            For j As Integer = 0 To sub_video.Length - 1
+                                                If Not output.Contains(sub_video(j)) Then
+                                                    output &= sub_video(j) & "<||>"
+                                                    Exit For
+                                                End If
+                                            Next
+                                        Next
+
+                                        If output.EndsWith("<||>") Then output = output.Substring(0, output.Length - 4)
+                                End Select
+
+                                'Récupération des lignes
+                                If String.IsNullOrEmpty(output) Then
+                                    patternpage.AppendLine(" <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez sur <A HREF=""/about.htm"">ce lien</A> pour obtenir plus d'informations sur le fonctionnement de RetroYT.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>")
+                                    patternpage.AppendLine()
+                                Else
+                                    If output.EndsWith("<||>") Then output = output.Remove(output.Length - 4, 4)
+                                    Dim lines As String() = output.Split("<||>", StringSplitOptions.RemoveEmptyEntries)
+
+                                    If lines.Count = 0 Then
+                                        'S'il n'y a aucune ligne retournée, on affiche l'ancien message.
+                                        patternpage.AppendLine(" <P ALIGN=CENTER><BR><B>Pour commencer, veuillez entrer un mot-clef à rechercher dans la zone ci-dessus.<BR><BR>Cliquez sur <A HREF=""/about.htm"">ce lien</A> pour obtenir plus d'informations sur le fonctionnement de RetroYT.</B></P><DIV CLASS=""bodysep"" STYLE=""height: 500px;""></DIV>")
+                                        patternpage.AppendLine()
+                                    Else
+                                        'Sinon, on affiche les résultats dans la page Web.
+
+                                        Select Case param
+                                            Case "cat=music"
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Catégorie musique</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><A HREF=""/feed"">Index</A> - <B>Musique</B> - <A HREF=""/feed?cat=sports"">Sports</A> - <A HREF=""/feed?cat=gaming"">Gaming</A> - <A HREF=""/feed?cat=education"">&Eacute;ducation</A> - <A HREF=""/feed?cat=movies"">Films</A> - <A HREF=""/feed?cat=podcasts"">Podcasts</A> - <A HREF=""/feed?cat=news"">Nouvelles</A> - <A HREF=""/feed?cat=entertainment"">Divertissement</A></CENTER></P>")
+                                            Case "cat=sports"
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Catégorie des sports</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><A HREF=""/feed"">Index</A> - <A HREF=""/feed?cat=music"">Musique</A> - <B>Sports</B> - <A HREF=""/feed?cat=gaming"">Gaming</A> - <A HREF=""/feed?cat=education"">&Eacute;ducation</A> - <A HREF=""/feed?cat=movies"">Films</A> - <A HREF=""/feed?cat=podcasts"">Podcasts</A> - <A HREF=""/feed?cat=news"">Nouvelles</A> - <A HREF=""/feed?cat=entertainment"">Divertissement</A></CENTER></P>")
+                                            Case "cat=gaming"
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Catégorie gaming</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><A HREF=""/feed"">Index</A> - <A HREF=""/feed?cat=music"">Musique</A> - <A HREF=""/feed?cat=sports"">Sports</A> - <B>Gaming</B> - <A HREF=""/feed?cat=education"">&Eacute;ducation</A> - <A HREF=""/feed?cat=movies"">Films</A> - <A HREF=""/feed?cat=podcasts"">Podcasts</A> - <A HREF=""/feed?cat=news"">Nouvelles</A> - <A HREF=""/feed?cat=entertainment"">Divertissement</A></CENTER></P>")
+                                            Case "cat=education"
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Catégorie éducation</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><A HREF=""/feed"">Index</A> - <A HREF=""/feed?cat=music"">Musique</A> - <A HREF=""/feed?cat=sports"">Sports</A> - <A HREF=""/feed?cat=gaming"">Gaming</A> - <B>&Eacute;ducation</B> - <A HREF=""/feed?cat=movies"">Films</A> - <A HREF=""/feed?cat=podcasts"">Podcasts</A> - <A HREF=""/feed?cat=news"">Nouvelles</A> - <A HREF=""/feed?cat=entertainment"">Divertissement</A></CENTER></P>")
+                                            Case "cat=movies"
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Catégorie films</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><A HREF=""/feed"">Index</A> - <A HREF=""/feed?cat=music"">Musique</A> - <A HREF=""/feed?cat=sports"">Sports</A> - <A HREF=""/feed?cat=gaming"">Gaming</A> - <A HREF=""/feed?cat=education"">&Eacute;ducation</A> - <B>Films</B> - <A HREF=""/feed?cat=podcasts"">Podcasts</A> - <A HREF=""/feed?cat=news"">Nouvelles</A> - <A HREF=""/feed?cat=entertainment"">Divertissement</A></CENTER></P>")
+                                            Case "cat=podcasts"
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Catégorie des podcasts</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><A HREF=""/feed"">Index</A> - <A HREF=""/feed?cat=music"">Musique</A> - <A HREF=""/feed?cat=sports"">Sports</A> - <A HREF=""/feed?cat=gaming"">Gaming</A> - <A HREF=""/feed?cat=education"">&Eacute;ducation</A> - <A HREF=""/feed?cat=movies"">Films</A> - <B>Podcasts</B> - <A HREF=""/feed?cat=news"">Nouvelles</A> - <A HREF=""/feed?cat=entertainment"">Divertissement</A></CENTER></P>")
+                                            Case "cat=news"
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Nouvelles du moment</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><A HREF=""/feed"">Index</A> - <A HREF=""/feed?cat=music"">Musique</A> - <A HREF=""/feed?cat=sports"">Sports</A> - <A HREF=""/feed?cat=gaming"">Gaming</A> - <A HREF=""/feed?cat=education"">&Eacute;ducation</A> - <A HREF=""/feed?cat=movies"">Films</A> - <A HREF=""/feed?cat=podcasts"">Podcasts</A> - <B>Nouvelles</B> - <A HREF=""/feed?cat=entertainment"">Divertissement</A></CENTER></P>")
+                                            Case "cat=entertainment"
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Catégorie divertissement</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><A HREF=""/feed"">Index</A> - <A HREF=""/feed?cat=music"">Musique</A> - <A HREF=""/feed?cat=sports"">Sports</A> - <A HREF=""/feed?cat=gaming"">Gaming</A> - <A HREF=""/feed?cat=education"">&Eacute;ducation</A> - <A HREF=""/feed?cat=movies"">Films</A> - <A HREF=""/feed?cat=podcasts"">Podcasts</A> - <A HREF=""/feed?cat=news"">Nouvelles</A> - <B>Divertissement</B></CENTER></P>")
+                                            Case Else
+                                                patternpage.AppendLine("<CENTER><P ALIGN=CENTER CLASS=""black_label""><FONT SIZE=4><B>Index du serveur</B></FONT></P></CENTER><BR>")
+                                                patternpage.AppendLine("<CENTER><P><B>Index</B> - <A HREF=""/feed?cat=music"">Musique</A> - <A HREF=""/feed?cat=sports"">Sports</A> - <A HREF=""/feed?cat=gaming"">Gaming</A> - <A HREF=""/feed?cat=education"">&Eacute;ducation</A> - <A HREF=""/feed?cat=movies"">Films</A> - <A HREF=""/feed?cat=podcasts"">Podcasts</A> - <A HREF=""/feed?cat=news"">Nouvelles</A> - <A HREF=""/feed?cat=entertainment"">Divertissement</A></CENTER></P>")
+                                        End Select
+
+                                        patternpage.AppendLine("<BR><BR>")
+                                        patternpage.AppendLine("  <CENTER><TABLE BORDER=0 CELLPADDING=8 CELLSPACING=0 WIDTH=600 ALIGN=CENTER>")
+                                        patternpage.AppendLine(" <TR>")
+
+                                        Dim vc As Integer = 0
+
+                                        For Each line In lines
+
+                                            line = line.Replace(vbLf, String.Empty)
+                                            line = line.Replace(vbCr, String.Empty)
+                                            If line.EndsWith("<|>") Then line = line.Substring(0, line.Length - 3)
+
+                                            Dim parts As String() = line.Split(New String() {"<|>"}, StringSplitOptions.None)
+
+                                            For i As Integer = 0 To parts.Length - 1
+                                                For j As Integer = 0 To &H1F
+                                                    parts(i) = parts(i).Replace(Chr(j), String.Empty)
+                                                Next
+                                            Next
+
+                                            If parts.Length = 13 Then
+                                                Dim id As String = parts(0)
+                                                Dim title As String = parts(1)
+                                                Dim tmp_prop As New VideoProperties
+                                                title = CleanText(title)
+
+                                                tmp_prop.Title = CleanText(parts(1))
+
+                                                tmp_prop.ID = parts(0)
+                                                tmp_prop.Views = IIf(LCase(parts(2)) = "na", "0", GetThousands(parts(2)))
+                                                tmp_prop.DateOfRelease = GetDate(parts(3))
+                                                tmp_prop.Creator = CleanText(parts(4))
+                                                tmp_prop.Thumbnail = parts(5)
+                                                tmp_prop.Channel_URL = "/channel.cgi?id=" & CleanText(parts(10))
+                                                tmp_prop.Like_Count = parts(11)
+                                                tmp_prop.Dislike_Count = parts(12)
+
+                                                If LCase(parts(6)) = "na" Then
+                                                    tmp_prop.Duration = -1
+                                                Else
+                                                    tmp_prop.Duration = CInt(parts(6))
+                                                End If
+
+                                                tmp_prop.Dimensions = IIf(IsNumeric(parts(7)), parts(7), "640") & ":" & IIf(IsNumeric(parts(8)), parts(8), "480")
+
+                                                tmp_prop.Description = IIf(String.IsNullOrEmpty(parts(9)), "<I>Aucune description disponible.</I>", EscapeHtml(CleanText(parts(9))))
+                                                If tmp_prop.Description.Length > 2048 Then tmp_prop.Description = tmp_prop.Description.Substring(0, 2048) & "..."
+                                                tmp_prop.Description = tmp_prop.Description.Replace(vbCrLf, "<BR>")
+                                                tmp_prop.Description = tmp_prop.Description.Replace(vbCr, "<BR>")
+                                                tmp_prop.Description = tmp_prop.Description.Replace(vbLf, "<BR>")
+                                                tmp_prop.DateAdded = Now
+
+                                                SyncLock video_props
+                                                    If Not video_props.ContainsKey(id) Then
+                                                        Try
+                                                            If video_props.Count > 1000 Then
+                                                                Do Until video_props.Count = 1000
+                                                                    video_props.Remove(video_props.Keys(0))
+                                                                Loop
+                                                            End If
+
+                                                            video_props.Add(id, tmp_prop)
+                                                        Catch ex As Exception
+
+                                                        End Try
+                                                    End If
+                                                End SyncLock
+
+                                                vc += 1
+
+                                                'Affichage d'une ligne dans les recherches, sous la forme d'une miniature accompagnée de quelques métadonnées.
+                                                patternpage.AppendLine("  <TD WIDTH=160 VALIGN=TOP CLASS=""survol"">")
+                                                patternpage.AppendLine("   <CENTER><A HREF=""/watch?v=" & tmp_prop.ID & """><IMG SRC=""/getpic.cgi?url=" & Uri.EscapeDataString(tmp_prop.Thumbnail) & "&amp;type=thumbnail&amp;duration=" & GetDuration(tmp_prop.Duration).Replace(":", "_") & """ ALT=""" & tmp_prop.ID & """ BORDER=0 WIDTH=160 HEIGHT=100 CLASS=""thumbstyle"" /></A></CENTER>")
+                                                patternpage.Append("   <P><A HREF=""/watch?v=" & tmp_prop.ID & """>" & tmp_prop.Title & "</A>")
+                                                If display_stream_button And Not String.IsNullOrEmpty(tmp_prop.ID) Then patternpage.Append(" <A HREF=""/stream?v=" & tmp_prop.ID & """><IMG SRC=""playbtn.gif"" BORDER=0 ALT=""Flux direct"" /></A>")
+                                                patternpage.AppendLine()
+                                                patternpage.AppendLine("   <BR>Vidéo publiée par <A HREF=""" & tmp_prop.Channel_URL & """>" & tmp_prop.Creator & "</A><BR>" & tmp_prop.Views.Replace(" ", "&nbsp;") & " vue(s)</P>")
+                                                patternpage.AppendLine("  </TD>")
+                                                If (vc Mod 3 = 0) Then patternpage.AppendLine(" </TR>" & vbCrLf & vbCrLf & " <TR>")
+                                            End If
+                                        Next
+
+                                        patternpage = New StringBuilder(patternpage.ToString.Substring(0, patternpage.Length - 6))
+                                        patternpage.AppendLine("</TABLE></CENTER>")
+                                    End If
+                                End If
+
+                                patternpage.AppendLine("<BR><BR>" & footer)
+
+                                'Envoi du résultat à l'utilisateur via une réponse HTTP favorable.
+                                Dim req_resp As String =
+                                    "HTTP/" & http_ver & " 200 OK" & vbCrLf &
+                                    "Content-Type: text/html; charset=iso-8859-1" & vbCrLf &
+                                    "Content-Length: " & iso.GetBytes(patternpage.ToString).Length.ToString & vbCrLf &
+                                    "Connection: close" & vbCrLf &
+                                    "Accept-Ranges: bytes" & vbCrLf & vbCrLf & patternpage.ToString
+
+                                'Conversion en octets, suivant le format ISO-8859-1.
+                                Dim req_data As Byte() = iso.GetBytes(req_resp)
+
+                                Try
+                                    'Ecriture dans le flux octal en direction du client.
+                                    stream.Write(req_data, 0, req_data.Length)
+                                Catch ex As Exception
+                                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                                End Try
+
+                                client.Close()
+                            Else
+                                Dim notfound_data As Byte() = GetHTTPBytes(500, "<H1>Erreur 500 - Erreur interne du serveur</H1>" & vbCrLf & "<P>Le serveur proxy n'est pas connecté à Internet, ainsi, la requête ne peut pas être satisfaite.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour revenir à la page d'index.</P>" & vbCrLf)
+
+                                Try
+                                    stream.Write(notfound_data, 0, notfound_data.Length)
+                                Catch ex As Exception
+                                    WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                                End Try
+
+                                client.Close()
+                            End If
+                        End If
+                    Case "yt_logo2.gif", "yt_logo.gif", "yt_modrn.gif", "yt_dark.gif", "yt_rose.gif", "yt_aqua.gif", "yt_mono.gif", "yt_mint.gif", "yt_gold.gif", "cosmic.gif", "playbtn.gif", "th_up.gif", "th_down.gif", "playhead.gif", "s_ena_up.gif", "s_dis_up.gif", "s_ena_dw.gif", "s_dis_dw.gif", "s_dis_ms.gif", "s_ena_ms.gif", "s_stream.gif"
                         'Les logos RetroYT, qui font penser à ceux de YouTube, sont mis au format GIF pour garantir une compatibilité maximale avec les navigateurs anciens.
                         'Aussi cosmic.gif.
 
@@ -6450,6 +6955,39 @@ Module Program
                         fs.Close()
                         client.Close()
                         'WriteLog("Ressource '" & arg & "' trouvée et envoyée! (Code HTTP 200)")
+                    Case "picplay.jpg", "picshort.jpg"
+                        sent_res &= "Content-Type: image/jpeg" & vbCrLf
+                        sent_res &= "Connection: close" & vbCrLf
+                        sent_res &= "Cache-Control: max-age=86400" & vbCrLf
+                        sent_res &= "Content-Length: " & FileLen(CurDir() & "\resfiles\" & arg_o).ToString & vbCrLf & vbCrLf
+                        sent_data = iso.GetBytes(sent_res)
+
+                        Try
+                            stream.Write(sent_data, 0, sent_data.Length)
+                        Catch ex As Exception
+                            WriteLog("Erreur lors de l'envoi de la réponse au client: " & ex.Message, ConsoleColor.Red)
+                            client.Close()
+                            Exit Sub
+                        End Try
+
+                        fs = New System.IO.FileStream(CurDir() & "\resfiles\" & arg_o, IO.FileMode.Open, IO.FileAccess.Read)
+
+                        Do
+                            resread = fs.Read(resBuffer, 0, resBuffer.Length)
+                            If resread = 0 Then Exit Do
+
+                            Try
+                                stream.Write(resBuffer, 0, resread)
+                            Catch ex As Exception
+                                WriteLog("Erreur lors de l'envoi du fichier au client: " & ex.Message, ConsoleColor.Red)
+                                fs.Close()
+                                client.Close()
+                                Exit Sub
+                            End Try
+                        Loop
+
+                        fs.Close()
+                        client.Close()
                     Case "btn_grad.png", "hot_grad.png", "btn_pink.png", "hot_pink.png", "hot_aqua.png", "btn_aqua.png", "btn_mint.png", "hot_mint.png", "btn_gold.png", "hot_gold.png"
                         sent_res &= "Content-Type: image/png" & vbCrLf
                         sent_res &= "Connection: close" & vbCrLf
@@ -6589,17 +7127,27 @@ Module Program
 
                         sent_css &= ".thumbstyle {" & vbCrLf
                         sent_css &= " border-radius: 4px;" & vbCrLf
+                        sent_css &= " display: block;" & vbCrLf
                         sent_css &= " width: 160px;" & vbCrLf
                         sent_css &= " height: 100px;" & vbCrLf
                         sent_css &= " background-color: black;" & vbCrLf
                         sent_css &= "}" & vbCrLf & vbCrLf
 
-                        'sent_css &= ".thumbshort {" & vbCrLf
-                        'sent_css &= " border-radius: 4px;" & vbCrLf
-                        'sent_css &= " width: 100px;" & vbCrLf
-                        'sent_css &= " height: 180px;" & vbCrLf
-                        'sent_css &= " background-color: black;" & vbCrLf
-                        'sent_css &= "}" & vbCrLf & vbCrLf
+                        sent_css &= "h1 {" & vbCrLf
+                        sent_css &= " font-size: 24px;" & vbCrLf
+                        sent_css &= "}" & vbCrLf & vbCrLf
+
+                        sent_css &= "h2 {" & vbCrLf
+                        sent_css &= " font-size: 18px;" & vbCrLf
+                        sent_css &= "}" & vbCrLf & vbCrLf
+
+                        sent_css &= ".thumbshort {" & vbCrLf
+                        sent_css &= " border-radius: 4px;" & vbCrLf
+                        sent_css &= " display: block;" & vbCrLf
+                        sent_css &= " width: 100px;" & vbCrLf
+                        sent_css &= " height: 180px;" & vbCrLf
+                        sent_css &= " background-color: black;" & vbCrLf
+                        sent_css &= "}" & vbCrLf & vbCrLf
 
                         sent_css &= "a {" & vbCrLf
 
@@ -6761,7 +7309,7 @@ Module Program
                         WriteLog("Page de débug rendue au client.", , client)
                         Dim sent_page As String = "<HTML>" & vbCrLf & " <HEAD><TITLE>Debug display</TITLE><STYLE>html, body { line-height: 24px; }</STYLE></HEAD>" & vbCrLf & " <BODY>" & vbCrLf
 
-                        sent_page &= "<BR><CENTER><A HREF=""/"">Retour à l'index</A> - <A HREF=""/config.cgi"">Paramètres du client</A> - <A HREF=""/about.htm"">Informations sur RetroYT</A></CENTER><BR><BR>" & vbCrLf
+                        sent_page &= "<BR><CENTER><A HREF=""/feed"">Retour à l'index</A> - <A HREF=""/config.cgi"">Paramètres du client</A> - <A HREF=""/about.htm"">Informations sur RetroYT</A></CENTER><BR><BR>" & vbCrLf
 
                         sent_page &= "<B>Ressources picturales utilisées par le serveur:</B><BR>" & vbCrLf
 
@@ -6862,6 +7410,24 @@ Module Program
                         Next
 
                         sent_page &= "<BR>" & vbCrLf
+
+                        sent_page &= "<B>Taille verticale du lecteur (pour les vidéos de type short):</B> "
+
+                        Select Case player_vsize
+                            Case "vert0"
+                                sent_page &= "Micro (144x256)"
+                            Case "vert1"
+                                sent_page &= "Petite (270x480)"
+                            Case "vert2"
+                                sent_page &= "Moyenne (360x640)"
+                            Case "vert3"
+                                sent_page &= "Grande (720x1280)"
+                            Case Else
+                                sent_page &= "&lt;Taille inconnue &gt;"
+                        End Select
+
+                        sent_page &= "<BR>" & vbCrLf
+
                         sent_page &= "<B>Nombre d'images par seconde:</B> "
 
                         If frame_rate = "auto" Then
@@ -6906,8 +7472,6 @@ Module Program
 
                         sent_page &= "<B>Empêcher la lecture des vidéos longues (plus d'une heure):</B> " & forbid_long_vids.ToString & "<BR>" & vbCrLf
 
-                        sent_page &= "<B>Serveur démarré depuis le " & up_since.ToLongDateString & " à " & up_since.ToLongTimeString & "</B>.<BR>" & vbCrLf
-
                         If IO.Directory.Exists(CurDir() & "\emojis") Then
                             sent_page &= "<B>Emojis intégrés à l'application:</B><BR>"
                             For Each f As String In IO.Directory.GetFiles(CurDir() & "\emojis")
@@ -6916,8 +7480,10 @@ Module Program
                                     sent_page &= "<IMG SRC=""/" & final_path & """ ALT=""" & final_path & """ />&nbsp;"
                                 End If
                             Next
-                            sent_page &= vbCrLf & "<BR><BR>"
+                            sent_page &= vbCrLf & "<BR>"
                         End If
+
+                        sent_page &= "<B>Serveur démarré depuis le " & up_since.ToLongDateString & " à " & up_since.ToLongTimeString & "</B>.<BR><BR>" & vbCrLf
 
                         sent_page &= vbCrLf & "</BODY></HTML>" & vbCrLf & vbCrLf
 
@@ -7032,7 +7598,7 @@ Module Program
 
                         WriteLog("Ressource demandée introuvable: " & arg_o, , client)
 
-                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Le fichier '<I>/" & arg_o & "</I>' n'a pas été trouvé sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
+                        Dim notfound_data As Byte() = GetHTTPBytes(404, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 404 - Ressource introuvable</H1>" & vbCrLf & "<P>Le fichier '<I>/" & arg_o & "</I>' n'a pas été trouvé sur ce serveur.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à la page d'index.</P>" & vbCrLf)
 
                         Try
                             stream.Write(notfound_data, 0, notfound_data.Length)
@@ -7045,12 +7611,11 @@ Module Program
                         client.Close()
                 End Select
             End If
-
         Else
             'Les autres requêtes entraînent une erreur 400 (requête invalide).
             WriteLog("Erreur HTTP #400: Requête erronée envoyée.", , client)
 
-            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Requête HTTP invalide ou malformée.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
+            Dim baddata As Byte() = GetHTTPBytes(400, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 400 - Requête erronée</H1>" & vbCrLf & "<P>Requête HTTP invalide ou malformée.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/feed"">ici</A> pour retourner à l'index.</P>" & vbCrLf)
 
             Try
                 stream.Write(baddata, 0, baddata.Length)
