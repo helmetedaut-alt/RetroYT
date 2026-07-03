@@ -1845,8 +1845,8 @@ Module Program
                 watcharg = watcharg.Remove(0, 9)
                 vt = RequestVideoType.ShortVideo
 
-                If used_codec = "avi_msvideo1" Or used_codec = "avi_cinepak" Or used_codec = "mov_cinepak" Or used_codec = "mpeg1" Then
-                    Dim baddata As Byte() = GetHTTPBytes(503, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 503 - Service indisponible</H1>" & vbCrLf & "<P>La lecture des vidéos dites ""short"", qui sont au format vertical, est indisponible avec le codec vidéo <I>'" & used_codec & "'</I>.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/config.cgi"">ici</A> pour naviguer sur le panneau de configuration, et changer de codec vidéo.</P>" & vbCrLf)
+                If used_codec = "mpeg1" Then
+                    Dim baddata As Byte() = GetHTTPBytes(503, "<TITLE>RetroYT - Erreur</TITLE><H1>Erreur 503 - Service indisponible</H1>" & vbCrLf & "<P>La lecture des vidéos dites ""short"", qui sont au format vertical, est indisponible avec le codec vidéo MPEG-1 dit 100% compatible.<BR><BR>" & vbCrLf & "Cliquez <A HREF=""/config.cgi"">ici</A> pour naviguer sur le panneau de configuration, et changer de codec vidéo.</P>" & vbCrLf)
 
                     Try
                         stream.Write(baddata, 0, baddata.Length)
@@ -2272,189 +2272,237 @@ Module Program
                                 'Codec vidéo MPEG-1, audio MP2 (100% compatible)
                                 num_used_resolution = 240
                                 WriteLog("Conversion du fichier vidéo vers le format MPEG (Configuration 100% compatible)...")
-                                WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution 240p @ " & num_frame_rate.ToString & " utilisée.")
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=352:240 -r 30000/1001 -c:v mpeg1video -b:v 1150k -maxrate 1150k -minrate 1150k -bufsize 327680 -c:a mp2 -b:a 96k -ar 44100 -ac 2 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "recent_mpeg1"
                                 'Codec vidéo MPEG-1, audio MP2
                                 WriteLog("Conversion du fichier vidéo vers le format MPEG (Codec vidéo MPEG-1, codec audio MP2)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -c:v mpeg1video -vf scale=-2:" & used_resolution & " -bufsize 442k -maxrate 50000k -q:v 7 -c:a mp2 -b:a 192k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "avi_mpeg4"
                                 WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo MPEG-4, codec audio MP3)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 'Format AVI encodé avec MPEG-4 (codec vidéo assez fonctionnel et compatible avec les systèmes Windows), et MP3.
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "avi_yuv"
                                 'Format AVI YUV (sans codec) avec PCM
                                 WriteLog("Conversion du fichier vidéo vers le format AVI (Vidéo YUV, codec audio PCM)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
-                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v rawvideo -pix_fmt yuyv422 -vtag YUY2 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 256p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -r " & num_frame_rate.ToString & " -c:v rawvideo -pix_fmt yuyv422 -vtag YUY2 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                Else
+                                    WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v rawvideo -pix_fmt yuyv422 -vtag YUY2 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                End If
                             Case "wmv2"
                                 WriteLog("Conversion du fichier vidéo vers le format WMV [Nouveau] (Codec vidéo WMV2, codec audio WMAv2)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 'Format WMV, très utilisé sous Windows, depuis Windows 98. Codec WMV2 et WMAv2
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv2 -b:v 800k -c:a wmav2 -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "wmv1"
                                 'Format WMV ancien, codec WMV2, audio WMAv1.
                                 WriteLog("Conversion du fichier vidéo vers le format WMV [Ancien] (Codec vidéo WMV1, codec audio WMAv1)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v wmv1 -b:v 500k -c:a wmav1 -b:a 128k -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "rm"
                                 WriteLog("Conversion du fichier vidéo vers le format RealMedia (Codec vidéo RV10, codec audio AC3)...")
                                 'Format Real Media (code par Le Jarb aidé de Léo AI). A permis de faire fonctionner la lecture intégrée sous IE 3.0 et Windows 3.11.
                                 'Codec vidéo RV10 et audio AC3
                                 If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 256p @ " & num_frame_rate.ToString & " utilisée.")
                                     'Une seule résolution, la seule réellement compatible 9:16 et qui soit multiple de 16, la plus "époque", les autres résolutions trouvées déformaient le ratio.
                                     op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 Else
                                     If num_used_resolution <= 120 Then
-                                        WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
+                                        WriteLog("Résolution 120p @ " & num_frame_rate.ToString & " utilisée.")
                                         op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:128 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                     ElseIf num_used_resolution = 144 Then
-                                        WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
+                                        WriteLog("Résolution 144p @ " & num_frame_rate.ToString & " utilisée.")
                                         op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                     ElseIf num_used_resolution = 240 Then
-                                        WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
+                                        WriteLog("Résolution 240p @ " & num_frame_rate.ToString & " utilisée.")
                                         op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                     Else
-                                        WriteLog("Résolution 360p @ " & frame_rate.ToString & " utilisée.")
+                                        WriteLog("Résolution 360p @ " & num_frame_rate.ToString & " utilisée.")
                                         op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=480:360 -c:a ac3 -r " & num_frame_rate.ToString & " -c:v rv10 -b:v 640k -b:a 64k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                     End If
                                 End If
                             Case "3gp"
                                 'Format 3GP (pour les vieux mobiles Nokia, SONY, etc.), codec vidéo H.263, audio AMR-NB
                                 WriteLog("Conversion du fichier vidéo vers le format 3GP (Codec vidéo H.263, codec audio AMR-NB)...")
-                                Select Case num_used_resolution
-                                    Case 96
-                                        WriteLog("Résolution 96p @ " & frame_rate.ToString & " utilisée.")
-                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=128:96 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                    Case 120, 144
-                                        WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
-                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=176:144 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                    Case Else '240p compris
-                                        WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
-                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=352:288 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                End Select
+                                If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 176p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:176 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                Else
+                                    Select Case num_used_resolution
+                                        Case 96
+                                            WriteLog("Résolution 96p @ " & num_frame_rate.ToString & " utilisée.")
+                                            op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=128:96 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                        Case 120, 144
+                                            WriteLog("Résolution 144p @ " & num_frame_rate.ToString & " utilisée.")
+                                            op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=176:144 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                        Case Else '240p compris
+                                            WriteLog("Résolution 240p @ " & num_frame_rate.ToString & " utilisée.")
+                                            op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=352:288 -r " & num_frame_rate.ToString & " -c:v h263 -b:v 128k -c:a libopencore_amrnb -b:a 12.2k -ar 8000 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    End Select
+                                End If
                             Case "mov_cinepak"
                                 WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo Cinepak, codec audio PCM)...")
                                 'Format QuickTime (codec vidéo Cinepak, fortement utilisé dans les années 1990, et PCM pour l'audio)
-                                If num_used_resolution <= 120 Then
-                                    WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                ElseIf num_used_resolution = 144 Then
-                                    WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 256p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 Else
-                                    WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    If num_used_resolution <= 120 Then
+                                        WriteLog("Résolution 120p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 144 Then
+                                        WriteLog("Résolution 144p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    Else
+                                        WriteLog("Résolution 240p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    End If
                                 End If
                             Case "mov_svq1"
                                 WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo Sorenson SVQ1, codec audio PCM)...")
                                 'Format QuickTime (codec vidéo Sorenson SVQ1, surtout utilisé dans les années 2000, et codec audio MP3)
                                 If num_used_resolution >= 720 Then num_used_resolution = 480 'HQ indisponible
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v svq1 -q:v 3 -c:a libmp3lame -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "mov_mpeg4"
                                 'Format QuickTime (codec vidéo MPEG-4, audio MP3)
                                 If num_used_resolution >= 720 Then num_used_resolution = 480 'Bridé à 480p
                                 WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo MPEG-4, codec audio MP3)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mpeg4 -b:v 500k -c:a libmp3lame -b:a 128k -ar 44100 -ac 2 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "mov_mjpeg"
                                 'Format QuickTime, encodé MJPEG et PCM
                                 If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
                                 WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo MJPEG, codec audio PCM)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
-                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 256p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                Else
+                                    WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                End If
                             Case "mov_rpza"
                                 WriteLog("Conversion du fichier vidéo vers le format Apple QuickTime (Codec vidéo RPZA, codec audio PCM)...")
                                 'Format QuickTime (codec vidéo RPZA, format très Apple des années 1990, et PCM pour l'audio)
-                                If num_used_resolution <= 120 Then
-                                    WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                ElseIf num_used_resolution = 144 Then
-                                    WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 256p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 Else
-                                    WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    If num_used_resolution <= 120 Then
+                                        WriteLog("Résolution 120p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 144 Then
+                                        WriteLog("Résolution 144p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    Else
+                                        WriteLog("Résolution 240p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v rpza -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    End If
                                 End If
                             Case "avi_mjpeg"
                                 'Format AVI encodé avec MJPEG et PCM
                                 If num_used_resolution > 480 Then num_used_resolution = 480 'Bridé à 480p
                                 WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo MJPEG, codec audio PCM)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
-                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 256p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                Else
+                                    WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v mjpeg -q:v 4 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                End If
                             Case "avi_msvideo1"
                                 WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo MSVideo1, codec audio PCM)...")
                                 'Format AVI encodé avec Microsoft Video 1 (fonctionne en pratique sous toutes les versions de Windows, y compris Windows 3.11, surtout puisqu'il accompagné du codec audio PCM).
-                                If num_used_resolution <= 120 Then
-                                    WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                ElseIf num_used_resolution = 144 Then
-                                    WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                ElseIf num_used_resolution = 240 Then
-                                    WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                ElseIf num_used_resolution = 360 Then
-                                    WriteLog("Résolution 360p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=480:360 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 256p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                                 Else
-                                    WriteLog("Résolution 480p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=640:480 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    If num_used_resolution <= 120 Then
+                                        WriteLog("Résolution 120p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 144 Then
+                                        WriteLog("Résolution 144p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 240 Then
+                                        WriteLog("Résolution 240p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 360 Then
+                                        WriteLog("Résolution 360p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=480:360 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    Else
+                                        WriteLog("Résolution 480p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=640:480 -r " & num_frame_rate.ToString & " -c:v msvideo1 -q:v 3 -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    End If
                                 End If
                             Case "avi_cinepak"
                                 'Cinepak version AVI, audio PCM
                                 WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo Cinepak, codec audio PCM)...")
                                 'Format AVI encodé avec Cinepak (codec répandu dans les années 90, et pris en charge par Windows 3.11, surtout accompagné du codec audio PCM).
-                                If num_used_resolution <= 120 Then
-                                    WriteLog("Résolution 120p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                ElseIf num_used_resolution = 144 Then
-                                    WriteLog("Résolution 144p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
-                                ElseIf num_used_resolution = 240 Then
-                                    WriteLog("Résolution 240p @ " & frame_rate.ToString & " utilisée.")
-                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+
+                                If vt = RequestVideoType.ShortVideo Then
+                                    WriteLog("Résolution 256p @ " & num_frame_rate.ToString & " utilisée.")
+                                    op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=144:256 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                Else
+                                    If num_used_resolution <= 120 Then
+                                        WriteLog("Résolution 120p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=160:120 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 144 Then
+                                        WriteLog("Résolution 144p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=256:144 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    ElseIf num_used_resolution = 240 Then
+                                        WriteLog("Résolution 240p @ " & num_frame_rate.ToString & " utilisée.")
+                                        op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=320:240 -r " & num_frame_rate.ToString & " -c:v cinepak -c:a pcm_s16le -ar 44100 -ac 1 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                    End If
                                 End If
                             Case "mp4"
                                 'Format MP4 - Codec vidéo: H.264, codec audio: AAC, avec le format pixel forcé à YUV420P pour éviter les erreurs d'affichage sur les vieux lecteurs. Baseline et level 3.0 avec pour rendre compatible avec les vieux lecteurs Android.
                                 WriteLog("Conversion du fichier vidéo vers le format MP4 (Codec vidéo H.264, codec audio AAC)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 192k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "legacy_mp4"
                                 'Format MP4 - Adapté aux anciens Android
                                 WriteLog("Conversion du fichier vidéo vers le format MP4 (Profil adapté aux vieux lecteurs)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
-                                Dim target_height As Integer = num_used_resolution
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
 
-                                'Calcul largeur 4:3 finale
-                                Dim target_width As Integer = CInt((target_height / 3) * 4)
+                                op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libx264 -preset fast -crf 23 -profile:v baseline -level 3.0 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k -ar 44100 -ac 2 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                'Dim target_height As Integer = num_used_resolution
 
-                                'Hauteur réelle vidéo (16:9 conservé)
-                                Dim inner_height As Integer = CInt(target_height * 0.75)
+                                ''Calcul largeur 4:3 finale
+                                'Dim target_width As Integer = CInt((target_height / 3) * 4)
 
-                                'Force dimensions paires pour H264
-                                If inner_height Mod 2 <> 0 Then inner_height -= 1
-                                If target_width Mod 2 <> 0 Then target_width -= 1
-                                If target_height Mod 2 <> 0 Then target_height -= 1
+                                ''Hauteur réelle vidéo (16:9 conservé)
+                                'Dim inner_height As Integer = CInt(target_height * 0.75)
 
-                                Dim vf_arg As String = """scale=-2:" & inner_height.ToString & ",pad=" & target_width.ToString & ":" & target_height.ToString & ":(ow-iw)/2:(oh-ih)/2"""
-                                op_conv_video = LaunchProcess("-i """ & destfile & """ " & "-vf " & vf_arg & " " & "-r " & num_frame_rate & " -c:v libx264 -preset fast -crf 23 -profile:v baseline -level 3.0 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k -ar 44100 -ac 2 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
+                                ''Force dimensions paires pour H264
+                                'If inner_height Mod 2 <> 0 Then inner_height -= 1
+                                'If target_width Mod 2 <> 0 Then target_width -= 1
+                                'If target_height Mod 2 <> 0 Then target_height -= 1
+
+                                'Dim vf_arg As String = """scale=-2:" & inner_height.ToString & ",pad=" & target_width.ToString & ":" & target_height.ToString & ":(ow-iw)/2:(oh-ih)/2"""
+                                'op_conv_video = LaunchProcess("-i """ & destfile & """ " & "-vf " & vf_arg & " " & "-r " & num_frame_rate & " -c:v libx264 -preset fast -crf 23 -profile:v baseline -level 3.0 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k -ar 44100 -ac 2 """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "xvid"
                                 'Format Xvid, avec le conteneur AVI, et le codec audio MP3
                                 WriteLog("Conversion du fichier vidéo vers le format AVI (Codec vidéo Xvid, codec audio MP3)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v libxvid -qscale:v 3 -vtag xvid -c:a libmp3lame -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case "flv"
                                 'Format FLV (Codec vidéo Sorenson Spark, audio MP3) [Macromedia Flash Video]
                                 WriteLog("Conversion du fichier vidéo vers le format vidéo Flash (Codec vidéo Sorenson Spark, codec audio MP3)...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v flv -b:v 500k -c:a libmp3lame -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                             Case Else
                                 WriteLog("Aucun format de destination valide, usage d'un profil par défaut...")
-                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & frame_rate.ToString & " utilisée.")
+                                WriteLog("Résolution " & num_used_resolution.ToString & "p @ " & num_frame_rate.ToString & " utilisée.")
                                 'Par défaut, envoyer du MPEG4.
                                 op_conv_video = LaunchProcess("-i """ & destfile & """ -vf scale=-2:" & num_used_resolution.ToString & " -r " & num_frame_rate.ToString & " -c:v msmpeg4v2 -b:v 500k -c:a mp3 -b:a 128k """ & output_path & """", "ffmpeg.exe", lock_file_output, last_view)
                         End Select
